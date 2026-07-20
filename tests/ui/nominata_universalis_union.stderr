@@ -1,0 +1,5 @@
+error: Only structs and enums can be turned into labelled Universalis.
+ --> tests/ui/nominata_universalis_union.rs:4:7
+  |
+4 | union U {
+  |       ^

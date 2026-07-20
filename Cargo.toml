@@ -1,0 +1,295 @@
+[package]
+name = "ordofp"
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+authors = ["OrdoFP Contributors"]
+description = "OrdoFP: Functional programming in Rust with HList, Disiunctio, GAT traits, Optics, and Monad Transformers"
+license = "Apache-2.0"
+documentation = "https://docs.rs/ordofp"
+repository = "https://github.com/ordokr/ordofp"
+readme = "README.md"
+keywords = ["functional", "hlist", "monad", "optics", "transformers"]
+categories = ["data-structures", "rust-patterns"]
+# Keep machine-local perf tooling and repo docs out of the published tarball.
+exclude = ["/docs", "/scripts", "/tests", "/benches", "/.cargo", "/.github"]
+
+# docs.rs builds default features only by default, which would hide every
+# gated module (async, par, nexus, …) — build docs with everything on.
+[package.metadata.docs.rs]
+all-features = true
+
+[workspace]
+members = ["core", "macros", "laws", "ordofp_bayes", "xtask"]
+# cargo-fuzz crate stays out of the workspace (own resolver/lockfile) so normal
+# `--all-targets` builds never compile libfuzzer; driven via `cargo fuzz`.
+exclude = ["fuzz"]
+# Edition-2024 default; stated explicitly so the dependency resolver is pinned
+# regardless of the root package edition.
+resolver = "3"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Accepted-by-policy pedantic lints: noise for this codebase.
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+doc_markdown = "allow"
+module_name_repetitions = "allow"
+missing_panics_doc = "warn"
+missing_errors_doc = "warn"
+# Accepted-by-policy pedantic lints, round 2:
+# these contradict deliberate design choices rather than flag defects.
+inline_always = "allow"                       # pervasive perf annotation, benchmark-verified
+needless_pass_by_value = "allow"              # move-semantics FP API surface; changing sigs breaks API
+cast_possible_truncation = "allow"            # perf/metrics casts; invariants documented at site
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+float_cmp = "allow"                           # law tests assert bit-exact float behavior
+float_cmp_const = "allow"
+items_after_statements = "allow"              # test-local helper types defined next to use
+match_same_arms = "allow"                     # exhaustive matches kept explicit per variant
+match_wildcard_for_single_variants = "allow"
+ref_option = "allow"                          # &Option<T> in trait sigs mirrors GAT wrapper shapes
+many_single_char_names = "allow"              # HList/tuple impls: a..h bindings are the domain idiom
+similar_names = "allow"
+too_many_lines = "allow"                      # quote!-template derive fns and fused combinators
+# (style) type-level tests assert associated consts — the "constant" is the
+# compile-time computation under test in a dependent/row-types library.
+assertions_on_constants = "allow"
+# Generalizing the HashSet/HashMap typeclass impls over custom hashers would
+# ripple extra type params through the public trait signatures.
+implicit_hasher = "allow"
+# `A` is this codebase's canonical element-type variable (Functor<A>, Monad<A>,
+# …); it positionally collides with std declarations like Vec<T, A: Allocator>.
+mismatching_type_param_order = "allow"
+
+# Shared third-party dependencies, unified here and inherited by members via
+# `<crate>.workspace = true`. Members may add features / `optional = true`;
+# the version (and any default-features choice) is fixed in one place.
+[workspace.dependencies]
+syn = "2"
+quote = "1"
+proc-macro2 = "1"
+# default-features = false drops quickcheck's `use_logging` default, which
+# would otherwise drag env_logger (+ log/regex machinery) into every
+# ordofp_laws consumer. Arbitrary/Gen/quickcheck! are unaffected.
+quickcheck = { version = "1.1.0", default-features = false }
+rand = { version = "0.10.2", default-features = false }
+rayon = "1.12"
+tokio = { version = "1.52" }
+smol = "2.0"
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+serde_json = "1.0.150"
+
+[features]
+default = ["std", "derives", "proc-macros", "Probatum"]
+std = ["alloc", "ordofp_core/std"]
+alloc = ["ordofp_core/alloc"]
+# Opt-in unstable-Rust acceleration (requires a nightly toolchain); identical
+# semantics, better codegen (branch hints, portable_simd kernels).
+nightly = ["ordofp_core/nightly"]
+# Both map to the single macro crate; the facade re-exports only the items
+# belonging to each feature (derives vs. path!/path_type!).
+derives = ["dep:ordofp_macros"]
+proc-macros = ["dep:ordofp_macros"]
+Probatum = ["ordofp_core/Probatum"]
+serde = ["ordofp_core/serde", "dep:serde"]
+Probatum-smallvec = ["Probatum", "ordofp_core/Probatum-smallvec"]
+# Opt-in mimalloc for this repo's own binaries (perf drivers). The library
+# itself never sets a global allocator — the e2e_workload example installs it
+# under this feature.
+alloc-mimalloc = ["dep:mimalloc"]
+
+# Async support features (OrdoFP 2.0)
+# - async: Core async traits (FunctorAsync, MonadAsync) and Futurus type
+# - tokio: Tokio runtime integration with RuntimeGenerare
+# - smol: smol runtime integration (successor to the discontinued async-std)
+# Forwards to ordofp_laws/async too so the async-gated law modules in
+# `tests/algebra_suite/laws_suite.rs` (async_functor_laws, async_monad_laws)
+# build under `cargo test --features async`.
+async = ["ordofp_core/async", "ordofp_laws/async"]
+tokio = ["async", "ordofp_core/tokio", "dep:tokio"]
+smol = ["async", "ordofp_core/smol", "dep:smol"]
+# Back-compat alias for the discontinued async-std runtime (RUSTSEC-2025-0052);
+# selects the smol-backed runtime.
+async-std = ["smol"]
+
+# Stream fusion (FlumenFusus)
+fusion = ["async", "ordofp_core/fusion"]
+
+# ParFlumen (parallel execution)
+par = ["alloc", "ordofp_core/par"]
+rayon = ["par", "ordofp_core/rayon"]
+gpu-wgpu = ["par", "ordofp_core/gpu-wgpu"]
+gpu-buffer-pool = ["par", "gpu-wgpu", "ordofp_core/gpu-buffer-pool"]
+transformers-cps = ["alloc", "ordofp_core/transformers-cps"]
+nexus = ["ordofp_core/nexus"]
+
+# Advanced research modules, gated off-by-default. Each
+# forwards to the same-named core feature, which implies alloc. `async`/`tokio`/
+# `smol` already pull `quantitative` transitively via ordofp_core.
+dependent = ["ordofp_core/dependent"]
+quantitative = ["ordofp_core/quantitative"]
+rows = ["ordofp_core/rows"]
+distributed = ["ordofp_core/distributed"]
+supervision = ["ordofp_core/supervision"]
+ffi = ["ordofp_core/ffi"]
+
+# Linear types (OrdoFP 0.1.0)
+# - linear: Linear type wrappers, resource management, and single-use enforcement
+linear = ["ordofp_core/linear"]
+
+[dependencies]
+ordofp_core = { path = "./core", version = "0.1.0" }
+ordofp_macros = { path = "./macros", version = "0.1.0", optional = true }
+serde = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["rt"] }
+smol = { workspace = true, optional = true }
+mimalloc = { version = "0.1.52", optional = true }
+
+[dev-dependencies]
+# Path-only (no `version`) on purpose: cargo strips path-only dev-dependencies
+# at publish time, which breaks the ordofp <-> ordofp_laws publish cycle.
+ordofp_laws = { path = "./laws" }
+ordofp_bayes = { path = "./ordofp_bayes", features = ["rayon"] }
+quickcheck = { workspace = true }
+rand = { workspace = true, features = ["std", "std_rng"] }
+serde = { workspace = true, default-features = true }
+serde_json = { workspace = true }
+time = "0.3.53"
+criterion = "0.8"
+trybuild = "1.0.117"
+# Mirrors the downstream grade type (rust_decimal) so the grade_aggregation
+# macro-bench measures the real per-call Decimal arithmetic cost, not f64.
+rust_decimal = "1.42"
+
+# Bench suites: formerly-standalone criterion benches grouped by identical
+# required-features into one binary each, to cut the gate's link count.
+
+# Includes the grade_aggregation macro-bench mirroring a production LMS
+# grade-statistics fold (the real downstream Semigroup workload).
+[[bench]]
+name = "alloc_suite"
+path = "benches/alloc_suite/main.rs"
+harness = false
+required-features = ["alloc"]
+
+[[bench]]
+name = "tokio_suite"
+path = "benches/tokio_suite/main.rs"
+harness = false
+required-features = ["tokio"]
+
+[[bench]]
+name = "rayon_suite"
+path = "benches/rayon_suite/main.rs"
+harness = false
+required-features = ["rayon"]
+
+# Includes the grade_validation macro-bench mirroring a production LMS
+# grade-validation path (Probatum multi-error validation — the #1 downstream
+# surface). Run with --features Probatum-smallvec to match the downstream
+# ErrorBuf.
+[[bench]]
+name = "probatum_suite"
+path = "benches/probatum_suite/main.rs"
+harness = false
+required-features = ["Probatum"]
+
+# Explicit [[bench]] entries required: without them libtest autodiscovery
+# compiles these without ever running their criterion_main.
+[[bench]]
+name = "serde"
+harness = false
+required-features = ["serde", "alloc"]
+
+[[bench]]
+name = "scheduler_contention"
+harness = false
+required-features = ["async"]
+
+[[bench]]
+name = "fast_visit_scalar_ref"
+harness = false
+required-features = ["par"]
+
+[[bench]]
+name = "flumen_fusus_terminal"
+harness = false
+required-features = ["fusion"]
+
+[[bench]]
+name = "buffer_pool_bench"
+harness = false
+required-features = ["gpu-buffer-pool", "std"]
+
+[[bench]]
+name = "nexus_benchmarks"
+harness = false
+required-features = ["nexus"]
+
+[[bench]]
+name = "transformers_cps_bench"
+harness = false
+required-features = ["transformers-cps"]
+
+# End-to-end perf drivers: a grade-processing workload modeled on a production
+# LMS. e2e_workload = timed verdict binary (hyperfine/samply/PGO); e2e_allocs =
+# same pipeline under a counting allocator. Probatum-smallvec matches the
+# downstream configuration.
+[[example]]
+name = "e2e_workload"
+required-features = ["std", "Probatum", "Probatum-smallvec"]
+
+[[example]]
+name = "e2e_allocs"
+required-features = ["std", "Probatum", "Probatum-smallvec"]
+
+# =============================================================================
+# Profile Optimizations (Nightly-specific)
+# =============================================================================
+# These profiles leverage nightly Rust features for maximum performance.
+
+[profile.release]
+# Link-Time Optimization - enables whole-program optimization
+# "fat" LTO provides the best optimization at cost of compile time
+lto = "fat"
+# Single codegen unit for maximum optimization opportunities
+# Allows LLVM to optimize across all code at once
+codegen-units = 1
+# Maximum optimization level
+opt-level = 3
+# Strip debug symbols from release builds
+strip = "symbols"
+# Enable debug assertions in release mode for safety (optional, can disable)
+# debug-assertions = false
+# Panic behavior - abort is faster than unwind
+panic = "abort"
+
+[profile.release.build-override]
+# For build scripts, use faster compilation
+opt-level = 0
+codegen-units = 16
+
+[profile.bench]
+# Benchmarks should have full release optimizations
+inherits = "release"
+# But keep debug info for profiling
+debug = true
+strip = "none"
+
+[profile.dev]
+# Development profile - fast compilation
+opt-level = 0
+# More codegen units for faster parallel compilation
+codegen-units = 256
+
+[profile.dev.package."*"]
+# Optimize dependencies even in dev mode for better perf testing
+opt-level = 2

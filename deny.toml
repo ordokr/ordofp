@@ -1,0 +1,41 @@
+# cargo-deny configuration for OrdoFP.
+# Run `cargo deny check` to verify advisories, licenses, bans, and sources.
+
+[graph]
+# Evaluate the whole feature surface (gpu-wgpu, smol, tokio, …).
+all-features = true
+
+[advisories]
+version = 2
+# Fail on RustSec advisories and yanked crates.
+yanked = "deny"
+ignore = []
+
+[licenses]
+version = 2
+# SPDX identifiers permitted in the dependency tree. All are OSI-approved /
+# FSF-libre permissive licenses.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "Unlicense",
+    "BSD-2-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "CC0-1.0",
+]
+confidence-threshold = 0.8
+
+[bans]
+# Duplicate transitive versions are tracked but not fatal — the remaining ones
+# (foldhash, hashbrown, wit-bindgen) are pinned independently inside the
+# wgpu/naga ecosystem and are not under our control.
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

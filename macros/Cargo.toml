@@ -1,0 +1,25 @@
+[package]
+name = "ordofp_macros"
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+authors = ["OrdoFP Contributors"]
+description = "Derive and procedural macros for OrdoFP (Universalis, NominataUniversalis, path!, path_type!)"
+license = "Apache-2.0"
+documentation = "https://docs.rs/ordofp_macros"
+repository = "https://github.com/ordokr/ordofp"
+keywords = ["derive", "macros", "functional", "hlist"]
+categories = ["development-tools::procedural-macro-helpers"]
+
+[lints]
+workspace = true
+
+[lib]
+proc-macro = true
+
+# No ordofp_core dependency: the `::ordofp_core::…` paths in this crate occur
+# only inside quote! token emission, which needs no compile-time link.
+[dependencies]
+syn = { workspace = true }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }

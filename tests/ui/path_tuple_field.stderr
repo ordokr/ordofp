@@ -1,0 +1,5 @@
+error: Tuple field access (`.0`) is not supported in path expressions. Use named struct fields instead.
+ --> tests/ui/path_tuple_field.rs:4:23
+  |
+4 |     let _ = path!(foo.0);
+  |                       ^

@@ -1,0 +1,17 @@
+# Machine-specific cargo configuration — copy to .cargo/config.toml and
+# adjust the paths for your MSVC Build Tools / Windows SDK installation.
+# The real config.toml is gitignored because these absolute paths differ
+# per machine.
+#
+# On a machine where `link.exe` and the SDK libraries are already on PATH/LIB
+# (e.g. a Developer Command Prompt), no config.toml is needed at all — but the
+# [alias] block below is worth copying regardless: it enables `cargo xtask`.
+
+[alias]
+xtask = "run --quiet --package xtask --"
+
+[target.x86_64-pc-windows-msvc]
+linker = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\<version>\\bin\\Hostx64\\x64\\link.exe"
+
+[env]
+LIB = "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\<sdk-version>\\um\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\<sdk-version>\\ucrt\\x64;C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\<version>\\lib\\x64"

@@ -1,0 +1,28 @@
+# Enforce LF line endings for text files across platforms. Without this,
+# Windows editors write CRLF while the remote stores LF — making every line
+# look different to git's line-based 3-way merge and producing spurious
+# whole-file conflicts.
+
+* text=auto eol=lf
+
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.lock text eol=lf
+*.sh text eol=lf
+
+# Binaries — no normalization.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary

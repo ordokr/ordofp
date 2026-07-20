@@ -1,0 +1,5 @@
+error: Path `module :: field` contains `::` separators. Only simple field access chains are supported (e.g., `foo.bar.baz`).
+ --> tests/ui/path_module_sep.rs:4:19
+  |
+4 |     let _ = path!(module::field);
+  |                   ^^^^^^^^^^^^^

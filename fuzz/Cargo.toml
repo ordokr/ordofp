@@ -1,0 +1,52 @@
+[package]
+name = "ordofp-fuzz"
+version = "0.1.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.ordofp]
+path = ".."
+
+[dependencies.ordofp_core]
+path = "../core"
+version = "0.1.0"
+
+[dependencies.ordofp_laws]
+path = "../laws"
+
+[[bin]]
+name = "universalis_convert"
+path = "fuzz_targets/universalis_convert.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "zipper_ops"
+path = "fuzz_targets/zipper_ops.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "nonempty_ops"
+path = "fuzz_targets/nonempty_ops.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "pfds_ops"
+path = "fuzz_targets/pfds_ops.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "algebraic_laws"
+path = "fuzz_targets/algebraic_laws.rs"
+test = false
+doc = false

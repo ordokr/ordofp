@@ -1,0 +1,103 @@
+[package]
+name = "ordofp_core"
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+authors = ["OrdoFP Contributors"]
+description = "OrdoFP core provides developers with HList, Disiunctio, NominataUniversalis, Universalis, and functional type classes"
+license = "Apache-2.0"
+documentation = "https://docs.rs/ordofp_core"
+repository = "https://github.com/ordokr/ordofp"
+keywords = ["functional", "hlist", "typeclasses", "optics", "effects"]
+categories = ["data-structures", "rust-patterns"]
+
+# docs.rs builds default features only by default, which would hide every
+# gated module (async, par, nexus, optics extras, …) — build with everything on.
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = ["serde?/alloc"]
+# Opt-in unstable-Rust acceleration (requires a nightly toolchain): branch
+# prediction hints and portable_simd-backed f32 kernels. Semantics are
+# identical with the feature off; only codegen quality changes.
+nightly = []
+serde = ["dep:serde", "serde?/rc"]
+# Probatum accumulating validation; the smallvec variant swaps the error
+# buffer for a spill-free inline SmallVec (measured-optimal at [E;4]).
+Probatum = ["alloc"]
+Probatum-smallvec = ["Probatum", "dep:smallvec"]
+
+# Async support features
+# - async: Core async traits and Futurus type
+# - tokio: Tokio runtime integration
+# - smol: smol runtime integration (successor to the discontinued async-std)
+async = ["std", "dep:futures-core", "quantitative"]
+tokio = ["async", "dep:tokio"]
+smol = ["async", "dep:smol"]
+# Back-compat alias: async-std was discontinued (RUSTSEC-2025-0052) and the
+# runtime is now backed by smol. The old feature name keeps selecting a runtime.
+async-std = ["smol"]
+
+# Stream fusion (Step/Stream state machine); depends on async primitives.
+fusion = ["async"]
+
+# Linear types (OrdoFP 0.1.0)
+# - linear: Linear type wrappers and resource management
+linear = ["alloc"]
+
+# ParFlumen (parallel execution)
+# - par: bulk data-parallel IR and scalar backend
+# - rayon: optional CPU-parallel backend via Rayon
+# - gpu-wgpu: optional GPU backend via wgpu/WGSL
+par = ["alloc"]
+rayon = ["par", "std", "dep:rayon"]
+gpu-wgpu = ["par", "std", "dep:wgpu", "dep:bytemuck"]
+gpu-buffer-pool = ["gpu-wgpu"]
+transformers-cps = ["alloc"]
+nexus = ["alloc"]
+
+# Advanced research modules, gated off-by-default so they don't compile into
+# every `alloc` build (none have downstream consumers).
+# Each still implies `alloc`. `async` pulls `quantitative` because the effects
+# subsystem (continuation_v2 / handler_multi) uses its multiplicity markers.
+dependent = ["alloc"]
+quantitative = ["alloc"]
+rows = ["alloc"]
+distributed = ["alloc"]
+supervision = ["alloc"]
+# FFI helper scaffolding (C-wrapping); no callers in a pure-FP lib,
+# core-only (no alloc). Off-by-default.
+ffi = []
+
+[dependencies]
+serde = { workspace = true, optional = true, default-features = true }
+futures-core = { version = "0.3", optional = true, default-features = false, features = ["alloc"] }
+tokio = { workspace = true, optional = true, features = ["rt", "time", "macros", "rt-multi-thread"] }
+smol = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
+# NOTE: wgpu requires 'wgsl' for the ShaderSource::Wgsl variant. Backends are
+# enabled per target: dx12 + vulkan on Windows, metal + vulkan on Apple,
+# vulkan on Linux (each backend feature is a no-op on targets it can't build).
+# gles omitted as wgpu-hal had a windows-result compatibility issue with nightly
+# (windows_result::Error: core::error::Error).
+wgpu = { version = "30.0", optional = true, default-features = false, features = ["wgsl", "dx12", "metal", "vulkan"] }
+bytemuck = { version = "1.25", optional = true, features = ["extern_crate_alloc"] }
+smallvec = { version = "1.15", optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+quickcheck = { workspace = true }
+# Adds the "sync" feature to the (unified) tokio dependency for tests only —
+# e.g. tokio::sync::oneshot in core/tests/fibra_cancellation.rs.
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies.ordofp_macros]
+path = "../macros"
+default-features = false
+version = "0.1.0"

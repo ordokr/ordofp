@@ -1,0 +1,11 @@
+[toolchain]
+# Development toolchain for this repo only — pinned nightly so the gate
+# (clippy --all-features, which enables the `nightly` acceleration feature)
+# is reproducible. The published crates build on stable Rust (see
+# `rust-version` in the manifests); users never need this pin.
+channel = "nightly-2026-07-13"
+components = ["rustfmt", "clippy", "rust-src", "llvm-tools-preview"]
+targets = ["x86_64-pc-windows-msvc", "wasm32-unknown-unknown"]
+
+# Profile for optimized builds - enables additional LLVM passes
+profile = "default"

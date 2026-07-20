@@ -1,0 +1,26 @@
+[package]
+name = "ordofp_laws"
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+authors = ["OrdoFP Contributors"]
+description = "Property-based laws testing for OrdoFP type classes including Functor, Monad, and algebraic structures."
+license = "Apache-2.0"
+documentation = "https://docs.rs/ordofp_laws"
+repository = "https://github.com/ordokr/ordofp"
+keywords = ["functional", "laws", "testing", "typeclasses", "quickcheck"]
+categories = ["development-tools::testing"]
+
+[lints]
+workspace = true
+
+[features]
+default = []
+async = ["ordofp/async"]
+
+[dependencies]
+ordofp = { path = "..", version = "0.1.0", default-features = false, features = ["std"] }
+quickcheck = { workspace = true }
+
+[dev-dependencies]
+quickcheck_macros = "1.2"

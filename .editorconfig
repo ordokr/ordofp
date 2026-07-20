@@ -1,0 +1,25 @@
+# Mirrors .gitattributes (LF everywhere) so editors agree with git before
+# rustfmt/the gate ever run. rustfmt owns .rs formatting; this covers
+# everything else.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+[*.{toml,yml,yaml,json}]
+indent_size = 2
+
+[*.ps1]
+indent_size = 4
+
+[*.md]
+# A trailing double-space is a hard line break in markdown — don't strip it.
+trim_trailing_whitespace = false

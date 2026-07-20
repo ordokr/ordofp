@@ -1,0 +1,5 @@
+error: Invalid path expression. Expected a field access chain like `foo.bar.baz`, but found an unsupported expression type.
+ --> tests/ui/path_invalid_expr.rs:6:19
+  |
+6 |     let _ = path!(1 + 2);
+  |                   ^^^^^

@@ -1,0 +1,34 @@
+[package]
+name = "ordofp_bayes"
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+authors = ["OrdoFP Contributors"]
+description = "Standalone probabilistic programming crate (Bayesian inference, SMC, MH) developed alongside OrdoFP"
+license = "Apache-2.0"
+documentation = "https://docs.rs/ordofp_bayes"
+repository = "https://github.com/ordokr/ordofp"
+keywords = ["probabilistic", "bayesian", "inference", "monte-carlo"]
+categories = ["science", "mathematics", "algorithms"]
+
+[lints]
+workspace = true
+
+[features]
+default = ["alloc", "std"]
+alloc = []
+std = ["rand/std", "rand/std_rng"]
+rayon = ["dep:rayon", "std"]
+
+[dependencies]
+rand = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+rand = { workspace = true, features = ["std", "std_rng"] }
+
+[[example]]
+name = "simple_inference"
+path = "examples/simple_inference.rs"
+required-features = ["std"]
