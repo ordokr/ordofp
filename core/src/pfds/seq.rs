@@ -128,7 +128,7 @@ impl<A> Drop for Seq<A> {
         // though the tree is now AVL-balanced (height ≤ 1.44·log₂ n), an
         // explicit work-list keeps teardown provably stack-safe and matches
         // the iterative Drop used elsewhere in `pfds`.
-        let mut work: Vec<Arc<Node<A>>> = Vec::new();
+        let mut work: Vec<Arc<Node<A>>> = Vec::with_capacity(32);
         work.extend(self.root.take());
         while let Some(node) = work.pop() {
             // Only uniquely-owned nodes are dismantled here; a node still

@@ -396,7 +396,7 @@ pub fn partition_results<A, E, F>(operations: &[F]) -> (Vec<A>, Vec<E>)
 where
     F: Fn() -> Result<A, E>,
 {
-    let mut successes = Vec::new();
+    let mut successes = Vec::with_capacity(operations.len());
     let mut errors = Vec::new();
 
     for op in operations {

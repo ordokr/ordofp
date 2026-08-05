@@ -249,7 +249,7 @@ pub fn collect_with_state<A, F>(count: usize, mut collector: F) -> Vec<A>
 where
     F: FnMut(usize, &mut Vec<A>),
 {
-    let mut acc = Vec::new();
+    let mut acc = Vec::with_capacity(count);
     for i in 0..count {
         collector(i, &mut acc);
     }

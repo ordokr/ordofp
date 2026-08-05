@@ -380,7 +380,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
 
     /// Sequential union (fallback for small maps).
     pub fn union(&self, other: &Self) -> Self {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(self.len().saturating_add(other.len()));
         let mut self_iter = self.iter();
         let mut other_iter = other.iter();
 
@@ -438,7 +438,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
 
     /// Sequential intersection (fallback for small maps).
     pub fn intersection(&self, other: &Self) -> Self {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(self.len().min(other.len()));
         let mut self_iter = self.iter();
         let mut other_iter = other.iter();
 
@@ -481,7 +481,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
 
     /// Sequential difference (fallback for small maps).
     pub fn difference(&self, other: &Self) -> Self {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(self.len());
         let mut self_iter = self.iter();
         let mut other_iter = other.iter();
 

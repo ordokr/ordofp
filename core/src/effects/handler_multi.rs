@@ -512,7 +512,7 @@ impl<T: Clone + Send + Sync + 'static, A: 'static> TractatorMulti<ProbabilitasEf
         effect: ProbabilitasEffect<T>,
         continuation: ContinuatioPluries<Self::Input, Self::Output>,
     ) -> Self::Output {
-        let mut all_results = Vec::new();
+        let mut all_results = Vec::with_capacity(effect.weighted.len());
         for (value, weight) in effect.weighted {
             let results = continuation.resume((value, weight));
             // Scale weights by the probability of this branch

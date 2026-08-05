@@ -315,7 +315,9 @@ pub fn partition_results_vec<T, E, I>(iter: I) -> (Vec<T>, Vec<E>)
 where
     I: IntoIterator<Item = Result<T, E>>,
 {
-    let mut successes = Vec::new();
+    let iter = iter.into_iter();
+    let (lower, _) = iter.size_hint();
+    let mut successes = Vec::with_capacity(lower);
     let mut errors = Vec::new();
 
     for result in iter {
@@ -397,7 +399,7 @@ pub fn until_failure<T, E, F>(operations: &[F]) -> Result<Vec<T>, E>
 where
     F: Fn() -> Result<T, E>,
 {
-    let mut results = Vec::new();
+    let mut results = Vec::with_capacity(operations.len());
     for op in operations {
         results.push(op()?);
     }
