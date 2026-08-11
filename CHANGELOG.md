@@ -4,6 +4,34 @@ All notable changes to OrdoFP are documented in this file. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/) with the usual 0.x caveats.
 
+## [Unreleased]
+
+## [0.1.1] - 2026-08-11
+
+### Added
+
+- Public maintenance playbook at `docs/maintenance.md` documenting cadence for
+  dependency/toolchain drift checks, stability signaling, and release hygiene.
+- Maintenance-focused issue template (`.github/ISSUE_TEMPLATE/maintenance.md`)
+  for dependency/toolchain/security/release upkeep work.
+- `xtask maint` local maintenance sweep command (dependency drift dry-run +
+  local gate + semver check).
+
+### Changed
+
+- Documentation index now links the maintenance playbook from `docs/README.md`.
+- `CONTRIBUTING.md` now references the maintenance playbook for maintainers.
+- Maintenance playbook now explicitly codifies local-only CI via `xtask` (no
+  GitHub Actions).
+- `nexus::optim::parallel` now uses a real optional Rayon backend for
+  `par_map`, `par_map_with`, `par_traverse`, `par_traverse_with`,
+  `par_fold`, `par_chunks`, and `ParallelBuilder::map`; non-`rayon` builds
+  keep sequential behavior.
+- Feature-flag docs now include public maturity labels (Mature / Advanced
+  opt-in / Experimental).
+- Toolchain/MSRV wording is now explicit: MSRV is pinned per release and may
+  be raised in minor releases.
+
 ## [0.1.0] - Initial public release
 
 First release on crates.io. OrdoFP began as a fork of
@@ -63,9 +91,9 @@ Exp(1) sampling are implemented in-crate), and `ordofp_laws` pulls
 
 ## Toolchain Policy
 
-OrdoFP builds on stable Rust. The MSRV (`rust-version` in each manifest)
-tracks the **latest stable** at time of release and may be bumped in minor
-releases. The optional `nightly` cargo feature enables unstable-Rust
+OrdoFP builds on stable Rust. The MSRV (`rust-version` in each manifest) is
+pinned per release and may be bumped in minor releases to stay near current
+stable Rust. The optional `nightly` cargo feature enables unstable-Rust
 acceleration (branch-prediction hints, `portable_simd` kernels) with
 identical semantics; the pinned nightly in `rust-toolchain.toml` is the
 repo's development toolchain, not a user requirement.

@@ -2,7 +2,7 @@
 name = "ordofp_macros"
 edition = "2024"
 rust-version = "1.97"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["OrdoFP Contributors"]
 description = "Derive and procedural macros for OrdoFP (Universalis, NominataUniversalis, path!, path_type!)"
 license = "Apache-2.0"

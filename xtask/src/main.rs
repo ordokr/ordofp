@@ -16,6 +16,7 @@
 //! cargo run -p xtask -- pgo [feats] # PGO build of the e2e verdict binary
 //! cargo run -p xtask -- semver      # API-stability diff vs the crates.io baseline
 //! cargo run -p xtask -- deep        # miri + fuzz-smoke (weekly cadence)
+//! cargo run -p xtask -- maint       # local maintenance sweep (drift + all)
 //! ```
 //!
 //! With the `xtask` alias from `.cargo/config.toml.example`, `cargo xtask
@@ -41,13 +42,14 @@ fn main() {
             deny();
             wasm();
         }
+        "maint" => maint(),
         "deep" => {
             miri();
             fuzz_smoke();
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|miri|fuzz-smoke|perf-guard|pgo|semver|all|deep>"
+                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|miri|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
             );
             exit(2);
         }
@@ -126,6 +128,23 @@ fn semver() {
         &["semver-checks", "--workspace"],
         Some("cargo install cargo-semver-checks --locked"),
     );
+}
+
+/// Local-only maintenance sweep:
+/// - dependency drift visibility (`cargo update --dry-run`)
+/// - canonical verification gate (`all`)
+/// - API compatibility check (`semver`)
+fn maint() {
+    run(
+        "dependency drift (workspace dry-run)",
+        &["update", "--workspace", "--dry-run"],
+        None,
+    );
+    gate();
+    stable();
+    deny();
+    wasm();
+    semver();
 }
 
 fn deny() {

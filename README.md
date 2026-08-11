@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Rust: 1.97+](https://img.shields.io/badge/rust-1.97%2B-blue.svg)](https://www.rust-lang.org)
 
-> **Toolchain**: Builds on **stable Rust** (MSRV **1.97**, tracking the latest stable; Edition 2024). The optional `nightly` cargo feature enables unstable-Rust acceleration — branch-prediction hints and `portable_simd` kernels — with identical semantics and better codegen.
+> **Toolchain**: Builds on **stable Rust** (MSRV **1.97**, Edition 2024). MSRV is pinned per release and may be raised in minor releases to stay near current stable Rust. The optional `nightly` cargo feature enables unstable-Rust acceleration — branch-prediction hints and `portable_simd` kernels — with identical semantics and better codegen.
 
 > **Dependencies**: The default build has **zero runtime dependencies** — only the compile-time proc-macro stack (`syn`/`quote`). Everything heavier (serde, tokio/smol, rayon, wgpu) is strictly opt-in behind feature flags.
 
@@ -130,7 +130,7 @@ See [docs/guide.md](docs/guide.md) for detailed usage examples.
 
 ## Component maturity
 
-OrdoFP is at **v0.1.0**. The components below have settled APIs and full test coverage within this repository, but the usual 0.x semver caveats apply.
+OrdoFP is at **v0.1.1**. The components below have settled APIs and full test coverage within this repository, but the usual 0.x semver caveats apply.
 
 | Component | Maturity |
 |-----------|----------|

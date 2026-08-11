@@ -2,7 +2,7 @@
 name = "ordofp"
 edition = "2024"
 rust-version = "1.97"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["OrdoFP Contributors"]
 description = "OrdoFP: Functional programming in Rust with HList, Disiunctio, GAT traits, Optics, and Monad Transformers"
 license = "Apache-2.0"
@@ -141,13 +141,13 @@ distributed = ["ordofp_core/distributed"]
 supervision = ["ordofp_core/supervision"]
 ffi = ["ordofp_core/ffi"]
 
-# Linear types (OrdoFP 0.1.0)
+# Linear types
 # - linear: Linear type wrappers, resource management, and single-use enforcement
 linear = ["ordofp_core/linear"]
 
 [dependencies]
-ordofp_core = { path = "./core", version = "0.1.0" }
-ordofp_macros = { path = "./macros", version = "0.1.0", optional = true }
+ordofp_core = { path = "./core", version = "0.1.1" }
+ordofp_macros = { path = "./macros", version = "0.1.1", optional = true }
 serde = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["rt"] }
 smol = { workspace = true, optional = true }

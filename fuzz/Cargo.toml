@@ -1,6 +1,6 @@
 [package]
 name = "ordofp-fuzz"
-version = "0.1.0"
+version = "0.1.1"
 publish = false
 edition = "2024"
 
@@ -16,7 +16,7 @@ path = ".."
 
 [dependencies.ordofp_core]
 path = "../core"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies.ordofp_laws]
 path = "../laws"

@@ -2,7 +2,7 @@
 name = "ordofp_bayes"
 edition = "2024"
 rust-version = "1.97"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["OrdoFP Contributors"]
 description = "Standalone probabilistic programming crate (Bayesian inference, SMC, MH) developed alongside OrdoFP"
 license = "Apache-2.0"

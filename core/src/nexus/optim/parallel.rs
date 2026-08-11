@@ -4,16 +4,21 @@
 //! to ensure safety. Users must **explicitly opt-in** by calling these
 //! combinators.
 //!
-//! # Current status: sequential
+//! # Current status: backend-aware
 //!
-//! Every combinator in this module executes sequentially on the calling
-//! thread. The `par_*` names and `Send`/`Sync` bounds describe what the
-//! API *permits*; no thread pool is wired in yet. The [`ParallelStrategy`]
-//! parameter is recorded but ignored at runtime. `TODO(parallel-backend)`
-//! markers inside each combinator body mark the insertion points for a
-//! real executor (e.g. `rayon`) behind a Cargo feature.
+//! With the `rayon` Cargo feature enabled, collection-oriented combinators
+//! (`par_map`, `par_map_with`, `par_traverse`, `par_traverse_with`,
+//! `par_fold`, `par_chunks`, and `ParallelBuilder::map`) execute in parallel.
+//! Without `rayon`, all combinators execute sequentially on the calling thread.
 //!
-//! # Safety guarantee (unchanged by sequential execution)
+//! `ParallelStrategy` is honored for strategy-aware entry points:
+//! - `Sequential` runs sequentially.
+//! - `Fixed(n)` runs on a dedicated Rayon thread pool with `n` workers.
+//! - `WorkStealing` uses Rayon global work-stealing execution.
+//! - `Adaptive` uses sequential execution for tiny workloads and Rayon for
+//!   larger workloads.
+//!
+//! # Safety guarantee
 //!
 //! The type system prevents parallel execution of effectful code:
 //! - `par_map` only accepts `Eff<Pure, B>` computations
@@ -37,17 +42,22 @@
 //!
 //! # Limitations
 //!
-//! - **Executes sequentially today.** A real parallel backend (rayon or
-//!   equivalent) is pending and will be added behind a Cargo feature flag.
+//! - Actual parallel execution requires the `rayon` Cargo feature.
 //! - Cannot parallelize across effect handlers.
-//! - No work-stealing or load balancing yet — [`ParallelStrategy`] is an
-//!   API placeholder, not a runtime switch.
+//! - `par_race` still returns the first computation in input order; true
+//!   first-completion racing needs cancellation-aware runtime support.
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use crate::nexus::effect::Eff;
 use crate::nexus::row::{EffectRow, Pure};
+#[cfg(feature = "rayon")]
+use rayon::ThreadPoolBuilder;
+#[cfg(all(feature = "rayon", feature = "std"))]
+use rayon::prelude::IntoParallelRefIterator;
+#[cfg(feature = "rayon")]
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 // =============================================================================
 // Parallel Marker Trait
@@ -68,34 +78,56 @@ impl ParallelSafe for Pure {}
 
 /// Strategy for parallel execution.
 ///
-/// **Sequential-only today:** This enum is currently an API placeholder.
-/// Every combinator that accepts a `ParallelStrategy` records the value but
-/// executes sequentially regardless of which variant is chosen. The variants
-/// exist so that call sites can express intent now and pick up a real
-/// backend (e.g. `rayon`) once it is wired in behind a Cargo feature, with
-/// no source changes required.
+/// Honored by strategy-aware combinators when the `rayon` feature is enabled.
+/// Without `rayon`, all variants degrade to sequential execution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ParallelStrategy {
     /// Sequential execution (no parallelism). This is the only variant whose
-    /// semantics match its name today.
+    /// semantics match its name in all configurations.
     Sequential,
     /// Fixed number of parallel tasks.
     ///
-    /// *Reserved:* Currently treated as sequential; the task count is
-    /// ignored until a parallel backend is wired in.
+    /// Uses a dedicated Rayon pool when `rayon` is enabled.
     Fixed(usize),
     /// Work-stealing with automatic load balancing.
     ///
-    /// *Reserved:* Currently treated as sequential. Present as the default
-    /// so that once a real backend lands, existing call sites immediately
-    /// benefit.
+    /// Uses Rayon global work-stealing when `rayon` is enabled.
     #[default]
     WorkStealing,
     /// Adaptive based on workload characteristics.
     ///
-    /// *Reserved:* Currently treated as sequential; adaptive selection is
-    /// not yet implemented.
+    /// Uses a small-workload sequential cutoff, otherwise Rayon execution.
     Adaptive,
+}
+
+#[cfg(feature = "rayon")]
+const ADAPTIVE_MIN_PAR_ITEMS: usize = 128;
+
+#[cfg(feature = "rayon")]
+#[inline]
+fn adaptive_prefers_sequential(len: usize) -> bool {
+    len < ADAPTIVE_MIN_PAR_ITEMS
+}
+
+#[cfg(feature = "rayon")]
+fn with_fixed_pool<R, F>(threads: usize, f: F) -> R
+where
+    R: Send,
+    F: FnOnce() -> R + Send,
+{
+    assert!(
+        threads != 0,
+        "ParallelStrategy::Fixed(0) is invalid; use at least one worker"
+    );
+    if threads == 1 {
+        return f();
+    }
+
+    ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .expect("failed to build rayon thread pool for ParallelStrategy::Fixed")
+        .install(f)
 }
 
 // =============================================================================
@@ -110,11 +142,8 @@ pub enum ParallelStrategy {
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially.** This function runs the mapping function on
-/// each element in order on the calling thread. The `Sync`/`Send` bounds
-/// and `par_` prefix anticipate a future `rayon`-backed implementation;
-/// they do not imply parallel execution today. See the module-level docs
-/// for status.
+/// Executes in parallel when the `rayon` feature is enabled; otherwise runs
+/// sequentially on the calling thread.
 ///
 /// # Type Safety
 ///
@@ -138,11 +167,14 @@ where
     B: Send,
     F: Fn(&A) -> Eff<Pure, B> + Sync,
 {
-    // TODO(parallel-backend): swap this for `items.par_iter().map(...)` once
-    // the `rayon` Cargo feature is introduced. The `Sync`/`Send` bounds and
-    // `Pure` effect row above are already sufficient preconditions for a
-    // parallel implementation; only the backend is missing.
-    items.iter().map(|a| f(a).run_pure()).collect()
+    #[cfg(feature = "rayon")]
+    {
+        items.par_iter().map(|a| f(a).run_pure()).collect()
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        items.iter().map(|a| f(a).run_pure()).collect()
+    }
 }
 
 /// Parallel map over a collection with an explicit execution strategy.
@@ -152,17 +184,15 @@ where
 /// domain knowledge about the workload size or want to pin to a specific
 /// concurrency model.
 ///
-/// **Note:** The current implementation executes sequentially regardless of
-/// the strategy chosen.  The strategy parameter is reserved for a future
-/// rayon-backed implementation and has no runtime effect today.
+/// **Note:** Strategy selection is honored only when `rayon` is enabled.
 ///
 /// # Parameters
 ///
 /// * `items`    — Slice of input values to map over.
 /// * `f`        — A sync closure that maps each `&A` to a pure `Eff<Pure, B>`.
-/// * `_strategy` — Desired execution strategy (currently ignored).
+/// * `strategy` — Desired execution strategy.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// use ordofp_core::nexus::optim::parallel::{par_map_with, ParallelStrategy};
@@ -172,17 +202,33 @@ where
 /// let results = par_map_with(&items, |x| pure(x * 2), ParallelStrategy::Sequential);
 /// assert_eq!(results, vec![2, 4, 6, 8, 10]);
 /// ```
-pub fn par_map_with<A, B, F>(items: &[A], f: F, _strategy: ParallelStrategy) -> Vec<B>
+pub fn par_map_with<A, B, F>(items: &[A], f: F, strategy: ParallelStrategy) -> Vec<B>
 where
     A: Sync,
     B: Send,
     F: Fn(&A) -> Eff<Pure, B> + Sync,
 {
-    // TODO(parallel-backend): dispatch on `_strategy` (Fixed / WorkStealing /
-    // Adaptive) to a real parallel executor. Until a backend feature exists
-    // the strategy is intentionally ignored, and this call degrades to the
-    // sequential `par_map` implementation above.
-    par_map(items, f)
+    #[cfg(feature = "rayon")]
+    {
+        match strategy {
+            ParallelStrategy::Sequential => items.iter().map(|a| f(a).run_pure()).collect(),
+            ParallelStrategy::Fixed(threads) => with_fixed_pool(threads, || {
+                items.par_iter().map(|a| f(a).run_pure()).collect()
+            }),
+            ParallelStrategy::WorkStealing => items.par_iter().map(|a| f(a).run_pure()).collect(),
+            ParallelStrategy::Adaptive => {
+                if adaptive_prefers_sequential(items.len()) {
+                    items.iter().map(|a| f(a).run_pure()).collect()
+                } else {
+                    items.par_iter().map(|a| f(a).run_pure()).collect()
+                }
+            }
+        }
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        par_map(items, f)
+    }
 }
 
 // =============================================================================
@@ -196,8 +242,8 @@ where
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially.** See the module-level docs for status. The
-/// `Send` bounds and `par_` prefix anticipate a future parallel backend.
+/// Executes in parallel when the `rayon` feature is enabled; otherwise runs
+/// sequentially.
 ///
 /// # Example
 ///
@@ -218,9 +264,9 @@ where
     B: Send,
     F: Fn(A) -> Eff<Pure, B> + Sync,
 {
-    // TODO(parallel-backend): once a real backend is wired in, swap this for
-    // `items.into_par_iter().map(...).collect()`. For now we execute each
-    // pure computation sequentially in input order.
+    #[cfg(feature = "rayon")]
+    let results: Vec<B> = items.into_par_iter().map(|a| f(a).run_pure()).collect();
+    #[cfg(not(feature = "rayon"))]
     let results: Vec<B> = items.into_iter().map(|a| f(a).run_pure()).collect();
     Eff::from_value(results)
 }
@@ -232,19 +278,15 @@ where
 /// allows the caller to specify the desired [`ParallelStrategy`] for workload
 /// scheduling.
 ///
-/// **Note:** The current implementation executes sequentially regardless of the
-/// chosen strategy.  The `_strategy` parameter is reserved for a future
-/// rayon-backed implementation and has no runtime effect today.  Existing call
-/// sites will automatically gain parallel execution once that backend lands,
-/// without any code changes.
+/// **Note:** Strategy selection is honored only when `rayon` is enabled.
 ///
 /// # Parameters
 ///
 /// * `items`     — Owned collection of input values to map over.
 /// * `f`         — A sync closure mapping each `A` to a pure `Eff<Pure, B>`.
-/// * `_strategy` — Desired execution strategy (currently ignored).
+/// * `strategy`  — Desired execution strategy.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// use ordofp_core::nexus::optim::parallel::{par_traverse_with, ParallelStrategy};
@@ -257,31 +299,51 @@ where
 pub fn par_traverse_with<A, B, F>(
     items: Vec<A>,
     f: F,
-    _strategy: ParallelStrategy,
+    strategy: ParallelStrategy,
 ) -> Eff<Pure, Vec<B>>
 where
     A: Send,
     B: Send,
     F: Fn(A) -> Eff<Pure, B> + Sync,
 {
-    // TODO(parallel-backend): dispatch on `_strategy` once a real executor
-    // is available. Today the strategy is recorded-but-ignored and we fall
-    // through to the sequential `par_traverse` implementation.
-    par_traverse(items, f)
+    #[cfg(feature = "rayon")]
+    {
+        let len = items.len();
+        let results = match strategy {
+            ParallelStrategy::Sequential => items.into_iter().map(|a| f(a).run_pure()).collect(),
+            ParallelStrategy::Fixed(threads) => with_fixed_pool(threads, || {
+                items.into_par_iter().map(|a| f(a).run_pure()).collect()
+            }),
+            ParallelStrategy::WorkStealing => {
+                items.into_par_iter().map(|a| f(a).run_pure()).collect()
+            }
+            ParallelStrategy::Adaptive => {
+                if adaptive_prefers_sequential(len) {
+                    items.into_iter().map(|a| f(a).run_pure()).collect()
+                } else {
+                    items.into_par_iter().map(|a| f(a).run_pure()).collect()
+                }
+            }
+        };
+        Eff::from_value(results)
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        par_traverse(items, f)
+    }
 }
 
 // =============================================================================
 // Parallel Sequence
 // =============================================================================
 
-/// Parallel sequence - convert a collection of effects to an effect of collection.
-///
-/// All effects must be pure, allowing parallel execution.
+/// Sequence a collection of pure effects into an effect of collection.
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially.** See the module-level docs for status. A real
-/// parallel backend (rayon or equivalent) is pending.
+/// Executes sequentially today. The `Eff` representation is not currently
+/// transferable across worker threads, so this combinator remains
+/// single-threaded even when `rayon` is enabled.
 ///
 /// # Example
 ///
@@ -300,8 +362,6 @@ pub fn par_sequence<A>(effects: Vec<Eff<Pure, A>>) -> Eff<Pure, Vec<A>>
 where
     A: Send,
 {
-    // TODO(parallel-backend): run each pure effect on a worker pool once a
-    // parallel executor feature is available. Currently sequential.
     let results: Vec<A> = effects
         .into_iter()
         .map(super::super::effect::Eff::run_pure)
@@ -320,10 +380,8 @@ where
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially** as a left fold. Associativity of `combine` is
-/// still required so that this call site is drop-in ready for a future
-/// divide-and-conquer parallel implementation. See the module-level docs
-/// for status.
+/// Uses parallel reduction when `rayon` is enabled; otherwise executes as a
+/// sequential left fold. Associativity of `combine` is required.
 ///
 /// # Example
 ///
@@ -337,33 +395,38 @@ where
 pub fn par_fold<A, B, Map, Combine>(items: &[A], initial: B, map: Map, combine: Combine) -> B
 where
     A: Sync,
-    B: Send + Clone,
-    Map: Fn(&A) -> B + Sync,
-    Combine: Fn(B, B) -> B + Sync,
+    B: Send + Sync + Clone,
+    Map: Fn(&A) -> B + Sync + Send,
+    Combine: Fn(B, B) -> B + Sync + Send,
 {
     if items.is_empty() {
         return initial;
     }
 
-    // TODO(parallel-backend): replace with a divide-and-conquer / tree
-    // reduction using a work-stealing executor. Associativity of `combine`
-    // is required for that refactor and is documented above, so no API
-    // change will be needed when the backend lands.
-    items.iter().map(map).fold(initial, combine)
+    #[cfg(feature = "rayon")]
+    {
+        items
+            .par_iter()
+            .map(map)
+            .reduce(|| initial.clone(), combine)
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        items.iter().map(map).fold(initial, combine)
+    }
 }
 
 // =============================================================================
 // Parallel Both
 // =============================================================================
 
-/// Execute two pure computations in parallel.
+/// Execute two pure computations and return both results.
 ///
 /// Returns a tuple of both results.
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially:** `left` is fully evaluated, then `right`. See
-/// the module-level docs for status.
+/// Executes sequentially (`left` then `right`) today.
 ///
 /// # Example
 ///
@@ -384,24 +447,20 @@ where
     A: Send,
     B: Send,
 {
-    // TODO(parallel-backend): run `left` and `right` on separate worker
-    // threads once a parallel executor feature is available. For now the
-    // two effects are evaluated sequentially on the calling thread.
     let a = left.run_pure();
     let b = right.run_pure();
     (a, b)
 }
 
-/// Execute three pure computations in parallel.
+/// Execute three pure computations and return all results.
 ///
 /// Returns a triple of all three results. All three result types must
-/// implement [`Send`] to allow future execution on separate threads or via a
-/// work-stealing scheduler.
+/// implement [`Send`] to keep this API forward-compatible with future worker
+/// execution.
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially** in the order `first`, `second`, `third`. See
-/// the module-level docs for status.
+/// Executes sequentially in `first`, `second`, `third` order today.
 ///
 /// # Example
 ///
@@ -429,9 +488,6 @@ where
     B: Send,
     C: Send,
 {
-    // TODO(parallel-backend): run all three effects on separate workers
-    // once a parallel executor feature is available. For now the three
-    // effects are evaluated sequentially on the calling thread.
     let a = first.run_pure();
     let b = second.run_pure();
     let c = third.run_pure();
@@ -481,14 +537,18 @@ where
 ///
 /// # Current Behavior
 ///
-/// **Executes sequentially.** Chunks are processed one at a time on the
-/// calling thread in input order. See the module-level docs for status.
+/// Executes chunk workers in parallel when `rayon` is enabled; otherwise
+/// processes chunks sequentially in input order.
 ///
-/// # Example
+/// # Panics
+///
+/// Panics if `chunk_size` is 0.
+///
+/// # Examples
 ///
 /// ```rust
-/// use ordofp_core::nexus::pure;
 /// use ordofp_core::nexus::optim::parallel::par_chunks;
+/// use ordofp_core::nexus::pure;
 ///
 /// let items: Vec<i32> = (0..1000).collect();
 /// let results = par_chunks(&items, 100, |chunk| {
@@ -503,13 +563,22 @@ where
     B: Send,
     F: Fn(&[A]) -> Eff<Pure, B> + Sync,
 {
-    // TODO(parallel-backend): distribute chunks across a worker pool once a
-    // parallel executor feature is available. Currently chunks are
-    // processed sequentially in input order.
-    items
-        .chunks(chunk_size)
-        .map(|chunk| f(chunk).run_pure())
-        .collect()
+    assert!(chunk_size > 0, "chunk_size must be > 0");
+    #[cfg(all(feature = "rayon", feature = "std"))]
+    {
+        use rayon::slice::ParallelSlice;
+        items
+            .par_chunks(chunk_size)
+            .map(|chunk| f(chunk).run_pure())
+            .collect()
+    }
+    #[cfg(not(all(feature = "rayon", feature = "std")))]
+    {
+        items
+            .chunks(chunk_size)
+            .map(|chunk| f(chunk).run_pure())
+            .collect()
+    }
 }
 
 // =============================================================================
@@ -520,11 +589,9 @@ where
 ///
 /// # Current Behavior
 ///
-/// **All configuration is currently advisory.** The strategy and chunk
-/// size are stored on the builder but ignored when [`ParallelBuilder::map`]
-/// runs, which dispatches sequentially. The builder exists so call sites
-/// can declare intent now and pick up a real parallel backend (e.g.
-/// `rayon`) later without API changes. See the module-level docs.
+/// `strategy` is honored by [`ParallelBuilder::map`] when `rayon` is enabled.
+/// `chunk_size` is currently advisory and reserved for chunk-aware map
+/// scheduling.
 pub struct ParallelBuilder<A> {
     items: Vec<A>,
     strategy: ParallelStrategy,
@@ -560,20 +627,52 @@ impl<A> ParallelBuilder<A> {
     ///
     /// # Current Behavior
     ///
-    /// **Executes sequentially.** The configured `strategy` and
-    /// `chunk_size` are ignored — see the struct-level note and the
-    /// module-level docs.
+    /// Uses `strategy` when `rayon` is enabled; otherwise runs sequentially.
+    /// `chunk_size` is currently advisory for `map` and reserved for future
+    /// chunk-aware scheduling.
     pub fn map<B, F>(self, f: F) -> Vec<B>
     where
         A: Send,
         B: Send,
         F: Fn(A) -> Eff<Pure, B> + Sync,
     {
-        // TODO(parallel-backend): honor `self.strategy` and
-        // `self.chunk_size` by dispatching through a real executor. For
-        // now both fields are accepted for forward compatibility but have
-        // no runtime effect.
-        self.items.into_iter().map(|a| f(a).run_pure()).collect()
+        let strategy = self.strategy;
+        let _chunk_size = self.chunk_size;
+        #[cfg(feature = "rayon")]
+        {
+            let len = self.items.len();
+            match strategy {
+                ParallelStrategy::Sequential => {
+                    self.items.into_iter().map(|a| f(a).run_pure()).collect()
+                }
+                ParallelStrategy::Fixed(threads) => with_fixed_pool(threads, || {
+                    self.items
+                        .into_par_iter()
+                        .map(|a| f(a).run_pure())
+                        .collect()
+                }),
+                ParallelStrategy::WorkStealing => self
+                    .items
+                    .into_par_iter()
+                    .map(|a| f(a).run_pure())
+                    .collect(),
+                ParallelStrategy::Adaptive => {
+                    if adaptive_prefers_sequential(len) {
+                        self.items.into_iter().map(|a| f(a).run_pure()).collect()
+                    } else {
+                        self.items
+                            .into_par_iter()
+                            .map(|a| f(a).run_pure())
+                            .collect()
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            let _ = strategy;
+            self.items.into_iter().map(|a| f(a).run_pure()).collect()
+        }
     }
 }
 

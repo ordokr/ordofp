@@ -5,7 +5,7 @@
 
 OrdoFP is a functional programming library for Rust that brings Haskell-level abstractions with a distinctive Scholastic Latin naming convention.
 
-**Version:** 0.1.0 | **Toolchain:** stable Rust ≥ 1.97 (optional `nightly` feature for extra codegen) | **Edition:** 2024
+**Version:** 0.1.1 | **Toolchain:** stable Rust ≥ 1.97 (optional `nightly` feature for extra codegen) | **Edition:** 2024
 
 ---
 

@@ -3,7 +3,7 @@
 > *"Nunc fluens facit tempus, nunc stans facit aeternitatem."*
 > — The flowing now makes time, the standing now makes eternity. (Boethius)
 
-This guide provides a comprehensive introduction to asynchronous functional programming with OrdoFP 0.1.0. We'll explore how to compose async computations using monadic patterns, streams, and the new fiber-based concurrency system.
+This guide provides a comprehensive introduction to asynchronous functional programming with OrdoFP 0.1.1. We'll explore how to compose async computations using monadic patterns, streams, and the new fiber-based concurrency system.
 
 ## Table of Contents
 

@@ -4,7 +4,7 @@ Thank you for your interest in contributing to OrdoFP! We welcome contributions 
 
 ## Prerequisites
 
-- **Rust**: The library builds on stable Rust (MSRV 1.97, tracking the latest stable). For *developing this repo*, rustup automatically picks up the pinned nightly from `rust-toolchain.toml` — the verification gate lints and tests with `--all-features`, which includes the nightly-only `nightly` acceleration feature. Keep a current `stable` toolchain installed too; the gate cross-checks the stable build.
+- **Rust**: The library builds on stable Rust (current MSRV 1.97). MSRV is pinned per release and may be raised in minor releases. For *developing this repo*, rustup automatically picks up the pinned nightly from `rust-toolchain.toml` — the verification gate lints and tests with `--all-features`, which includes the nightly-only `nightly` acceleration feature. Keep a current `stable` toolchain installed too; the gate cross-checks the stable build.
 - **Cargo**: Standard Rust build tool.
 
 ## Getting Started
@@ -79,6 +79,12 @@ first release and mandatory for every release after it.)
 
 Bump `version` in every workspace `Cargo.toml` together — the internal
 `path + version` dependencies pin exact sibling versions.
+
+## Public maintenance loop (maintainers)
+
+For ongoing public upkeep (dependency/toolchain drift, stability signaling, and
+release hygiene), follow [`docs/maintenance.md`](docs/maintenance.md). Use the
+maintenance issue template for tracked upkeep tasks.
 
 ## License
 
