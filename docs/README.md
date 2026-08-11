@@ -22,6 +22,5 @@ Topic → file map. One canonical location per topic.
 | Standing policies (perf doctrine, do-not-retry list, standing rejections) | [policies.md](policies.md) |
 | Public maintenance cadence (dependency/toolchain/release hygiene) | [maintenance.md](maintenance.md) |
 | Unsafe/UB audit notes (rules from real incidents) | [UNSAFE_NOTES.md](UNSAFE_NOTES.md) |
-| Nexus effect-system roadmap & risk register (design record) | [NEXUS_TECHNICAL_ANALYSIS.md](NEXUS_TECHNICAL_ANALYSIS.md) |
 | Release history | [../CHANGELOG.md](../CHANGELOG.md) |
 | Third-party provenance & licenses | [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) |

@@ -142,7 +142,7 @@ OrdoFP is at **v0.1.1**. The components below have settled APIs and full test co
 | Linear Types | Mature |
 | ParFlumen (Parallel) | Mature |
 
-Not listed above: the row-typed effect system is a phased roadmap with Phases 1–2 complete (see [docs/NEXUS_TECHNICAL_ANALYSIS.md](docs/NEXUS_TECHNICAL_ANALYSIS.md)), and `ordofp_bayes` implements single-step SMC and single-site trace MCMC (see the scope notes in [docs/bayes.md](docs/bayes.md)).
+Not listed above: the row-typed effect system is an opt-in feature (`nexus`), and `ordofp_bayes` implements single-step SMC and single-site trace MCMC (see the scope notes in [docs/bayes.md](docs/bayes.md)).
 
 ## Contributing
 
