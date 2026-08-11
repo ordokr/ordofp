@@ -23,7 +23,7 @@ All notable changes to OrdoFP are documented in this file. The format follows
 - `CONTRIBUTING.md` now references the maintenance playbook for maintainers.
 - Maintenance playbook now explicitly codifies local-only CI via `xtask` (no
   GitHub Actions).
-- `nexus::optim::parallel` now uses a real optional Rayon backend for
+- Parallel effect execution engine (`ordofp_core::nexus::optim::parallel`) now uses a real optional Rayon backend for
   `par_map`, `par_map_with`, `par_traverse`, `par_traverse_with`,
   `par_fold`, `par_chunks`, and `ParallelBuilder::map`; non-`rayon` builds
   keep sequential behavior.
