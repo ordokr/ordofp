@@ -148,35 +148,27 @@ impl<E, A> Probatum<E, A> {
     where
         I: IntoIterator<Item = Probatum<E, T>>,
     {
-        let iter = iter.into_iter();
+        let mut iter = iter.into_iter();
         // Pre-size from the iterator's hint: in the all-valid case `values`
         // ends up with exactly this many items, so the upper bound is tight
         // (no over-allocation) and we avoid the realloc cascade of Vec::new().
         let (lower, upper) = iter.size_hint();
         let mut values = Vec::with_capacity(upper.unwrap_or(lower));
-        let mut errors: Option<ErrorBuf<E>> = None;
-        for item in iter {
+        while let Some(item) = iter.next() {
             match item {
-                Probatum::Valid(v) => {
-                    if errors.is_none() {
-                        values.push(v);
-                    }
-                }
+                Probatum::Valid(v) => values.push(v),
                 Probatum::Invalid(mut es) => {
-                    if let Some(ref mut acc) = errors {
-                        acc.append(&mut es);
-                    } else {
-                        errors = Some(es);
+                    drop(values);
+                    for item in iter {
+                        if let Probatum::Invalid(mut es2) = item {
+                            es.append(&mut es2);
+                        }
                     }
+                    return Probatum::Invalid(es);
                 }
             }
         }
-
-        if let Some(es) = errors {
-            Probatum::Invalid(es)
-        } else {
-            Probatum::Valid(values)
-        }
+        Probatum::Valid(values)
     }
 
     /// Lift two Probatum values with a combining function.
