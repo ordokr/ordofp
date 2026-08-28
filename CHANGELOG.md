@@ -6,6 +6,13 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `Probatum::collect` now unswitches the valid/invalid loops. The all-valid
+  path no longer branches on error state per item. The first `Invalid` drops
+  the collected values immediately, then a second loop accumulates remaining
+  errors. Sequence error-accumulation semantics are unchanged.
+
 ## [0.1.1] - 2026-08-11
 
 ### Added
