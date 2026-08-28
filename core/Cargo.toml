@@ -2,7 +2,7 @@
 name = "ordofp_core"
 edition = "2024"
 rust-version = "1.97"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["OrdoFP Contributors"]
 description = "OrdoFP core provides developers with HList, Disiunctio, NominataUniversalis, Universalis, and functional type classes"
 license = "Apache-2.0"
@@ -100,4 +100,4 @@ tokio = { workspace = true, features = ["sync"] }
 [dev-dependencies.ordofp_macros]
 path = "../macros"
 default-features = false
-version = "0.1.1"
+version = "0.1.2"

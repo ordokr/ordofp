@@ -130,7 +130,7 @@ See [docs/guide.md](docs/guide.md) for detailed usage examples.
 
 ## Component maturity
 
-OrdoFP is at **v0.1.1**. The components below have settled APIs and full test coverage within this repository, but the usual 0.x semver caveats apply.
+OrdoFP is at **v0.1.2**. The components below have settled APIs and full test coverage within this repository, but the usual 0.x semver caveats apply.
 
 | Component | Maturity |
 |-----------|----------|

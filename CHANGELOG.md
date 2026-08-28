@@ -6,6 +6,8 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-28
+
 ### Changed
 
 - `Probatum::collect` now unswitches the valid/invalid loops. The all-valid

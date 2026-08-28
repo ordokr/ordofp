@@ -2,7 +2,7 @@
 name = "ordofp_laws"
 edition = "2024"
 rust-version = "1.97"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["OrdoFP Contributors"]
 description = "Property-based laws testing for OrdoFP type classes including Functor, Monad, and algebraic structures."
 license = "Apache-2.0"
@@ -19,7 +19,7 @@ default = []
 async = ["ordofp/async"]
 
 [dependencies]
-ordofp = { path = "..", version = "0.1.1", default-features = false, features = ["std"] }
+ordofp = { path = "..", version = "0.1.2", default-features = false, features = ["std"] }
 quickcheck = { workspace = true }
 
 [dev-dependencies]

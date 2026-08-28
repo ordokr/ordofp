@@ -1,11 +1,11 @@
-# OrdoFP 0.1.1 Documentation
+# OrdoFP 0.1.2 Documentation
 
 > *"Ordo est parium dispariumque rerum sua cuique loca tribuens dispositio."*
 > — Order is the disposition assigning to each thing its proper place. (St. Augustine)
 
 ## Canonical Reference
 
-> **Version:** 0.1.1 | **Toolchain:** stable Rust ≥ 1.97 (optional `nightly` feature for extra codegen) | **Edition:** 2024
+> **Version:** 0.1.2 | **Toolchain:** stable Rust ≥ 1.97 (optional `nightly` feature for extra codegen) | **Edition:** 2024
 
 OrdoFP provides a comprehensive suite of functional programming abstractions for Rust, designed for performance, correctness, and composability.
 
