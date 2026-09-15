@@ -16,6 +16,16 @@ categories = ["data-structures", "rust-patterns"]
 [package.metadata.docs.rs]
 all-features = true
 
+# `Continuatio<A, B, M: Usage>` is a typestate: `Semel` and `Affinis` get an
+# inherent `resume(self)`, `Pluries` gets `resume(&self)` plus
+# `resume_final(self)`. cargo-semver-checks 0.50 collapses the three inherent
+# impls into one `Continuatio::resume` and reports a receiver change, so the
+# lint fires against a byte-identical baseline — running it at 3063b87 (the
+# commit 0.1.2 shipped from) against 0.1.2 itself reproduces the failure, and a
+# crate cannot break semver against itself. Re-test on each toolchain bump.
+[package.metadata.cargo-semver-checks.lints]
+method_receiver_ref_became_owned = "allow"
+
 [lints]
 workspace = true
 

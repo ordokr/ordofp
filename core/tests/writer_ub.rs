@@ -1,3 +1,5 @@
+//! UB guard: the `Writer` effect must not expose uninitialised or aliased state through `run`/`map`.
+
 #![cfg(feature = "nexus")]
 
 use ordofp_core::nexus::effects::writer::WriterComputation;

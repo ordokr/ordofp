@@ -1,3 +1,5 @@
+//! GPU transfer soundness: raw scalar bytes must not be reinterpreted as a non-`Pod` type such as `String`.
+
 #[cfg(all(feature = "par", feature = "gpu-wgpu"))]
 mod tests {
     use ordofp_core::par::{GpuMapChain, Nodus, backend::wgpu::GpuWgpu};

@@ -2026,6 +2026,10 @@ mod tests {
     /// model and RNG seed. A no-op `step_size` would make these acceptance
     /// rates equal (up to RNG noise), which this test rules out.
     #[test]
+    // A 3000-step Metropolis-Hastings chain per step size. MH neither resamples
+    // nor touches the `unsafe` count-generation paths, so Miri gains nothing
+    // here for minutes of interpretation; `-- counts` covers the unsafe.
+    #[cfg_attr(miri, ignore = "long MCMC chain: slow under Miri, exercises no unsafe")]
     fn step_size_changes_acceptance_rate() {
         use rand::SeedableRng;
         use rand::rngs::StdRng;

@@ -1,3 +1,5 @@
+//! UB guard: the `State` effect's `Get` variant must not be constructible where its value type differs from the state type.
+
 #![cfg(feature = "nexus")]
 
 use ordofp_core::nexus::effects::state::StatefulComputation;

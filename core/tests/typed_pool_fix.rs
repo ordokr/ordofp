@@ -1,3 +1,5 @@
+//! Pool correctness: `TypedPool` reuses slots without leaking or double-dropping the pooled value.
+
 use ordofp_core::arena::TypedPool;
 use std::cell::RefCell;
 

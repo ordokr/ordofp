@@ -289,8 +289,11 @@ pub unsafe fn build_array<'a, T: PartialEq>(ptr: *const T, tail: T) -> Option<&'
 
 #[cfg(test)]
 // The wrap_pure!/wrap_ref! expansions below exist to typecheck the full
-// generated API; not every generated item is called by the tests.
-#[allow(dead_code)]
+// generated API; not every generated item is called by the tests. The macros
+// are `#[macro_export]`ed and emit `pub` items because downstream callers
+// expand them at module scope — inside this private test module that reads as
+// unreachable, so the lint is silenced here rather than narrowed in the macro.
+#[allow(dead_code, unreachable_pub)]
 mod tests {
     use super::*;
 

@@ -1,3 +1,5 @@
+//! Leak guard: dropping a `RegionVec` must run each element's destructor exactly once.
+
 #![cfg(feature = "nexus")]
 
 use ordofp_core::nexus::effects::region::{RegionVec, with_region};

@@ -1,3 +1,5 @@
+//! Auto-trait soundness: `Futurus` is `Send` but must not be `Sync` when it captures a `!Sync` value.
+
 #[cfg(feature = "async")]
 use ordofp_core::async_core::Futurus;
 #[cfg(feature = "async")]

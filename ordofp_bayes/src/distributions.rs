@@ -139,6 +139,14 @@ mod tests {
     /// The Marsaglia-polar sampler must reproduce the first two moments of
     /// `Normal(2, 3)` within estimator noise (seeded, so deterministic).
     #[test]
+    // 100k seeded draws are a statistical check, and this module contains no
+    // `unsafe`, so interpreting it buys no UB coverage for minutes of runtime.
+    // Shrinking the sample instead would widen estimator noise past the
+    // tolerance the test exists to assert.
+    #[cfg_attr(
+        miri,
+        ignore = "statistical moments: slow under Miri, no unsafe to check"
+    )]
     fn normal_moments_match() {
         let dist = Normal::new(2.0, 3.0);
         let mut rng = StdRng::seed_from_u64(42);
@@ -154,6 +162,10 @@ mod tests {
     /// The inverse-CDF `Exp(1)` sampler must reproduce mean 1 and variance 1
     /// within estimator noise, and never produce a negative or non-finite value.
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "statistical moments: slow under Miri, no unsafe to check"
+    )]
     fn exp1_moments_match() {
         let mut rng = StdRng::seed_from_u64(43);
         let n = 100_000_i32;

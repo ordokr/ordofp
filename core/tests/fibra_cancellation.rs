@@ -1,3 +1,5 @@
+//! H2 regression: cancelling a parked fiber must wake it rather than deadlock.
+
 #![cfg(feature = "tokio")]
 
 use core::time::Duration;

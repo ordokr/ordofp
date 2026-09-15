@@ -27,6 +27,24 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ### Fixed
 
+- `cargo clippy -D warnings` passes from a cold cache again. 42 lint failures had
+  accumulated behind incremental-build caching, so `xtask gate` reported green
+  without recompiling the affected targets: 11 integration tests lacked the
+  crate-level docs `missing_docs` requires, `test_structs` and
+  `laws::fixpoint_laws` exposed `pub` items from private modules, and the
+  `ffi_bedrock` test module tripped `unreachable_pub` on the `pub` items its
+  `#[macro_export]` macros emit for downstream expansion.
+- `xtask semver` no longer fails on a false positive. `Continuatio<A, B, M>` is a
+  typestate whose `Semel`/`Affinis` impls take `resume(self)` while `Pluries`
+  takes `resume(&self)`; cargo-semver-checks 0.50 collapses the three inherent
+  impls and reports a receiver change. It fires against a byte-identical
+  baseline — reproducible by running it at the 0.1.2 release commit against
+  0.1.2 itself — so the lint is allowed in `core/Cargo.toml` with that rationale.
+- The full `ordofp_bayes` suite runs under Miri in ~9s instead of exceeding 35
+  minutes. Its three heavy statistical tests (100k-draw moment checks, a
+  3000-step MCMC chain) are `#[cfg_attr(miri, ignore)]`: they exercise no
+  `unsafe`, and shrinking their samples instead would widen estimator noise past
+  the tolerances they exist to assert. Native runs are unchanged.
 - `Arena::alloc_layout` and `SyncArena::alloc_layout` now use `checked_add` when
   computing the bump-pointer end. The preceding `new_ptr <= end` guard could not
   rule out wrap-around as its `SAFETY` comment claimed — a wrapped sum is small

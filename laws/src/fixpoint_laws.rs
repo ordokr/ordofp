@@ -59,13 +59,13 @@ mod tests {
     // We use a simple structure isomorphic to Option:
     // NatF A = Zero | Succ A
     #[derive(Clone, Debug, PartialEq)]
-    pub enum NatF<A> {
+    enum NatF<A> {
         Zero,
         Succ(A),
     }
 
     #[derive(Clone, Debug, PartialEq)]
-    pub struct NatHKT;
+    struct NatHKT;
 
     impl HKT for NatHKT {
         type Target<T> = NatF<T>;

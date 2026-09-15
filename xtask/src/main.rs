@@ -211,10 +211,10 @@ const MIRI_CORE_FILTERS: &[&str] = &[
 const MIRI_PATH_NOTES: &[(&str, &str)] = &[
     (
         "ordofp_bayes/src/inference.rs",
-        "covered by `miri test -p ordofp_bayes --lib -- counts`: every unsafe \
-         construct here sits in generate_{multinomial,systematic,stratified}_counts \
-         and apply_counts. The whole-package suite is deliberately not used — its \
-         MCMC tests were measured at >35 min under Miri without finishing.",
+        "covered by `miri test -p ordofp_bayes --lib`: the package is interpreted \
+         whole rather than matched by a core filter name. Its three heavy, \
+         unsafe-free statistical tests are `#[cfg_attr(miri, ignore)]`, which is \
+         what keeps that run at ~9s.",
     ),
     (
         "core/src/par/backend/wgpu/",
@@ -248,19 +248,13 @@ fn miri() {
         );
     }
     // Separate package: `-p ordofp_core` never reached it, yet `inference.rs`
-    // holds the densest `unsafe` in the repo (27 constructs). Scoped to the
-    // count-generation tests that actually execute them — see MIRI_PATH_NOTES.
+    // holds the densest `unsafe` in the repo (27 constructs). The whole package
+    // is interpreted now that its three statistically-heavy, `unsafe`-free tests
+    // carry `#[cfg_attr(miri, ignore)]` — ~9s, where the unfiltered suite
+    // previously ran past 35 minutes without finishing.
     run(
-        "miri (ordofp_bayes::counts)",
-        &[
-            "miri",
-            "test",
-            "-p",
-            "ordofp_bayes",
-            "--lib",
-            "--",
-            "counts",
-        ],
+        "miri (ordofp_bayes)",
+        &["miri", "test", "-p", "ordofp_bayes", "--lib"],
         Some("rustup component add miri"),
     );
 }

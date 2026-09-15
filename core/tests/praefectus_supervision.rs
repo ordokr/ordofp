@@ -1,3 +1,5 @@
+//! M12 regression: a panicking child is restarted within its intensity budget and its factory runs again.
+
 #![cfg(feature = "tokio")]
 
 use core::time::Duration;

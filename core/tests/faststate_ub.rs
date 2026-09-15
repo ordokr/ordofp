@@ -1,3 +1,5 @@
+//! UB guard: `FastState` must not fabricate a zeroed `Box<T>`, which would be a null non-null pointer.
+
 #![cfg(feature = "nexus")]
 
 use core::marker::PhantomData;

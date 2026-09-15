@@ -1,3 +1,5 @@
+//! Unpin soundness: `Futurus` must only be `Unpin` when its inner future is.
+
 #![cfg(feature = "async")]
 
 use ordofp_core::async_core::Futurus;

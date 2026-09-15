@@ -1,3 +1,10 @@
+//! Reproduction harness for the object-pool reuse bug: a standalone `Pool`/`TypedPool`
+//! implementation exercised against checkout, reset and drop ordering.
+
+// The harness mirrors the full pool API so the reproduction stays comparable to
+// the real implementation, but the bug under test only drives `TypedPool`.
+#![allow(dead_code)]
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -13,7 +20,7 @@ const DEFAULT_MAX_POOL_SIZE: usize = 1024;
 // =============================================================================
 
 /// A pool of reusable objects.
-pub struct Pool<T> {
+struct Pool<T> {
     available: RefCell<Vec<T>>,
     factory: fn() -> T,
     reset: fn(&mut T),
@@ -21,11 +28,11 @@ pub struct Pool<T> {
 }
 
 impl<T> Pool<T> {
-    pub fn new(factory: fn() -> T) -> Self {
+    fn new(factory: fn() -> T) -> Self {
         Self::with_reset(factory, |_| {})
     }
 
-    pub fn with_reset(factory: fn() -> T, reset: fn(&mut T)) -> Self {
+    fn with_reset(factory: fn() -> T, reset: fn(&mut T)) -> Self {
         Pool {
             available: RefCell::new(Vec::new()),
             factory,
@@ -34,12 +41,12 @@ impl<T> Pool<T> {
         }
     }
 
-    pub fn with_max_size(mut self, max_size: usize) -> Self {
+    fn with_max_size(mut self, max_size: usize) -> Self {
         self.max_size = max_size;
         self
     }
 
-    pub fn with_initial(self, count: usize) -> Self {
+    fn with_initial(self, count: usize) -> Self {
         let mut available = self.available.borrow_mut();
         for _ in 0..count.min(self.max_size) {
             available.push((self.factory)());
@@ -52,7 +59,7 @@ impl<T> Pool<T> {
     ///
     /// The returned [`Pooled`] guard automatically returns the object to the pool
     /// (after invoking the reset function) when it is dropped.
-    pub fn get(&self) -> Pooled<'_, T> {
+    fn get(&self) -> Pooled<'_, T> {
         let obj = self
             .available
             .borrow_mut()
@@ -73,16 +80,16 @@ impl<T> Pool<T> {
         }
     }
 
-    pub fn available(&self) -> usize {
+    fn available(&self) -> usize {
         self.available.borrow().len()
     }
 
-    pub fn clear(&self) {
+    fn clear(&self) {
         self.available.borrow_mut().clear();
     }
 }
 
-pub struct Pooled<'a, T> {
+struct Pooled<'a, T> {
     pool: &'a Pool<T>,
     value: Option<T>,
 }
@@ -117,14 +124,14 @@ impl<T> Drop for Pooled<'_, T> {
 // Typed Pool
 // =============================================================================
 
-pub struct TypedPool<T, const N: usize> {
+struct TypedPool<T, const N: usize> {
     storage: RefCell<[MaybeUninit<T>; N]>,
     available: RefCell<u64>,
     factory: fn() -> T,
 }
 
 impl<T, const N: usize> TypedPool<T, N> {
-    pub fn new(factory: fn() -> T) -> Self {
+    fn new(factory: fn() -> T) -> Self {
         assert!(N <= 64, "TypedPool size must be <= 64");
 
         let mut storage: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
@@ -168,7 +175,7 @@ impl<T, const N: usize> TypedPool<T, N> {
         }
     }
 
-    pub fn get(&self) -> TypedPooled<'_, T, N> {
+    fn get(&self) -> TypedPooled<'_, T, N> {
         let mut available = self.available.borrow_mut();
 
         if *available != 0 {
@@ -232,7 +239,7 @@ impl<T, const N: usize> Drop for TypedPool<T, N> {
     }
 }
 
-pub struct TypedPooled<'a, T, const N: usize> {
+struct TypedPooled<'a, T, const N: usize> {
     pool: &'a TypedPool<T, N>,
     slot: Option<usize>,
     value: Option<T>,

@@ -1,3 +1,5 @@
+//! Auto-trait soundness: types that expose shared interior mutability must not be `Sync`.
+
 fn assert_sync<T: Sync>() {}
 
 #[test]
