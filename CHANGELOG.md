@@ -6,6 +6,26 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-15
+
+Patch release of `ordofp_core`, `ordofp` and `ordofp_bayes`. `ordofp_macros` and
+`ordofp_laws` are unchanged and stay at 0.1.2.
+
+### Added
+
+- HList sequencing: `HListSequenceOption`, `HListSequenceResult` and
+  `HListSequenceValidated` turn an HList of `Option` / `Result` / `Probatum`
+  into the effect over an HList, with a `Nihil` base case and a `Coniunctio`
+  inductive step.
+- Fallible lens modifiers: `Lens::modify_option`, `modify_result` and
+  `modify_validated` thread a failing modifier through a lens without
+  discarding the effect.
+- `Probatum::map` and `Probatum::map_err`, an `IntoValidated` conversion from
+  `Result`, an `IteratorValidateExt` iterator extension, and a
+  `Validated<E, A>` alias. The facade re-exports all of these.
+- `xtask matrix`, which builds the isolated and additive feature sets that
+  guard feature orthogonality, and joins `xtask all`.
+
 ### Changed
 
 - `xtask miri` now interprets every `unsafe`-bearing module instead of only
