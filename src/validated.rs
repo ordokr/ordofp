@@ -5,3 +5,6 @@
 //! preserves the long-standing facade paths (`ordofp::validated::Probatum`).
 
 pub use ordofp_core::validated::*;
+
+/// English alias for `Probatum`.
+pub type Validated<E, A> = Probatum<E, A>;

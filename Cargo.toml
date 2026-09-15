@@ -106,7 +106,7 @@ Probatum-smallvec = ["Probatum", "ordofp_core/Probatum-smallvec"]
 # under this feature.
 alloc-mimalloc = ["dep:mimalloc"]
 
-# Async support features (OrdoFP 2.0)
+# Async support features
 # - async: Core async traits (FunctorAsync, MonadAsync) and Futurus type
 # - tokio: Tokio runtime integration with RuntimeGenerare
 # - smol: smol runtime integration (successor to the discontinued async-std)

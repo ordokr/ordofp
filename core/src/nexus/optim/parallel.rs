@@ -227,6 +227,7 @@ where
     }
     #[cfg(not(feature = "rayon"))]
     {
+        let _ = strategy;
         par_map(items, f)
     }
 }
@@ -329,6 +330,7 @@ where
     }
     #[cfg(not(feature = "rayon"))]
     {
+        let _ = strategy;
         par_traverse(items, f)
     }
 }

@@ -9,7 +9,7 @@
 #![cfg(feature = "Probatum")]
 
 use ordofp::nonempty::NonEmpty;
-use ordofp::typeclasses::{Applicatio, Apply, Functor};
+use ordofp::typeclasses::{Applicatio, Apply};
 use ordofp::validated::Probatum;
 use ordofp::wrappers::{Aggregatio, Aliquid, Multiplicatio, Omnis, Primus, Ultimus};
 use ordofp::{HList, hlist};

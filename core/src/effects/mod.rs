@@ -100,7 +100,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ordofp = { version = "2.0", features = ["async"] }
+//! ordofp = { version = "0.1", features = ["async"] }
 //! ```
 
 mod common;
@@ -108,18 +108,18 @@ mod effect;
 mod handler;
 mod lift;
 
-// OrdoFP 3.0: Row-Polymorphic Effects
+// Row-Polymorphic Effects
 pub mod computatio;
 pub mod continuation_v2;
 pub mod inference;
 pub mod row_v2;
 
-// OrdoFP 3.0: Algebraic Effect Handlers
+// Algebraic Effect Handlers
 pub mod algebraic;
 pub mod builtin;
 pub mod handler_multi;
 
-// OrdoFP 4.0 Phase 2: Advanced Effect System
+// Advanced Effect System
 pub mod eff;
 pub mod sem;
 pub mod testimonium;

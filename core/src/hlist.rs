@@ -1671,6 +1671,166 @@ where
     }
 }
 
+// =============================================================================
+// HList Sequencing Combinators
+// =============================================================================
+
+/// Trait for sequencing an `HList` of `Option` values into `Option<HList>`.
+pub trait HListSequenceOption {
+    /// The resulting `HList` type with `Option` unwrapped from every element.
+    type Output: HList;
+
+    /// Sequences an `HList` of `Option`s into an `Option` of `HList`.
+    ///
+    /// Returns `Some(hlist)` if all elements are `Some`, or `None` if any element is `None`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::hlist;
+    /// use ordofp_core::hlist::HListSequenceOption;
+    ///
+    /// let h = hlist![Some(1), Some("hello"), Some(true)];
+    /// assert_eq!(h.sequence_option(), Some(hlist![1, "hello", true]));
+    ///
+    /// let h_none = hlist![Some(1), None::<&str>, Some(true)];
+    /// assert_eq!(h_none.sequence_option(), None);
+    /// ```
+    fn sequence_option(self) -> Option<Self::Output>;
+}
+
+impl HListSequenceOption for Nihil {
+    type Output = Nihil;
+
+    #[inline]
+    fn sequence_option(self) -> Option<Nihil> {
+        Some(Nihil)
+    }
+}
+
+impl<H, T> HListSequenceOption for Coniunctio<Option<H>, T>
+where
+    T: HListSequenceOption,
+{
+    type Output = Coniunctio<H, T::Output>;
+
+    #[inline]
+    fn sequence_option(self) -> Option<Self::Output> {
+        let (head, tail) = self.pop();
+        let h = head?;
+        let t = tail.sequence_option()?;
+        Some(Coniunctio { head: h, tail: t })
+    }
+}
+
+/// Trait for sequencing an `HList` of `Result` values into `Result<HList, E>`.
+pub trait HListSequenceResult<E> {
+    /// The resulting `HList` type with `Result` unwrapped from every element.
+    type Output: HList;
+
+    /// Sequences an `HList` of `Result`s into a `Result` of `HList`.
+    ///
+    /// Returns `Ok(hlist)` if all elements are `Ok`, or the first `Err(e)` encountered.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(E)` containing the error of the first failed element in the HList.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::hlist;
+    /// use ordofp_core::hlist::HListSequenceResult;
+    ///
+    /// let h = hlist![Ok::<i32, &str>(1), Ok::<&str, &str>("hello"), Ok::<bool, &str>(true)];
+    /// assert_eq!(h.sequence_result(), Ok(hlist![1, "hello", true]));
+    ///
+    /// let h_err = hlist![Ok::<i32, &str>(1), Err::<&str, &str>("failed"), Ok::<bool, &str>(true)];
+    /// assert_eq!(h_err.sequence_result(), Err("failed"));
+    /// ```
+    fn sequence_result(self) -> Result<Self::Output, E>;
+}
+
+impl<E> HListSequenceResult<E> for Nihil {
+    type Output = Nihil;
+
+    #[inline]
+    fn sequence_result(self) -> Result<Nihil, E> {
+        Ok(Nihil)
+    }
+}
+
+impl<H, T, E> HListSequenceResult<E> for Coniunctio<Result<H, E>, T>
+where
+    T: HListSequenceResult<E>,
+{
+    type Output = Coniunctio<H, T::Output>;
+
+    #[inline]
+    fn sequence_result(self) -> Result<Self::Output, E> {
+        let (head, tail) = self.pop();
+        let h = head?;
+        let t = tail.sequence_result()?;
+        Ok(Coniunctio { head: h, tail: t })
+    }
+}
+
+/// Trait for sequencing an `HList` of `Probatum` (Validated) values into `Probatum<E, HList>`.
+#[cfg(feature = "Probatum")]
+pub trait HListSequenceValidated<E> {
+    /// The resulting `HList` type with `Probatum` unwrapped from every element.
+    type Output: HList;
+
+    /// Sequences an `HList` of `Probatum` values into a single `Probatum` holding the unwrapped `HList`,
+    /// accumulating **all** errors across all elements.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::hlist;
+    /// use ordofp_core::hlist::HListSequenceValidated;
+    /// use ordofp_core::validated::{IntoProbatum, Probatum};
+    ///
+    /// let v1: Probatum<&str, i32> = Probatum::Valid(42);
+    /// let v2: Probatum<&str, &str> = Probatum::Valid("ok");
+    /// let h = hlist![v1, v2];
+    /// assert_eq!(h.sequence_validated(), Probatum::Valid(hlist![42, "ok"]));
+    ///
+    /// let e1: Probatum<&str, i32> = Err("err1").into_probatum();
+    /// let e2: Probatum<&str, &str> = Err("err2").into_probatum();
+    /// let h_errs = hlist![e1, e2];
+    /// let res = h_errs.sequence_validated();
+    /// assert!(res.is_invalid());
+    /// assert_eq!(res.errors().unwrap().len(), 2);
+    /// ```
+    fn sequence_validated(self) -> crate::validated::Probatum<E, Self::Output>;
+}
+
+#[cfg(feature = "Probatum")]
+impl<E> HListSequenceValidated<E> for Nihil {
+    type Output = Nihil;
+
+    #[inline]
+    fn sequence_validated(self) -> crate::validated::Probatum<E, Nihil> {
+        crate::validated::Probatum::Valid(Nihil)
+    }
+}
+
+#[cfg(feature = "Probatum")]
+impl<H, T, E> HListSequenceValidated<E> for Coniunctio<crate::validated::Probatum<E, H>, T>
+where
+    T: HListSequenceValidated<E>,
+{
+    type Output = Coniunctio<H, T::Output>;
+
+    #[inline]
+    fn sequence_validated(self) -> crate::validated::Probatum<E, Self::Output> {
+        let (head, tail) = self.pop();
+        let tail_seq = tail.sequence_validated();
+        head.map2(tail_seq, |h, t| Coniunctio { head: h, tail: t })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2113,5 +2273,54 @@ mod tests {
         let second = hlist![];
 
         assert_eq!(first.extend(second), hlist![]);
+    }
+
+    #[test]
+    fn test_hlist_sequence_option() {
+        let h = hlist![Some(10), Some("hello"), Some(true)];
+        assert_eq!(h.sequence_option(), Some(hlist![10, "hello", true]));
+
+        let h_none = hlist![Some(10), None::<&str>, Some(true)];
+        assert_eq!(h_none.sequence_option(), None);
+    }
+
+    #[test]
+    fn test_hlist_sequence_result() {
+        let h = hlist![
+            Ok::<i32, &str>(10),
+            Ok::<&str, &str>("hello"),
+            Ok::<bool, &str>(true)
+        ];
+        assert_eq!(h.sequence_result(), Ok(hlist![10, "hello", true]));
+
+        let h_err = hlist![
+            Ok::<i32, &str>(10),
+            Err::<&str, &str>("fail"),
+            Ok::<bool, &str>(true)
+        ];
+        assert_eq!(h_err.sequence_result(), Err("fail"));
+    }
+
+    #[test]
+    #[cfg(feature = "Probatum")]
+    fn test_hlist_sequence_validated() {
+        use crate::validated::IntoProbatum;
+
+        let v1: crate::validated::Probatum<&str, i32> = crate::validated::Probatum::Valid(10);
+        let v2: crate::validated::Probatum<&str, &str> = crate::validated::Probatum::Valid("ok");
+        let v3: crate::validated::Probatum<&str, bool> = crate::validated::Probatum::Valid(true);
+        let h = hlist![v1, v2, v3];
+        assert_eq!(
+            h.sequence_validated(),
+            crate::validated::Probatum::Valid(hlist![10, "ok", true])
+        );
+
+        let e1: crate::validated::Probatum<&str, i32> = Err("err1").into_probatum();
+        let e2: crate::validated::Probatum<&str, &str> = crate::validated::Probatum::Valid("ok");
+        let e3: crate::validated::Probatum<&str, bool> = Err("err3").into_probatum();
+        let h_errs = hlist![e1, e2, e3];
+        let res = h_errs.sequence_validated();
+        assert!(res.is_invalid());
+        assert_eq!(res.errors().unwrap(), &["err1", "err3"]);
     }
 }

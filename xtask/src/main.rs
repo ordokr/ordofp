@@ -9,6 +9,7 @@
 //! cargo run -p xtask -- stable      # stable-toolchain build + fallback-path tests
 //! cargo run -p xtask -- deny        # advisories/licenses/bans (deny.toml)
 //! cargo run -p xtask -- wasm        # core builds for wasm32-unknown-unknown
+//! cargo run -p xtask -- matrix      # key isolated/additive feature sets
 //! cargo run -p xtask -- all         # gate + stable + deny + wasm (pre-push)
 //! cargo run -p xtask -- miri        # UB check over every unsafe-bearing module
 //! cargo run -p xtask -- miri-scope  # assert no unsafe sits outside Miri's reach
@@ -38,11 +39,13 @@ fn main() {
         "perf-guard" => perf_guard(),
         "pgo" => pgo(),
         "semver" => semver(),
+        "matrix" => matrix(),
         "all" => {
             gate();
             stable();
             deny();
             wasm();
+            matrix();
         }
         "maint" => maint(),
         "deep" => {
@@ -51,7 +54,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|miri|miri-scope|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
+                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|matrix|miri|miri-scope|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
             );
             exit(2);
         }
@@ -174,6 +177,79 @@ fn wasm() {
         ],
         None,
     );
+}
+
+/// Feature-matrix verification: builds critical isolated and additive feature
+/// sets to guarantee feature orthogonality and prevent unflagged breakage.
+fn matrix() {
+    let combos: &[(&str, &[&str])] = &[
+        (
+            "workspace (no-default-features)",
+            &["check", "--workspace", "--no-default-features"],
+        ),
+        (
+            "ordofp_core (no-default-features + alloc)",
+            &[
+                "check",
+                "-p",
+                "ordofp_core",
+                "--no-default-features",
+                "--features",
+                "alloc",
+            ],
+        ),
+        (
+            "ordofp (no-default-features + std,Probatum)",
+            &[
+                "check",
+                "-p",
+                "ordofp",
+                "--no-default-features",
+                "--features",
+                "std,Probatum",
+            ],
+        ),
+        (
+            "ordofp (async, tokio)",
+            &["check", "-p", "ordofp", "--features", "async,tokio"],
+        ),
+        (
+            "ordofp (async, smol)",
+            &["check", "-p", "ordofp", "--features", "async,smol"],
+        ),
+        (
+            "ordofp (linear)",
+            &["check", "-p", "ordofp", "--features", "linear"],
+        ),
+        (
+            "ordofp (par, rayon)",
+            &["check", "-p", "ordofp", "--features", "par,rayon"],
+        ),
+        (
+            "ordofp (fusion)",
+            &["check", "-p", "ordofp", "--features", "fusion"],
+        ),
+        (
+            "ordofp (nexus)",
+            &["check", "-p", "ordofp", "--features", "nexus"],
+        ),
+        (
+            "ordofp (transformers-cps)",
+            &["check", "-p", "ordofp", "--features", "transformers-cps"],
+        ),
+        (
+            "ordofp (serde, alloc)",
+            &["check", "-p", "ordofp", "--features", "serde,alloc"],
+        ),
+        (
+            "ordofp (Probatum-smallvec)",
+            &["check", "-p", "ordofp", "--features", "Probatum-smallvec"],
+        ),
+    ];
+
+    for (name, args) in combos {
+        run(&format!("matrix: {name}"), args, None);
+    }
 }
 
 /// Test-name filters covering every `ordofp_core` module that contains an

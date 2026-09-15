@@ -128,6 +128,46 @@ impl<E, A> Probatum<E, A> {
         }
     }
 
+    /// Map a function over the valid value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::validated::Probatum;
+    ///
+    /// let v = Probatum::<&str, i32>::Valid(10);
+    /// assert_eq!(v.map(|x| x * 2), Probatum::Valid(20));
+    /// ```
+    pub fn map<B, F>(self, mut f: F) -> Probatum<E, B>
+    where
+        F: FnMut(A) -> B,
+    {
+        match self {
+            Probatum::Valid(a) => Probatum::Valid(f(a)),
+            Probatum::Invalid(e) => Probatum::Invalid(e),
+        }
+    }
+
+    /// Map a function over each accumulated error.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::validated::Probatum;
+    ///
+    /// let v = Probatum::<&str, i32>::Invalid(core::iter::once("bad").collect());
+    /// assert_eq!(v.map_err(|s| s.to_uppercase()).errors().unwrap(), &["BAD".to_string()]);
+    /// ```
+    pub fn map_err<E2, F>(self, f: F) -> Probatum<E2, A>
+    where
+        F: FnMut(E) -> E2,
+    {
+        match self {
+            Probatum::Valid(a) => Probatum::Valid(a),
+            Probatum::Invalid(es) => Probatum::Invalid(es.into_iter().map(f).collect()),
+        }
+    }
+
     /// Combine two Probatum values with a pure function.
     pub fn map2<B, C, F>(self, vb: Probatum<E, B>, mut f: F) -> Probatum<E, C>
     where
@@ -285,11 +325,58 @@ impl<T, E> IntoProbatum<T, E> for Result<T, E> {
     }
 }
 
+/// English alias trait for `IntoProbatum`, providing `.into_validated()`.
+pub trait IntoValidated<T, E> {
+    /// Converts this value into a [`Probatum`]/[`Validated`], mapping `Ok(v)` to `Valid(v)`
+    /// and `Err(e)` to `Invalid` with a single accumulated error.
+    fn into_validated(self) -> Probatum<E, T>;
+}
+
+impl<T, E> IntoValidated<T, E> for Result<T, E> {
+    #[inline]
+    fn into_validated(self) -> Probatum<E, T> {
+        self.into_probatum()
+    }
+}
+
 impl<T, E> From<Result<T, E>> for Probatum<E, T> {
     fn from(res: Result<T, E>) -> Self {
         IntoProbatum::into_probatum(res)
     }
 }
+
+/// Extension trait for iterators to validate elements and accumulate all errors into a `Probatum`.
+pub trait IteratorValidateExt: Iterator + Sized {
+    /// Applies a validating function to each element and accumulates all errors.
+    ///
+    /// Unlike `Iterator::map().collect::<Result<Vec<_>, _>>()`, which short-circuits
+    /// on the first failure, `validate_all` collects **all** validation errors across
+    /// the entire iterator into a single `Probatum`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::validated::{IteratorValidateExt, Probatum, IntoProbatum};
+    ///
+    /// let inputs = vec!["1", "2", "bad1", "4", "bad2"];
+    /// let parsed: Probatum<String, Vec<i32>> = inputs.into_iter().validate_all(|s| {
+    ///     s.parse::<i32>()
+    ///         .map_err(|_| format!("invalid integer: {s}"))
+    ///         .into_probatum()
+    /// });
+    ///
+    /// assert!(parsed.is_invalid());
+    /// assert_eq!(parsed.errors().unwrap().len(), 2);
+    /// ```
+    fn validate_all<E, B, F>(self, f: F) -> Probatum<E, Vec<B>>
+    where
+        F: FnMut(Self::Item) -> Probatum<E, B>,
+    {
+        Probatum::<E, B>::collect(self.map(f))
+    }
+}
+
+impl<I: Iterator> IteratorValidateExt for I {}
 
 impl<E, A> Functor for Probatum<E, A> {
     type Inner = A;

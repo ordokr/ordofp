@@ -65,6 +65,7 @@ below).
 
 - **[Developer Guide](docs/guide.md)** - Main user manual and tutorial
 - **[Canonical Reference](docs/reference.md)** - Complete API reference, cheatsheets, and tables
+- **[Vernacular API](core/src/vernacular/mod.rs)** - Standard English aliases for all Scholastic types and traits
 - **[Async Guide](docs/async.md)** - Async streams, fibers, and monad transformers
 - **[Bayes Guide](docs/bayes.md)** - Probabilistic programming guide
 - **[Glossarium](docs/glossary.md)** - Scholastic Latin naming convention
@@ -139,19 +140,27 @@ OrdoFP is at **v0.1.2**. The components below have settled APIs and full test co
 | PFDS Collections | Mature |
 | Optics | Mature |
 | Async / Fibers | Mature |
-| Linear Types | Mature |
+| Linear Types | Mature (Affine discipline) |
 | ParFlumen (Parallel) | Mature |
 
 Not listed above: the row-typed effect system is an opt-in feature (`nexus`), and `ordofp_bayes` implements single-step SMC and single-site trace MCMC (see the scope notes in [docs/bayes.md](docs/bayes.md)).
+
+## Documentation & Principles
+
+- **[Tutorial & Guide](docs/guide.md)** — Core walkthroughs and patterns
+- **[API Reference & Cheatsheets](docs/reference.md)** — Quick reference and macro cheatsheets
+- **[Core Principles & Axioms](docs/axioms.md)** — Design axioms derived from audits and empirical refactoring
+- **[Feature Flags Matrix](docs/FEATURE_FLAGS.md)** — Canonical feature dependencies and flags
+- **[Scholastic & Vernacular Glossary](docs/glossary.md)** — Latin and English name mappings
 
 ## Contributing
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites and workflow,
 and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Verification is local and deterministic by design (no hosted CI): a green
-`cargo run -p xtask -- all` — format, clippy `-D warnings`, all-features tests,
-docs, stable cross-check, `cargo-deny`, wasm32 — is the merge bar.
+Verification is machine-owned and deterministic: `cargo run -p xtask -- all` — format check,
+strict Clippy `-D warnings`, all-features test suite, rustdoc, stable MSRV check, `cargo-deny`,
+wasm32 build, and the 12-configuration feature matrix — is the merge bar locally and in GitHub Actions CI.
 
 ## License
 

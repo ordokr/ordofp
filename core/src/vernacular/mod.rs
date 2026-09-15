@@ -166,10 +166,26 @@ pub use crate::disiunctio::{
 };
 
 // =============================================================================
-// Functor/Monad Aliases
+// Functor/Monad/Semigroup/Monoid Aliases
 // =============================================================================
 
 pub use crate::gat::{Applicative, Apply, Functor, Monad};
+pub use crate::typeclasses::Compositio as Semigroup;
+pub use crate::typeclasses::Unitas as Monoid;
+
+// =============================================================================
+// Validation Aliases
+// =============================================================================
+
+#[cfg(feature = "Probatum")]
+pub use crate::validated::{IntoProbatum, IntoValidated, Probatum as Validated};
+
+// =============================================================================
+// Linear Types Aliases
+// =============================================================================
+
+#[cfg(feature = "linear")]
+pub use crate::linear::{Linearis as Linear, LinearisExt as LinearExt, Unrestricted};
 
 // =============================================================================
 // Optics Aliases
@@ -399,14 +415,22 @@ pub mod prelude {
         // Optics
         Lens,
         Monad,
+        Monoid,
 
         Nil,
 
         Prism,
+        Semigroup,
         iso,
         lens,
         prism,
     };
+
+    #[cfg(feature = "Probatum")]
+    pub use super::{IntoValidated, Validated};
+
+    #[cfg(feature = "linear")]
+    pub use super::{Linear, LinearExt};
 }
 
 // =============================================================================
@@ -427,5 +451,12 @@ mod tests {
     fn test_either_alias() {
         let e: Either<&str, i32> = Either::Dexter(42);
         assert!(e.is_dexter());
+    }
+
+    #[test]
+    #[cfg(feature = "Probatum")]
+    fn test_validated_alias() {
+        let v: Validated<&str, i32> = Validated::Valid(42);
+        assert_eq!(v, crate::validated::Probatum::Valid(42));
     }
 }

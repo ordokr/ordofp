@@ -3,7 +3,7 @@
 //! > *"Motus est actus entis in potentia."*
 //! > — Motion is the actuality of that which exists potentially. (Aristotle, Physics III)
 //!
-//! This module provides the core async primitives for `OrdoFP` 2.0, enabling
+//! This module provides the core async primitives for `OrdoFP`, enabling
 //! functional programming patterns in asynchronous Rust code.
 //!
 //! # Overview
@@ -34,13 +34,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ordofp = { version = "2.0", features = ["async"] }
+//! ordofp = { version = "0.1", features = ["async"] }
 //! ```
 //!
 //! For runtime integration, use `tokio` or `smol` features:
 //!
 //! ```toml
-//! ordofp = { version = "2.0", features = ["tokio"] }
+//! ordofp = { version = "0.1", features = ["tokio"] }
 //! ```
 //!
 //! # Example

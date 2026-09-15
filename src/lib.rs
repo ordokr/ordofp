@@ -301,7 +301,13 @@ pub use crate::monoid::Unitas;
 pub use crate::validated::IntoProbatum;
 #[doc(no_inline)]
 #[cfg(feature = "Probatum")]
+pub use crate::validated::IntoValidated;
+#[doc(no_inline)]
+#[cfg(feature = "Probatum")]
 pub use crate::validated::Probatum;
+#[doc(no_inline)]
+#[cfg(feature = "Probatum")]
+pub use crate::validated::Validated;
 
 // GAT typeclasses (Applicatio is the GAT-based implementation)
 #[doc(no_inline)]
@@ -318,6 +324,11 @@ pub use crate::typeclasses::Monad;
 #[cfg(feature = "alloc")]
 pub use crate::zipper::Zipper;
 
+/// Vernacular module providing conventional English aliases for all types and traits.
+pub mod vernacular {
+    pub use ordofp_core::vernacular::*;
+}
+
 pub mod prelude {
     //! Traits that need to be imported for the complete `ordofp` experience.
     //!
@@ -327,13 +338,20 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::hlist::HList; // for LEN
     #[doc(no_inline)]
+    #[cfg(feature = "Probatum")]
+    pub use crate::hlist::HListSequenceValidated;
+    #[doc(no_inline)]
     pub use crate::hlist::LiftFrom;
     #[doc(no_inline)]
     pub use crate::hlist::LiftInto;
+    #[doc(no_inline)]
+    pub use crate::hlist::{HListSequenceOption, HListSequenceResult};
 
     #[doc(no_inline)]
     #[cfg(feature = "Probatum")]
-    pub use crate::validated::IntoProbatum;
+    pub use crate::validated::{
+        IntoProbatum, IntoValidated, IteratorValidateExt, Probatum, Validated,
+    };
 
     // GAT typeclasses
     #[doc(no_inline)]

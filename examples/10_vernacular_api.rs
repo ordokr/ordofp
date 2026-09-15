@@ -14,10 +14,12 @@ use ordofp_core::vernacular::{
     Cons,
     // Data types
     Either,
+    Monoid,
     Nil,
+    Semigroup,
+    Validated,
 
     iso,
-
     // Optics with English names
     lens,
     prism,
@@ -126,8 +128,24 @@ fn main() {
     let res: Result<i32, &str> = Ok(42);
     println!("   Result Ok(42): {res:?}");
 
-    // Example 5: Naming comparison table
-    println!("\n5. Naming Comparison");
+    // Example 5: Semigroup and Monoid (Compositio and Unitas)
+    println!("\n5. Semigroup and Monoid");
+    println!("-----------------------");
+    let combined = String::from("Hello, ").combine(&String::from("World!"));
+    println!("   Semigroup combine: {combined}");
+    let empty_str: String = Monoid::empty();
+    println!("   Monoid empty: '{empty_str}'");
+
+    // Example 6: Validated (Probatum)
+    println!("\n6. Validated (Multi-Error Validation)");
+    println!("-------------------------------------");
+    let v1: Validated<&str, i32> = Validated::Valid(10);
+    let v2: Validated<&str, i32> = Validated::Valid(20);
+    let v_sum = Validated::lift2(|a, b| a + b, v1, v2);
+    println!("   Validated sum: {v_sum:?}");
+
+    // Example 7: Naming comparison table
+    println!("\n7. Naming Comparison");
     println!("--------------------");
     println!("   | Latin (Scholastic)  | English (Vernacular) |");
     println!("   |---------------------|----------------------|");
@@ -137,6 +155,10 @@ fn main() {
     println!("   | Divisio             | Prism                |");
     println!("   | Aequivalentia       | Iso                  |");
     println!("   | Aut                 | Either               |");
+    println!("   | Compositio          | Semigroup            |");
+    println!("   | Unitas              | Monoid               |");
+    println!("   | Probatum            | Validated            |");
+    println!("   | Linearis            | Linear               |");
     println!("   | Pigritia            | Lazy                 |");
     println!("   | Disiunctio          | Disiunctio (same)    |");
     println!("   | Absurdum            | Void                 |");

@@ -365,17 +365,15 @@ impl RuntimeGenerare for SmolRuntime {
     }
 }
 
-/// Type alias for the current runtime based on feature flags.
-///
-/// - If `tokio` is enabled, uses `TokioRuntime`
-/// - If `smol` is enabled (and not tokio), uses `SmolRuntime`
-/// - Otherwise, uses `NullRuntime`
+/// Type alias for the active async runtime (`TokioRuntime`).
 #[cfg(feature = "tokio")]
 pub type CurrentRuntime = TokioRuntime;
 
+/// Type alias for the active async runtime (`SmolRuntime`).
 #[cfg(all(feature = "smol", not(feature = "tokio")))]
 pub type CurrentRuntime = SmolRuntime;
 
+/// Type alias for the fallback null runtime when no async runtime feature is selected.
 #[cfg(not(any(feature = "tokio", feature = "smol")))]
 pub type CurrentRuntime = NullRuntime;
 

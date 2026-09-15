@@ -6,14 +6,14 @@ measurement, the measurement is summarized inline.
 
 ## Verification & workflow
 
-- **Local gate is canonical.** The five-step gate (fmt, clippy `-D warnings`,
-  workspace tests, docs, full build) plus the stable-toolchain cross-check,
-  `cargo-deny`, and the wasm32 check is owned by the `xtask` crate:
+- **Dual-layer verification is canonical.** The machine-owned `xtask` driver
+  executes the canonical gate (fmt, clippy `-D warnings`, workspace tests,
+  docs, full build) plus the stable-toolchain cross-check, `cargo-deny`,
+  wasm32 check, and the 12-configuration feature matrix:
   `cargo run -p xtask -- all`; `-- deep` adds Miri (arena) and a
   60s fuzz smoke.
-  **There is no hosted CI — xtask is the only CI.** A green local gate is the
-  merge bar. (One check from the retired hosted workflow survives locally:
-  `cargo check -p ordofp_core --no-default-features --features alloc`.)
+  Hosted CI (`.github/workflows/ci.yml`) runs identical `xtask` checks on
+  every push and PR.
 - **Gate per commit** touching code/config/scripts; pure-`.md` commits ride
   the most recent green gate.
 - **Never introduce an unnamed behavior change.** GPU tests self-skip when no
@@ -21,9 +21,10 @@ measurement, the measurement is summarized inline.
 
 ## Naming & API law
 
-- **Scholastic Latin is project law** for new core public type names — consult
-  [glossary.md](glossary.md); keep English aliases only where a sibling
-  already has one.
+- **Dual-Gateway Naming**: Scholastic Latin is the primary conceptual nomenclature
+  for new core public types (see [glossary.md](glossary.md)); the Vernacular
+  English interface (`ordofp::vernacular` and `ordofp::prelude::*`) maintains 100%
+  first-class ergonomic parity (see [axioms.md](axioms.md)).
 - **Treat the public API as frozen by default**: no `pub use` changes or
   visibility reductions without building the downstream consumers that pin
   this crate by path.

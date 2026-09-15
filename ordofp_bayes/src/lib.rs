@@ -66,13 +66,18 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+#[cfg(feature = "std")]
 pub mod distributions;
+#[cfg(feature = "alloc")]
 pub mod inference;
+#[cfg(feature = "alloc")]
 pub mod traits;
 
+#[cfg(feature = "alloc")]
 pub use inference::{
     ImportanceSampling, MetropolisHastings, Particle, ResamplingStrategy, SequentialMonteCarlo,
     Trace, TraceableModel, WeightedModel, WeightedSample, effective_sample_size,
     normalized_weights,
 };
+#[cfg(feature = "alloc")]
 pub use traits::{Distribution, Inferendus, Samplandus};

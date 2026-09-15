@@ -163,6 +163,103 @@ where
         self.set(source, f(value))
     }
 
+    /// Modify the focused value using a fallible function returning `Option<A>`.
+    ///
+    /// If `f` returns `Some(new_val)`, returns `Some(updated_structure)`.
+    /// If `f` returns `None`, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::optics::aspectus;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Account { balance: i32 }
+    ///
+    /// let bal_lens = aspectus(|a: &Account| a.balance, |a: &Account, b| Account { balance: b });
+    /// let acc = Account { balance: 100 };
+    ///
+    /// let ok = bal_lens.modify_option(&acc, |b| if b >= 50 { Some(b - 50) } else { None });
+    /// assert_eq!(ok, Some(Account { balance: 50 }));
+    ///
+    /// let fail = bal_lens.modify_option(&acc, |b| if b >= 200 { Some(b - 200) } else { None });
+    /// assert_eq!(fail, None);
+    /// ```
+    #[inline]
+    pub fn modify_option<F>(&self, source: &S, f: F) -> Option<S>
+    where
+        F: FnOnce(A) -> Option<A>,
+    {
+        let value = self.get(source);
+        f(value).map(|new_val| self.set(source, new_val))
+    }
+
+    /// Modify the focused value using a fallible function returning `Result<A, E>`.
+    ///
+    /// If `f` returns `Ok(new_val)`, returns `Ok(updated_structure)`.
+    /// If `f` returns `Err(e)`, returns `Err(e)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(E)` if the modifier closure `f` returns `Err(E)`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::optics::aspectus;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Account { balance: i32 }
+    ///
+    /// let bal_lens = aspectus(|a: &Account| a.balance, |a: &Account, b| Account { balance: b });
+    /// let acc = Account { balance: 100 };
+    ///
+    /// let res = bal_lens.modify_result(&acc, |b| {
+    ///     if b >= 50 { Ok(b - 50) } else { Err("insufficient funds") }
+    /// });
+    /// assert_eq!(res, Ok(Account { balance: 50 }));
+    /// ```
+    #[inline]
+    pub fn modify_result<E, F>(&self, source: &S, f: F) -> Result<S, E>
+    where
+        F: FnOnce(A) -> Result<A, E>,
+    {
+        let value = self.get(source);
+        f(value).map(|new_val| self.set(source, new_val))
+    }
+
+    /// Modify the focused value using a validating function returning `Probatum<E, A>`.
+    ///
+    /// If validation succeeds (`Valid(new_val)`), returns `Valid(updated_structure)`.
+    /// If it fails (`Invalid(errs)`), returns `Invalid(errs)`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ordofp_core::optics::aspectus;
+    /// use ordofp_core::validated::{IntoProbatum, Probatum};
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Profile { username: String }
+    ///
+    /// let user_lens = aspectus(|p: &Profile| p.username.clone(), |p: &Profile, u| Profile { username: u });
+    /// let profile = Profile { username: "alice".into() };
+    ///
+    /// let updated = user_lens.modify_validated(&profile, |u| {
+    ///     if u.len() >= 3 { Probatum::Valid(u.to_uppercase()) } else { Err("too short").into_probatum() }
+    /// });
+    /// assert_eq!(updated, Probatum::Valid(Profile { username: "ALICE".into() }));
+    /// ```
+    #[cfg(feature = "Probatum")]
+    #[inline]
+    pub fn modify_validated<E, F>(&self, source: &S, f: F) -> crate::validated::Probatum<E, S>
+    where
+        F: FnOnce(A) -> crate::validated::Probatum<E, A>,
+    {
+        let value = self.get(source);
+        f(value).map(|new_val| self.set(source, new_val))
+    }
+
     /// Compose this aspectus with another aspectus to focus on nested data.
     ///
     /// If `self` focuses on `A` within `S`, and `other` focuses on `B` within `A`,

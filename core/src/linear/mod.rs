@@ -36,16 +36,21 @@
 //! - **1 (Linear)**: Value must be used exactly once
 //! - **ω (Unrestricted)**: Value can be used any number of times
 //!
-//! Rust's ownership system naturally enforces linearity through move semantics.
-//! This module provides explicit types and traits to make linear programming
-//! more ergonomic and self-documenting.
+//! Rust's ownership system naturally enforces affinity through move semantics.
+//! This module provides explicit types and combinators to make linear/affine programming
+//! more ergonomic and structured.
+//!
+//! > **Note on Linearity vs. Affinity**: Rust enforces *at-most-once* (affine) rather than
+//! > *exactly-once* (strictly linear) semantics at the language level. `Linearis` operates
+//! > as an advisory discipline wrapper: it enforces consumption through by-value methods
+//! > while explicitly documenting escape hatches (`Clone`, `Copy`, and `Deref`).
 //!
 //! # Example
 //!
 //! ```rust
 //! use ordofp_core::linear::Linearis;
 //!
-//! // A resource that must be used exactly once
+//! // A resource intended for single-use consumption
 //! let file = Linearis::new(String::from("data.txt"));
 //!
 //! // Use the value linearly - this consumes it
@@ -61,7 +66,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ordofp = { version = "3.0", features = ["linear"] }
+//! ordofp = { version = "0.1", features = ["linear"] }
 //! ```
 
 mod combinators;

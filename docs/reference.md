@@ -49,16 +49,16 @@ Type-safe sum types (tagged unions).
 | `.get::<T>()` | `→ Option<&T>` | `co.get::<i32>()` |
 | `.fold(hlist![])` | `→ R` | `co.fold(hlist![f_int, f_str])` |
 
-### Probatum
+### Probatum (Validated)
 
-Accumulates errors using applicative combination (`liftN`).
+Accumulates errors using applicative combination (`liftN`). Available in English as `Validated` / `IntoValidated`.
 
 ```rust
-let validation = Probatum::lift3(
+let validation = Validated::lift3(
     |name, age, email| Person { name, age, email },
-    parse_name(s).into_probatum(),
-    parse_age(s).into_probatum(),
-    parse_email(s).into_probatum(),
+    parse_name(s).into_validated(),
+    parse_age(s).into_validated(),
+    parse_email(s).into_validated(),
 );
 ```
 
@@ -245,6 +245,25 @@ res.consume(|f| f.close()); // Must be called exactly once
 | Struct → Struct | `convert_from` / `transform_from` |
 | Extract type | `.pluck::<T>()` |
 | Extract subset | `.sculpt::<Target>()` |
+
+### Vernacular (English) Equivalents
+
+OrdoFP provides standard English aliases via `use ordofp::vernacular::*;` or `use ordofp::prelude::*`.
+
+| Scholastic (Latin) | Vernacular (English) | Description |
+|--------------------|----------------------|-------------|
+| `Coniunctio` / `Nihil` | `Cons` / `Nil` | HList construction types |
+| `Probatum` / `IntoProbatum` | `Validated` / `IntoValidated` | Multi-error applicative validation |
+| `Compositio` | `Semigroup` | Associative binary combination |
+| `Unitas` | `Monoid` | Semigroup with identity element |
+| `Linearis` | `Linear` | Single-use resource wrapper |
+| `Aspectus` | `Lens` | Product-type focusing optic |
+| `Divisio` | `Prism` | Sum-type focusing optic |
+| `Aequivalentia` | `Iso` | Lossless bidirectional isomorphism |
+| `Iteratio` | `Traversal` | Multi-target optic |
+| `IteratioAffinis` | `Affine` | 0-or-1 target optic |
+| `Aut` | `Either` | Binary sum type (`Sinister` / `Dexter`) |
+| `Absurdum` | `Void` | Uninhabited empty type |
 
 ### Feature Flags
 

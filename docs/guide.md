@@ -813,7 +813,7 @@ let sum = Flumen::from_iter(1..=10)
 
 ### Stateful Stream Operations
 
-Introduced in 2.0: `scan` (running accumulation — unlike `fold`, yields each
+`Flumen` provides `scan` (running accumulation — unlike `fold`, yields each
 intermediate state), `scan_with` (state type may differ from output; return
 `None` to terminate early), and `chunks` (fixed-size batches). Examples:
 [async.md → Stateful Stream Operations](async.md#stateful-stream-operations).
@@ -1149,7 +1149,7 @@ fn interpret<A>(program: Console<A>) -> A {
 }
 ```
 
-### LiberEcclesia (Church-Encoded Free Monad) - 2.0
+### LiberEcclesia (Church-Encoded Free Monad)
 
 **O(n) for both left- and right-associated binds.** Uses Church encoding with a continuation stack.
 
@@ -1182,7 +1182,7 @@ let large = (0..100).fold(
 assert_eq!(large.extract_pure(), Some(4950));
 ```
 
-### Codensity Transform - 2.0
+### Codensity Transform
 
 Guaranteed O(1) binds via continuation-passing style.
 
