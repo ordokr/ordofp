@@ -10,7 +10,8 @@
 //! cargo run -p xtask -- deny        # advisories/licenses/bans (deny.toml)
 //! cargo run -p xtask -- wasm        # core builds for wasm32-unknown-unknown
 //! cargo run -p xtask -- all         # gate + stable + deny + wasm (pre-push)
-//! cargo run -p xtask -- miri        # UB check on the unsafe-heavy modules
+//! cargo run -p xtask -- miri        # UB check over every unsafe-bearing module
+//! cargo run -p xtask -- miri-scope  # assert no unsafe sits outside Miri's reach
 //! cargo run -p xtask -- fuzz-smoke  # 60s coverage-guided smoke per target
 //! cargo run -p xtask -- perf-guard  # deterministic checksum/alloc regression guard
 //! cargo run -p xtask -- pgo [feats] # PGO build of the e2e verdict binary
@@ -32,6 +33,7 @@ fn main() {
         "deny" => deny(),
         "wasm" => wasm(),
         "miri" => miri(),
+        "miri-scope" => assert_miri_scope_covers_unsafe(),
         "fuzz-smoke" => fuzz_smoke(),
         "perf-guard" => perf_guard(),
         "pgo" => pgo(),
@@ -49,7 +51,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|miri|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
+                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|miri|miri-scope|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
             );
             exit(2);
         }
@@ -57,9 +59,14 @@ fn main() {
     println!("xtask {task}: GREEN");
 }
 
-/// The canonical five verification steps. Every commit is expected to pass
-/// all five.
+/// The canonical verification steps. Every commit is expected to pass them all.
+///
+/// The Miri *scope* check runs here rather than only in `deep`: it is a
+/// filesystem scan costing milliseconds, so an `unsafe` construct landing in a
+/// module no filter reaches fails on the commit that introduces it instead of
+/// at the next weekly `deep` run.
 fn gate() {
+    assert_miri_scope_covers_unsafe();
     run("fmt (check)", &["fmt", "--all", "--", "--check"], None);
     run(
         "clippy -D warnings (all targets, all features)",
@@ -169,14 +176,173 @@ fn wasm() {
     );
 }
 
-/// Scope mirrors the manual practice recorded in `docs/UNSAFE_NOTES.md`:
-/// the unsafe-heavy modules (arena allocator/pool).
+/// Test-name filters covering every `ordofp_core` module that contains an
+/// `unsafe` construct. Miri interprets only the code a test actually executes,
+/// so this list *is* the crate's UB-coverage surface.
+///
+/// `--all-features` is not optional here: `nexus::effects::region` and
+/// `par::*` are feature-gated, so a default-feature run does not even compile
+/// them, let alone interpret them.
+/// Filters are *module paths*, not bare module names: `nexus` alone matches 291
+/// tests where the `unsafe` lives in three submodules, so naming them precisely
+/// takes the gate from 494 interpreted tests to 114 with identical coverage.
+/// [`assert_miri_scope_covers_unsafe`] maps each back to a file path by
+/// rewriting `::` as `/`.
+const MIRI_CORE_FILTERS: &[&str] = &[
+    "arena", // arena::{allocator, pool}
+    "nexus::effects::region",
+    "nexus::optim::commutativity",
+    "nexus::optim::fusion",
+    "specialization::hints",
+    "ffi_bedrock", // unsafe extern blocks
+    "metrics::registry",
+    "dependent::refinement",
+    "refined::wrapper",
+    "refined::predicate",
+    "tracing::collector",
+];
+
+/// `unsafe`-bearing paths whose coverage a [`MIRI_CORE_FILTERS`] name match
+/// cannot express — each with the invocation that covers it, or the reason
+/// none can.
+///
+/// Kept explicit so an uncovered module is a reviewed line in the diff rather
+/// than an invisible hole in the filter list.
+const MIRI_PATH_NOTES: &[(&str, &str)] = &[
+    (
+        "ordofp_bayes/src/inference.rs",
+        "covered by `miri test -p ordofp_bayes --lib -- counts`: every unsafe \
+         construct here sits in generate_{multinomial,systematic,stratified}_counts \
+         and apply_counts. The whole-package suite is deliberately not used — its \
+         MCMC tests were measured at >35 min under Miri without finishing.",
+    ),
+    (
+        "core/src/par/backend/wgpu/",
+        "NOT covered: the GPU backend carries no unit tests, and its unsafe paths \
+         need a real wgpu adapter that Miri cannot provide.",
+    ),
+];
+
+/// UB check over the unsafe-bearing modules.
+///
+/// Previously this ran `-- arena` on default features, which reached 14 of the
+/// crate's 109 `unsafe` constructs and none of `ordofp_bayes`. The scope is now
+/// derived from where `unsafe` actually lives, and
+/// [`assert_miri_scope_covers_unsafe`] fails the gate if the two drift apart.
 fn miri() {
+    assert_miri_scope_covers_unsafe();
+    for filter in MIRI_CORE_FILTERS {
+        run(
+            &format!("miri (core::{filter})"),
+            &[
+                "miri",
+                "test",
+                "-p",
+                "ordofp_core",
+                "--lib",
+                "--all-features",
+                "--",
+                filter,
+            ],
+            Some("rustup component add miri"),
+        );
+    }
+    // Separate package: `-p ordofp_core` never reached it, yet `inference.rs`
+    // holds the densest `unsafe` in the repo (27 constructs). Scoped to the
+    // count-generation tests that actually execute them — see MIRI_PATH_NOTES.
     run(
-        "miri (arena unit tests)",
-        &["miri", "test", "-p", "ordofp_core", "--lib", "--", "arena"],
+        "miri (ordofp_bayes::counts)",
+        &[
+            "miri",
+            "test",
+            "-p",
+            "ordofp_bayes",
+            "--lib",
+            "--",
+            "counts",
+        ],
         Some("rustup component add miri"),
     );
+}
+
+/// Fail the gate when an `unsafe`-bearing file sits outside every Miri filter.
+///
+/// Without this, the filter list rots exactly as `-- arena` did: new `unsafe`
+/// lands in a module no filter names, and the gate stays green while covering
+/// less and less of the crate.
+fn assert_miri_scope_covers_unsafe() {
+    println!("==> miri scope covers every unsafe-bearing module");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask always sits one level below the workspace root")
+        .to_path_buf();
+
+    let mut uncovered = Vec::new();
+    for dir in ["core/src", "src", "ordofp_bayes/src"] {
+        collect_unsafe_files(&root.join(dir), &root, &mut uncovered);
+    }
+    uncovered.retain(|p| {
+        !MIRI_CORE_FILTERS
+            .iter()
+            .any(|f| p.contains(&f.replace("::", "/")))
+            && !MIRI_PATH_NOTES
+                .iter()
+                .any(|(prefix, _)| p.starts_with(prefix))
+    });
+
+    if !uncovered.is_empty() {
+        eprintln!("FAILED: these files contain `unsafe` but no Miri filter reaches them:");
+        for path in &uncovered {
+            eprintln!("  {path}");
+        }
+        eprintln!(
+            "add a covering filter to MIRI_CORE_FILTERS, or a justified entry to \
+             MIRI_PATH_NOTES, in xtask/src/main.rs"
+        );
+        exit(1);
+    }
+    for (path, note) in MIRI_PATH_NOTES {
+        println!("    note: {path} — {note}");
+    }
+}
+
+fn collect_unsafe_files(dir: &std::path::Path, root: &std::path::Path, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_unsafe_files(&path, root, out);
+        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            if src.lines().any(is_unsafe_construct) {
+                let rel = path.strip_prefix(root).unwrap_or(&path);
+                out.push(rel.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+}
+
+/// True for a real `unsafe` construct, false for the word inside a `// SAFETY:`
+/// note or a doc comment — the distinction that separates 109 real constructs
+/// from the ~186 a plain word-grep reports.
+fn is_unsafe_construct(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("//") || trimmed.starts_with('*') {
+        return false;
+    }
+    [
+        "unsafe {",
+        "unsafe fn ",
+        "unsafe impl ",
+        "unsafe trait ",
+        "unsafe extern ",
+    ]
+    .iter()
+    .any(|kind| trimmed.contains(kind))
 }
 
 /// The libfuzzer targets link rustc's AddressSanitizer, whose runtime DLL

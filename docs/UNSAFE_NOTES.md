@@ -14,7 +14,7 @@ via `storage[slot].as_ptr().read()` and clears the `available` bit, so a checked
 slot's storage is logically moved-from and the value lives in the `TypedPooled`
 handle (which drops it). Dropping by `allocated` would `assume_init_drop` a
 moved-from slot → **double-free**. The current implementation uses `available`;
-**miri confirms no UB** (19 arena tests pass clean). The earlier "leak" model was
+**miri confirms no UB** (13 arena tests pass clean). The earlier "leak" model was
 wrong — checkout *moves*, it does not lend.
 
 **Rule:** match the drop condition to the *initialization-and-ownership* state, not

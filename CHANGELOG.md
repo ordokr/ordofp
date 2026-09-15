@@ -6,6 +6,43 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `xtask miri` now interprets every `unsafe`-bearing module instead of only
+  `arena` on default features. The previous scope reached 14 of the crate's 109
+  `unsafe` constructs: the test-name filter excluded most modules, the missing
+  `--all-features` meant `nexus::effects::region` and `par::*` were never
+  compiled (`cargo test -- region --list` returns 0 tests on default features
+  and 19 with `--all-features`), and `-p ordofp_core` excluded `ordofp_bayes`
+  entirely — whose `inference.rs` holds the densest `unsafe` in the repo.
+  Filters are module paths rather than bare module names, which keeps the run
+  at 114 interpreted tests instead of 494 for identical coverage.
+- New `xtask miri-scope` fails when a file containing `unsafe` sits outside
+  every Miri filter, so the gate's scope can no longer drift away from the
+  code the way `-- arena` did. It is a filesystem scan costing milliseconds, so
+  it runs in `gate` (per-commit) while the interpretation stays in `deep`
+  (weekly). Paths whose coverage a name match cannot express — `ordofp_bayes`,
+  and the wgpu backend Miri cannot reach at all — are listed explicitly with
+  their reason instead of being silently absent.
+
+### Fixed
+
+- `Arena::alloc_layout` and `SyncArena::alloc_layout` now use `checked_add` when
+  computing the bump-pointer end. The preceding `new_ptr <= end` guard could not
+  rule out wrap-around as its `SAFETY` comment claimed — a wrapped sum is small
+  enough to pass the guard while pointing outside the chunk. Reachable on 32-bit
+  targets; the `SAFETY` comments have been corrected.
+- `Simd4f32`/`Simd8f32` `store`, and `Simd8f32::load`, now document that they
+  panic on a short slice, matching `Simd4f32::load`. Behaviour is unchanged;
+  `store_partial`/`load_partial` remain the non-panicking forms.
+
+### Removed
+
+- The six hand-written `unsafe impl Send`/`Sync` blocks on the internal spin-lock
+  guards in `metrics::registry` and `tracing::collector`. Each guard is
+  `{ lock: &'a Lock<T>, _marker: PhantomData<T> }`, which auto-derives to exactly
+  `T: Send + Sync`; the manual impls only loosened that bound.
+
 ## [0.1.2] - 2026-08-28
 
 ### Changed

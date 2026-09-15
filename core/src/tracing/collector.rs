@@ -53,14 +53,10 @@ struct SpinMutexGuard<'a, T> {
     _marker: core::marker::PhantomData<T>,
 }
 
-// SAFETY: A mutex guard provides shared references to T via Deref. Sharing the
-// guard across threads is safe only if T can be safely shared (T: Sync).
-unsafe impl<T: Sync> Sync for SpinMutexGuard<'_, T> {}
-
-// SAFETY: A mutex guard provides mutually exclusive access to T. Sending the
-// guard across threads transfers ownership of the locked data, which is safe
-// only if T can be safely sent across threads (T: Send).
-unsafe impl<T: Send> Send for SpinMutexGuard<'_, T> {}
+// No manual `Send`/`Sync` impls: the auto-derived bounds are already the sound
+// ones. `&SpinMutex<T>` is `Send`/`Sync` only when `SpinMutex<T>: Sync` (i.e.
+// `T: Send` per the impl above), and `PhantomData<T>` contributes `T`'s own
+// bounds. A hand-written `unsafe impl` here could only loosen that.
 
 impl<T> core::ops::Deref for SpinMutexGuard<'_, T> {
     type Target = T;
@@ -375,8 +371,13 @@ impl Default for CollectorCompositus {
 impl CollectorVestigium for CollectorCompositus {
     #[inline]
     fn record(&self, event: EventusVestigium) {
-        for collector in &self.collectors {
-            collector.record(event.clone());
+        // Clone for every collector but the last, which takes the original by
+        // move — N collectors cost N-1 clones rather than N.
+        if let Some((last, rest)) = self.collectors.split_last() {
+            for collector in rest {
+                collector.record(event.clone());
+            }
+            last.record(event);
         }
     }
 

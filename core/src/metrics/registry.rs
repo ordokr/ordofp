@@ -78,12 +78,11 @@ struct SpinRwLockReadGuard<'a, T> {
     _marker: core::marker::PhantomData<T>,
 }
 
-// SAFETY: A read guard only provides shared references to T. Sharing the guard
-// across threads is safe only if T can be safely shared (T: Sync).
-unsafe impl<T: Sync> Sync for SpinRwLockReadGuard<'_, T> {}
-
-// SAFETY: A read guard can be sent to another thread as long as the underlying T can be safely shared across threads (T: Sync).
-unsafe impl<T: Sync> Send for SpinRwLockReadGuard<'_, T> {}
+// No manual `Send`/`Sync` impls: the auto-derived bounds are already the sound
+// ones. `&SpinRwLock<T>` is `Send`/`Sync` only when `SpinRwLock<T>: Sync`
+// (i.e. `T: Send + Sync` per the impl above), and `PhantomData<T>` contributes
+// `T`'s own bounds, so the guard auto-derives to exactly `T: Send + Sync`.
+// A hand-written `unsafe impl` here could only loosen that, never correct it.
 
 impl<T> core::ops::Deref for SpinRwLockReadGuard<'_, T> {
     type Target = T;
@@ -109,12 +108,8 @@ struct SpinRwLockWriteGuard<'a, T> {
     _marker: core::marker::PhantomData<T>,
 }
 
-// SAFETY: A write guard provides mutable references to T. Sharing the guard
-// across threads is safe only if T can be safely shared (T: Sync).
-unsafe impl<T: Sync> Sync for SpinRwLockWriteGuard<'_, T> {}
-
-// SAFETY: A write guard can be sent to another thread as long as the underlying T can be safely sent to another thread (T: Send) and safely shared across threads (T: Sync) because the lock requires both.
-unsafe impl<T: Send + Sync> Send for SpinRwLockWriteGuard<'_, T> {}
+// No manual `Send`/`Sync` impls — see the note on `SpinRwLockReadGuard` above.
+// The auto-derived bounds already resolve to `T: Send + Sync`.
 
 impl<T> core::ops::Deref for SpinRwLockWriteGuard<'_, T> {
     type Target = T;

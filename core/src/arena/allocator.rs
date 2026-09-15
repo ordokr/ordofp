@@ -199,7 +199,9 @@ impl Arena {
 
             // Align the pointer
             let aligned = align_up(ptr as usize, layout.align());
-            let new_ptr = aligned + layout.size();
+            let new_ptr = aligned
+                .checked_add(layout.size())
+                .expect("arena allocation size overflows the address space");
 
             if new_ptr <= end as usize {
                 // Fits in current chunk
@@ -208,9 +210,12 @@ impl Arena {
                 // initialised from a successful global-allocator allocation
                 // (verified via `NonNull::new` in `Chunk::new`), and `align_up`
                 // only rounds the address upward — it never produces zero.
-                // The `new_ptr <= end` guard above rules out arithmetic
-                // wrap-around, so `aligned` remains strictly within the live
-                // chunk allocation and is therefore a valid non-null address.
+                // The `checked_add` above rules out arithmetic wrap-around (a
+                // wrapped sum would be small enough to pass the guard while
+                // pointing outside the chunk), and the `new_ptr <= end` guard
+                // then confirms the range fits, so `aligned` remains strictly
+                // within the live chunk allocation and is therefore a valid
+                // non-null address.
                 return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
             }
 
@@ -386,12 +391,17 @@ impl SyncArena {
         let mut inner = self.inner.lock().expect("SyncArena mutex poisoned");
         loop {
             let aligned = align_up(inner.ptr as usize, layout.align());
-            let new_ptr = aligned + layout.size();
+            let new_ptr = aligned
+                .checked_add(layout.size())
+                .expect("arena allocation size overflows the address space");
             if new_ptr <= inner.end as usize {
                 inner.ptr = new_ptr as *mut u8;
                 // SAFETY: `aligned` is within the current live chunk allocation
-                // (the guard above ensures it) and is non-zero (arena pointers
-                // are initialised from a successful global-allocator call).
+                // (`checked_add` rules out wrap-around — a wrapped sum would
+                // pass the guard while pointing outside the chunk — and the
+                // guard above then confirms the range fits) and is non-zero
+                // (arena pointers are initialised from a successful
+                // global-allocator call).
                 return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
             }
             // Current chunk is exhausted — grow.

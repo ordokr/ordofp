@@ -65,6 +65,7 @@ type Backing8 = scalar::F32x8;
 /// types; plain loops the optimizer is free to vectorize.
 #[cfg(not(feature = "nightly"))]
 mod scalar {
+    #![allow(unreachable_pub)]
     use core::ops::{Add, Div, Mul, Sub};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -274,7 +275,7 @@ impl Simd4f32 {
         Self::new(arr)
     }
 
-    /// Store to a slice.
+    /// Store to a slice. Panics if slice has fewer than 4 elements.
     #[inline]
     pub fn store(self, slice: &mut [f32]) {
         slice[..4].copy_from_slice(&self.inner.to_array());
@@ -497,7 +498,7 @@ impl Simd8f32 {
         Self::splat(0.0)
     }
 
-    /// Load from a slice.
+    /// Load from a slice. Panics if slice has fewer than 8 elements.
     #[inline]
     pub fn load(slice: &[f32]) -> Self {
         Self {
@@ -514,7 +515,7 @@ impl Simd8f32 {
         Self::new(arr)
     }
 
-    /// Store to a slice.
+    /// Store to a slice. Panics if slice has fewer than 8 elements.
     #[inline]
     pub fn store(self, slice: &mut [f32]) {
         slice[..8].copy_from_slice(&self.inner.to_array());
