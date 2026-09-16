@@ -12,8 +12,9 @@
 //! cargo run -p xtask -- matrix      # key isolated/additive feature sets
 //! cargo run -p xtask -- all         # gate + stable + deny + wasm (pre-push)
 //! cargo run -p xtask -- miri        # UB check over every unsafe-bearing module
-//! cargo run -p xtask -- miri-scope  # assert no unsafe sits outside Miri's reach
+//! cargo run -p xtask -- miri-scope  # assert no library unsafe sits outside Miri's reach
 //! cargo run -p xtask -- fuzz-smoke  # 60s coverage-guided smoke per target
+//! cargo run -p xtask -- fuzz-scope  # assert every fuzz target is registered, run, and documented
 //! cargo run -p xtask -- perf-guard  # deterministic checksum/alloc regression guard
 //! cargo run -p xtask -- pgo [feats] # PGO build of the e2e verdict binary
 //! cargo run -p xtask -- semver      # API-stability diff vs the crates.io baseline
@@ -35,6 +36,7 @@ fn main() {
         "wasm" => wasm(),
         "miri" => miri(),
         "miri-scope" => assert_miri_scope_covers_unsafe(),
+        "fuzz-scope" => assert_fuzz_scope_matches_targets(),
         "fuzz-smoke" => fuzz_smoke(),
         "perf-guard" => perf_guard(),
         "pgo" => pgo(),
@@ -54,7 +56,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|matrix|miri|miri-scope|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
+                "usage: cargo run -p xtask -- <gate|stable|deny|wasm|matrix|miri|miri-scope|fuzz-scope|fuzz-smoke|perf-guard|pgo|semver|all|maint|deep>"
             );
             exit(2);
         }
@@ -64,12 +66,14 @@ fn main() {
 
 /// The canonical verification steps. Every commit is expected to pass them all.
 ///
-/// The Miri *scope* check runs here rather than only in `deep`: it is a
-/// filesystem scan costing milliseconds, so an `unsafe` construct landing in a
-/// module no filter reaches fails on the commit that introduces it instead of
-/// at the next weekly `deep` run.
+/// The Miri and fuzz *scope* checks run here rather than only in `deep`: they
+/// are filesystem scans costing milliseconds, so an `unsafe` construct landing
+/// in a module no Miri filter reaches — or a fuzz target the smoke run never
+/// executes — fails on the commit that introduces it instead of at the next
+/// weekly `deep` run.
 fn gate() {
     assert_miri_scope_covers_unsafe();
+    assert_fuzz_scope_matches_targets();
     run("fmt (check)", &["fmt", "--all", "--", "--check"], None);
     run(
         "clippy -D warnings (all targets, all features)",
@@ -264,6 +268,9 @@ fn matrix() {
 /// takes the gate from 494 interpreted tests to 114 with identical coverage.
 /// [`assert_miri_scope_covers_unsafe`] maps each back to a file path by
 /// rewriting `::` as `/`.
+///
+/// The `ordofp_laws` equivalents live in [`MIRI_LAWS_FILTERS`]: they run
+/// against a different package, so they cannot share this list.
 const MIRI_CORE_FILTERS: &[&str] = &[
     "arena", // arena::{allocator, pool}
     "nexus::effects::region",
@@ -278,9 +285,19 @@ const MIRI_CORE_FILTERS: &[&str] = &[
     "tracing::collector",
 ];
 
-/// `unsafe`-bearing paths whose coverage a [`MIRI_CORE_FILTERS`] name match
-/// cannot express — each with the invocation that covers it, or the reason
-/// none can.
+/// Test-name filters covering the `ordofp_laws` modules that contain an
+/// `unsafe` construct: the test-only `Waker::from_raw` in the hand-rolled
+/// `block_on` each async law suite rolls for itself. Measured at ~7s of
+/// interpretation for the 35 tests they match.
+///
+/// The crate's sync law suites hold no `unsafe` and stay out, for the same
+/// reason [`MIRI_CORE_FILTERS`] is a list of module paths rather than one
+/// whole-crate run. Separate list because these run against `-p ordofp_laws`.
+const MIRI_LAWS_FILTERS: &[&str] = &["async_functor_laws", "async_monad_laws"];
+
+/// `unsafe`-bearing paths whose coverage a name match in [`MIRI_CORE_FILTERS`]
+/// or [`MIRI_LAWS_FILTERS`] cannot express — each with the invocation that
+/// covers it, or the reason none can.
 ///
 /// Kept explicit so an uncovered module is a reviewed line in the diff rather
 /// than an invisible hole in the filter list.
@@ -299,11 +316,22 @@ const MIRI_PATH_NOTES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Workspace members whose source is deliberately outside the Miri scan, each
+/// with its reason. Every entry is verified on every run — the directory must
+/// hold a readable `Cargo.toml` that still says `publish = false` — so an
+/// exemption cannot quietly become a claim about a crate that ships.
+const MIRI_SCAN_EXEMPT: &[(&str, &str)] = &[(
+    "xtask",
+    "`publish = false` dev tooling that never runs in a user's process. Its one \
+     `unsafe` construct is a single-threaded `env::set_var` in the fuzz PATH \
+     setup, unreachable from the library.",
+)];
+
 /// UB check over the unsafe-bearing modules.
 ///
 /// Previously this ran `-- arena` on default features, which reached 14 of the
-/// crate's 109 `unsafe` constructs and none of `ordofp_bayes`. The scope is now
-/// derived from where `unsafe` actually lives, and
+/// crate's 109 `unsafe` constructs and none of `ordofp_bayes` or `ordofp_laws`.
+/// The scope is now derived from where `unsafe` actually lives, and
 /// [`assert_miri_scope_covers_unsafe`] fails the gate if the two drift apart.
 fn miri() {
     assert_miri_scope_covers_unsafe();
@@ -333,6 +361,26 @@ fn miri() {
         &["miri", "test", "-p", "ordofp_bayes", "--lib"],
         Some("rustup component add miri"),
     );
+    // Third package: `ordofp_laws` holds exactly two `unsafe` constructs, the
+    // `Waker::from_raw` in the `#[cfg(test)]` `block_on` helper each async law
+    // suite rolls for itself. `--all-features` because the modules are behind
+    // `async` and do not even compile without it. ~7s for the 35 tests matched.
+    for filter in MIRI_LAWS_FILTERS {
+        run(
+            &format!("miri (laws::{filter})"),
+            &[
+                "miri",
+                "test",
+                "-p",
+                "ordofp_laws",
+                "--lib",
+                "--all-features",
+                "--",
+                filter,
+            ],
+            Some("rustup component add miri"),
+        );
+    }
 }
 
 /// Fail the gate when an `unsafe`-bearing file sits outside every Miri filter.
@@ -340,6 +388,12 @@ fn miri() {
 /// Without this, the filter list rots exactly as `-- arena` did: new `unsafe`
 /// lands in a module no filter names, and the gate stays green while covering
 /// less and less of the crate.
+///
+/// Scope is library source: the root package, every workspace member's `src/`
+/// (derived, not listed — see [`miri_scan_roots`]), and the fuzz targets.
+/// Integration, bench, and example targets sit outside it, because the
+/// interpreted set is filtered `--lib` tests; whole-crate exemptions live in
+/// [`MIRI_SCAN_EXEMPT`] and are printed on every run.
 fn assert_miri_scope_covers_unsafe() {
     println!("==> miri scope covers every unsafe-bearing module");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -347,13 +401,27 @@ fn assert_miri_scope_covers_unsafe() {
         .expect("xtask always sits one level below the workspace root")
         .to_path_buf();
 
+    let roots = miri_scan_roots(&root);
+    for (crate_dir, reason) in MIRI_SCAN_EXEMPT {
+        let manifest = std::fs::read_to_string(root.join(crate_dir).join("Cargo.toml"));
+        if !manifest.is_ok_and(|text| text.contains("publish = false")) {
+            eprintln!("FAILED: `{crate_dir}` is exempt from the Miri scan but does not read as a");
+            eprintln!("        `publish = false` crate with a Cargo.toml. The exemption is for");
+            eprintln!("        code unreachable from a user's process; anything else is a hole.");
+            exit(1);
+        }
+        println!("    exempt: {crate_dir} — {reason}");
+    }
+    println!("    roots: {}", roots.join(", "));
+
     let mut uncovered = Vec::new();
-    for dir in ["core/src", "src", "ordofp_bayes/src"] {
+    for dir in &roots {
         collect_unsafe_files(&root.join(dir), &root, &mut uncovered);
     }
     uncovered.retain(|p| {
         !MIRI_CORE_FILTERS
             .iter()
+            .chain(MIRI_LAWS_FILTERS)
             .any(|f| p.contains(&f.replace("::", "/")))
             && !MIRI_PATH_NOTES
                 .iter()
@@ -366,14 +434,45 @@ fn assert_miri_scope_covers_unsafe() {
             eprintln!("  {path}");
         }
         eprintln!(
-            "add a covering filter to MIRI_CORE_FILTERS, or a justified entry to \
-             MIRI_PATH_NOTES, in xtask/src/main.rs"
+            "add a covering filter to MIRI_CORE_FILTERS or MIRI_LAWS_FILTERS, or a \
+             justified entry to MIRI_PATH_NOTES, in xtask/src/main.rs"
         );
         exit(1);
     }
     for (path, note) in MIRI_PATH_NOTES {
         println!("    note: {path} — {note}");
     }
+}
+
+/// Library-source roots the Miri scan covers: the root package, every workspace
+/// member's `src/`, and the fuzz targets.
+///
+/// Derived from `[workspace] members` rather than listed by hand, because the
+/// hand list is exactly how `laws/src` went unscanned while this guard kept
+/// reporting green — nothing compared the literal against the workspace it
+/// claimed to cover. `fuzz/fuzz_targets` is the one path here that is not
+/// derived; [`assert_fuzz_scope_matches_targets`] pins its contents, so it
+/// cannot silently stop existing either.
+fn miri_scan_roots(root: &std::path::Path) -> Vec<String> {
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default();
+    let members = manifest
+        .split_once("members = [")
+        .and_then(|(_, rest)| rest.split_once(']'))
+        .map(|(list, _)| list.split('"').skip(1).step_by(2).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if members.is_empty() {
+        eprintln!("FAILED: no `[workspace] members` found in Cargo.toml, so the scan would");
+        eprintln!("        cover only the root package and call that complete");
+        exit(1);
+    }
+    let mut roots: Vec<String> = members
+        .into_iter()
+        .filter(|member| !MIRI_SCAN_EXEMPT.iter().any(|(exempt, _)| exempt == member))
+        .map(|member| format!("{member}/src"))
+        .collect();
+    roots.push("src".to_string());
+    roots.push("fuzz/fuzz_targets".to_string());
+    roots
 }
 
 fn collect_unsafe_files(dir: &std::path::Path, root: &std::path::Path, out: &mut Vec<String>) {
@@ -453,9 +552,120 @@ fn asan_dll_dir() -> Option<std::path::PathBuf> {
     None
 }
 
+/// Fuzz targets and the surface each one exercises — the single source of truth
+/// for [`fuzz_smoke`], the `[[bin]]` registrations in `fuzz/Cargo.toml`, and the
+/// fuzz claim in `SECURITY.md`.
+///
+/// These are oracle checks over *safe* API surface: pfds diffs `Stack`/`Queue`
+/// against `VecDeque`, zipper and Universalis check round-trips, NonEmpty
+/// exercises the total-API contracts, and the law target drives the QuickCheck
+/// properties. No target reaches an `unsafe`-bearing module — UB detection is
+/// Miri's job (see [`MIRI_CORE_FILTERS`]), not the fuzzer's, and
+/// [`assert_fuzz_scope_matches_targets`] prints that boundary on every run so a
+/// future target over `unsafe` land is a reviewed decision rather than a silent
+/// one.
+const FUZZ_TARGETS: &[(&str, &str)] = &[
+    ("algebraic_laws", "ordofp_laws law suites"),
+    ("nonempty_ops", "ordofp_core::nonempty"),
+    (
+        "pfds_ops",
+        "ordofp_core::pfds (Stack/Queue vs VecDeque oracle)",
+    ),
+    (
+        "universalis_convert",
+        "ordofp::{Universalis, from_universalis, into_universalis}",
+    ),
+    ("zipper_ops", "ordofp_core::zipper"),
+];
+
+/// Fail when the targets on disk, the set [`fuzz_smoke`] executes, the `[[bin]]`
+/// registrations in `fuzz/Cargo.toml`, and the fuzz bullet in `SECURITY.md`
+/// drift apart.
+///
+/// The cheap filesystem half of the pair whose other half is
+/// [`assert_miri_scope_covers_unsafe`]. Rot here looks like a target added and
+/// never run, a target renamed while the smoke list keeps the old name, or a
+/// security doc still naming a surface nothing fuzzes.
+fn assert_fuzz_scope_matches_targets() {
+    println!("==> fuzz scope matches the targets on disk, in fuzz/Cargo.toml, and in SECURITY.md");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask always sits one level below the workspace root")
+        .to_path_buf();
+
+    let mut on_disk = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(root.join("fuzz").join("fuzz_targets")) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "rs") {
+                on_disk.push(
+                    path.file_stem()
+                        .expect("a *.rs path has a stem")
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+        }
+    }
+    on_disk.sort();
+
+    let Ok(manifest) = std::fs::read_to_string(root.join("fuzz").join("Cargo.toml")) else {
+        eprintln!("FAILED: fuzz/Cargo.toml is unreadable");
+        exit(1);
+    };
+    let Ok(security) = std::fs::read_to_string(root.join("SECURITY.md")) else {
+        eprintln!("FAILED: SECURITY.md is unreadable");
+        exit(1);
+    };
+
+    let mut problems = Vec::new();
+    for name in &on_disk {
+        if !FUZZ_TARGETS
+            .iter()
+            .any(|(target, _)| *target == name.as_str())
+        {
+            problems.push(format!(
+                "fuzz/fuzz_targets/{name}.rs exists but FUZZ_TARGETS never runs it"
+            ));
+        }
+    }
+    for &(name, _) in FUZZ_TARGETS {
+        if !on_disk.iter().any(|target| target.as_str() == name) {
+            problems.push(format!(
+                "FUZZ_TARGETS names `{name}`, which has no fuzz/fuzz_targets/{name}.rs"
+            ));
+        }
+        if !manifest.contains(&format!("name = \"{name}\"")) {
+            problems.push(format!(
+                "`{name}` is missing from the [[bin]] entries in fuzz/Cargo.toml"
+            ));
+        }
+        if !security.contains(name) {
+            problems.push(format!("SECURITY.md does not name the `{name}` target"));
+        }
+    }
+
+    if !problems.is_empty() {
+        eprintln!("FAILED: the fuzz scope has drifted:");
+        for problem in &problems {
+            eprintln!("  {problem}");
+        }
+        eprintln!(
+            "keep FUZZ_TARGETS, fuzz/fuzz_targets/, fuzz/Cargo.toml, and the fuzz \
+             bullet in SECURITY.md in agreement"
+        );
+        exit(1);
+    }
+    for &(name, surface) in FUZZ_TARGETS {
+        println!("    {name}: {surface}");
+    }
+    println!("    boundary: fuzzing is oracle coverage over safe API surface; Miri owns UB");
+}
+
 /// 60s coverage-guided smoke per libfuzzer target; longer fuzz runs are
 /// manual via `cargo fuzz run <target>`.
 fn fuzz_smoke() {
+    assert_fuzz_scope_matches_targets();
     #[cfg(windows)]
     if let Some(dir) = asan_dll_dir() {
         let mut paths = vec![dir];
@@ -467,13 +677,7 @@ fn fuzz_smoke() {
         // environment concurrently. Children (cargo fuzz) inherit the PATH.
         unsafe { std::env::set_var("PATH", joined) };
     }
-    for target in [
-        "universalis_convert",
-        "zipper_ops",
-        "nonempty_ops",
-        "pfds_ops",
-        "algebraic_laws",
-    ] {
+    for &(target, _) in FUZZ_TARGETS {
         run(
             &format!("fuzz smoke: {target} (60s)"),
             &["fuzz", "run", target, "--", "-max_total_time=60"],

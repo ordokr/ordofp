@@ -12,7 +12,7 @@ readme = "README.md"
 keywords = ["functional", "hlist", "monad", "optics", "transformers"]
 categories = ["data-structures", "rust-patterns"]
 # Keep machine-local perf tooling and repo docs out of the published tarball.
-exclude = ["/docs", "/scripts", "/tests", "/benches", "/.cargo", "/.github"]
+exclude = ["/docs", "/scripts", "/tests", "/benches", "/.cargo", "/.github", "/.jules"]
 
 # docs.rs builds default features only by default, which would hide every
 # gated module (async, par, nexus, …) — build docs with everything on.

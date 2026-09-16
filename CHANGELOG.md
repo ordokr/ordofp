@@ -6,6 +6,49 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `xtask fuzz-scope` fails when the fuzz targets on disk, the set `fuzz-smoke`
+  executes, the `[[bin]]` entries in `fuzz/Cargo.toml`, and the fuzz bullet in
+  `SECURITY.md` stop agreeing: a target added and never run, or renamed while the
+  smoke list keeps the old name, now fails the gate on the change that introduces
+  it. The targets and the surface each one exercises live in a single
+  `FUZZ_TARGETS` table instead of an inline array.
+
+### Changed
+
+- `xtask gate` runs `fuzz-scope` alongside `miri-scope`. Both are filesystem
+  scans costing milliseconds, so they stay per-commit while the runs they guard
+  (`miri`, `fuzz-smoke`) stay in the weekly `deep`.
+- `miri-scope` derives the modules it scans from `[workspace] members` instead
+  of a hand-written list of four directories. The list is what let `laws/src`
+  sit unscanned while the guard reported green, and it would have missed the
+  next crate the same way: the scan now also covers `macros/src` and the fuzz
+  targets, and fails loudly if the member list cannot be read. The single
+  whole-crate exemption (`xtask`) is verified on every run to still be
+  `publish = false`, so an exemption cannot loosen into a claim about a crate
+  that ships.
+- `xtask miri` also interprets the `ordofp_laws` async law suites, whose
+  hand-rolled `block_on` holds the only two `unsafe` constructs in that crate.
+  `miri-scope` could not see them: it scanned neither `laws/src` nor any filter
+  reaching it, so the code sat outside the coverage surface the guard claims to
+  keep whole. The scan now includes `laws/src` and the new
+  `MIRI_LAWS_FILTERS` names both modules, which adds ~7s (35 tests) to the
+  weekly `deep`.
+
+### Fixed
+
+- `SECURITY.md` no longer overstates dynamic coverage. It claimed Miri and the
+  fuzz smoke both ran "over" the arena, pfds, and async internals; in fact no
+  fuzz target reaches an `unsafe`-bearing module — they are oracle checks over
+  safe API surface (pfds against `VecDeque`, round-trips, law properties) — and
+  `pfds` and the async internals hold no `unsafe` at all. The triage note now
+  names the surfaces each check actually covers and points at the two scope
+  guards that keep the claim true.
+- The published tarball no longer carries `.jules`; `[package] exclude` in the
+  root manifest now lists it alongside `docs`, `scripts`, `tests`, `benches`,
+  `.cargo`, and `.github`.
+
 ## [0.1.3] - 2026-09-15
 
 Patch release of `ordofp_core`, `ordofp` and `ordofp_bayes`. `ordofp_macros` and
