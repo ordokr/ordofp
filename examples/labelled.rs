@@ -1,3 +1,5 @@
+//! Example: field-name-addressed generic programming with labelled rows.
+
 // Variable names mirror Latin type names by project convention.
 
 use ordofp::labelled::{Field, Transfigurator};

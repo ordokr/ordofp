@@ -101,19 +101,21 @@ pub struct CheckpointId {
 impl CheckpointId {
     /// Create a new checkpoint ID.
     pub fn new(name: impl Into<String>, sequence: u64) -> Self {
-        CheckpointId {
+        Self {
             name: name.into(),
             sequence,
         }
     }
 
     /// Get the checkpoint name.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Get the sequence number.
-    pub fn sequence(&self) -> u64 {
+    #[must_use]
+    pub const fn sequence(&self) -> u64 {
         self.sequence
     }
 }
@@ -177,7 +179,7 @@ impl Checkpointable for String {
     }
 
     fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        String::from_utf8(bytes.to_vec()).ok()
+        Self::from_utf8(bytes.to_vec()).ok()
     }
 }
 
@@ -204,7 +206,7 @@ impl<T: Checkpointable> Checkpointable for Vec<T> {
             return None;
         }
         let len = usize::try_from(u64::from_le_bytes(bytes[..8].try_into().ok()?)).ok()?;
-        let mut result = Vec::with_capacity(len);
+        let mut result = Self::with_capacity(len);
         let mut offset = 8;
         for _ in 0..len {
             if offset + 8 > bytes.len() {
@@ -283,7 +285,7 @@ pub struct Checkpoint {
 impl Checkpoint {
     /// Create a new checkpoint.
     pub fn new<T: Checkpointable>(id: CheckpointId, value: &T) -> Self {
-        Checkpoint {
+        Self {
             id,
             state: value.to_bytes(),
             metadata: BTreeMap::new(),
@@ -297,7 +299,7 @@ impl Checkpoint {
         value: &T,
         metadata: BTreeMap<String, String>,
     ) -> Self {
-        Checkpoint {
+        Self {
             id,
             state: value.to_bytes(),
             metadata,
@@ -306,6 +308,7 @@ impl Checkpoint {
     }
 
     /// Restore the checkpointed value.
+    #[must_use]
     pub fn restore<T: Checkpointable>(&self) -> Option<T> {
         T::from_bytes(&self.state)
     }
@@ -316,12 +319,14 @@ impl Checkpoint {
     }
 
     /// Get metadata value.
+    #[must_use]
     pub fn get_metadata(&self, key: &str) -> Option<&String> {
         self.metadata.get(key)
     }
 
     /// Get the size of the serialized state in bytes.
-    pub fn state_size(&self) -> usize {
+    #[must_use]
+    pub const fn state_size(&self) -> usize {
         self.state.len()
     }
 }
@@ -346,8 +351,9 @@ pub struct CheckpointStore {
 
 impl CheckpointStore {
     /// Create a new checkpoint store.
-    pub fn new() -> Self {
-        CheckpointStore {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             checkpoints: BTreeMap::new(),
             next_sequence: 0,
             max_checkpoints: 0,
@@ -355,8 +361,9 @@ impl CheckpointStore {
     }
 
     /// Create a store with a maximum number of checkpoints.
-    pub fn with_max_checkpoints(max: usize) -> Self {
-        CheckpointStore {
+    #[must_use]
+    pub const fn with_max_checkpoints(max: usize) -> Self {
+        Self {
             checkpoints: BTreeMap::new(),
             next_sequence: 0,
             max_checkpoints: max,
@@ -413,11 +420,13 @@ impl CheckpointStore {
     }
 
     /// Load a checkpoint by ID.
+    #[must_use]
     pub fn load(&self, id: &CheckpointId) -> Option<&Checkpoint> {
         self.checkpoints.get(id)
     }
 
     /// Load the latest checkpoint with a given name.
+    #[must_use]
     pub fn load_latest(&self, name: &str) -> Option<&Checkpoint> {
         self.checkpoints
             .iter()
@@ -452,16 +461,19 @@ impl CheckpointStore {
     }
 
     /// Get the number of stored checkpoints.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.checkpoints.len()
     }
 
     /// Check if the store is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.checkpoints.is_empty()
     }
 
     /// List all checkpoint IDs.
+    #[must_use]
     pub fn list_ids(&self) -> Vec<&CheckpointId> {
         self.checkpoints.keys().collect()
     }
@@ -485,7 +497,7 @@ pub struct CheckpointComputation<A> {
 impl<A: 'static> CheckpointComputation<A> {
     /// Create a new checkpoint computation.
     pub fn new<F: FnOnce(&mut CheckpointContext) -> A + 'static>(f: F) -> Self {
-        CheckpointComputation {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -500,7 +512,7 @@ impl<A: 'static> CheckpointComputation<A> {
     where
         A: Clone,
     {
-        CheckpointComputation::new(move |_| value)
+        Self::new(move |_| value)
     }
 
     /// Map over the result.
@@ -550,8 +562,9 @@ pub struct CheckpointStats {
 
 impl CheckpointContext {
     /// Create a new checkpoint context.
+    #[must_use]
     pub fn new() -> Self {
-        CheckpointContext {
+        Self {
             store: CheckpointStore::new(),
             enabled: true,
             stats: CheckpointStats::default(),
@@ -559,8 +572,9 @@ impl CheckpointContext {
     }
 
     /// Create a context with a custom store.
+    #[must_use]
     pub fn with_store(store: CheckpointStore) -> Self {
-        CheckpointContext {
+        Self {
             store,
             enabled: true,
             stats: CheckpointStats::default(),
@@ -604,22 +618,24 @@ impl CheckpointContext {
     }
 
     /// Enable checkpointing.
-    pub fn enable(&mut self) {
+    pub const fn enable(&mut self) {
         self.enabled = true;
     }
 
     /// Disable checkpointing (for performance).
-    pub fn disable(&mut self) {
+    pub const fn disable(&mut self) {
         self.enabled = false;
     }
 
     /// Check if checkpointing is enabled.
-    pub fn is_enabled(&self) -> bool {
+    #[must_use]
+    pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
 
     /// Get statistics.
-    pub fn stats(&self) -> &CheckpointStats {
+    #[must_use]
+    pub const fn stats(&self) -> &CheckpointStats {
         &self.stats
     }
 
@@ -649,6 +665,7 @@ pub fn checkpoint<T: Checkpointable + 'static>(
 }
 
 /// Restore from a checkpoint (returns a computation).
+#[must_use]
 pub fn restore<T: Checkpointable + 'static>(id: CheckpointId) -> CheckpointComputation<Option<T>> {
     CheckpointComputation::new(move |ctx| ctx.restore(&id))
 }
@@ -704,7 +721,7 @@ impl<S: Checkpointable, A: Clone + 'static> ResumableComputation<S, A> {
         step: F,
         checkpoint_prefix: impl Into<String>,
     ) -> Self {
-        ResumableComputation {
+        Self {
             state: initial_state,
             step: Box::new(step),
             checkpoint_prefix: checkpoint_prefix.into(),
@@ -739,7 +756,7 @@ impl<S: Checkpointable, A: Clone + 'static> ResumableComputation<S, A> {
     }
 
     /// Get the current state.
-    pub fn state(&self) -> &S {
+    pub const fn state(&self) -> &S {
         &self.state
     }
 

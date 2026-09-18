@@ -1,3 +1,5 @@
+//! Example: generic conversion and pattern matching over heterogeneous lists.
+
 use ordofp::{Universalis, coniunctio_pat, hlist};
 
 #[derive(Universalis, Debug, PartialEq)]

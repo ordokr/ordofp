@@ -64,8 +64,8 @@ impl<R> NatF<R> {
         F: FnOnce(R) -> B,
     {
         match self {
-            NatF::ZeroF => NatF::ZeroF,
-            NatF::SuccF(r) => NatF::SuccF(f(r)),
+            Self::ZeroF => NatF::ZeroF,
+            Self::SuccF(r) => NatF::SuccF(f(r)),
         }
     }
 }
@@ -126,8 +126,8 @@ impl<A, R> ListF<A, R> {
         F: FnOnce(R) -> B,
     {
         match self {
-            ListF::NilF => ListF::NilF,
-            ListF::ConsF(a, r) => ListF::ConsF(a, f(r)),
+            Self::NilF => ListF::NilF,
+            Self::ConsF(a, r) => ListF::ConsF(a, f(r)),
         }
     }
 
@@ -138,8 +138,8 @@ impl<A, R> ListF<A, R> {
         F: FnOnce(A) -> B,
     {
         match self {
-            ListF::NilF => ListF::NilF,
-            ListF::ConsF(a, r) => ListF::ConsF(f(a), r),
+            Self::NilF => ListF::NilF,
+            Self::ConsF(a, r) => ListF::ConsF(f(a), r),
         }
     }
 }
@@ -200,8 +200,8 @@ impl<A, R> TreeF<A, R> {
         F: FnMut(R) -> B,
     {
         match self {
-            TreeF::EmptyF => TreeF::EmptyF,
-            TreeF::NodeF(a, l, r) => TreeF::NodeF(a, f(l), f(r)),
+            Self::EmptyF => TreeF::EmptyF,
+            Self::NodeF(a, l, r) => TreeF::NodeF(a, f(l), f(r)),
         }
     }
 }
@@ -312,10 +312,10 @@ impl<R> ExprF<R> {
         F: FnMut(R) -> B,
     {
         match self {
-            ExprF::LitF(n) => ExprF::LitF(n),
-            ExprF::AddF(l, r) => ExprF::AddF(f(l), f(r)),
-            ExprF::MulF(l, r) => ExprF::MulF(f(l), f(r)),
-            ExprF::NegF(e) => ExprF::NegF(f(e)),
+            Self::LitF(n) => ExprF::LitF(n),
+            Self::AddF(l, r) => ExprF::AddF(f(l), f(r)),
+            Self::MulF(l, r) => ExprF::MulF(f(l), f(r)),
+            Self::NegF(e) => ExprF::NegF(f(e)),
         }
     }
 }
@@ -377,14 +377,14 @@ impl<A: Clone> CloneHKT for RoseFWitness<A> {
 impl<A, R> RoseF<A, R> {
     /// Create a new rose tree node.
     #[inline]
-    pub fn new(value: A, children: alloc::vec::Vec<R>) -> Self {
-        RoseF { value, children }
+    pub const fn new(value: A, children: alloc::vec::Vec<R>) -> Self {
+        Self { value, children }
     }
 
     /// Create a leaf node (no children).
     #[inline]
-    pub fn leaf(value: A) -> Self {
-        RoseF {
+    pub const fn leaf(value: A) -> Self {
+        Self {
             value,
             children: alloc::vec::Vec::new(),
         }

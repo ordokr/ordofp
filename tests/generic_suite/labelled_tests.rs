@@ -45,9 +45,9 @@ pub struct NormalUser<'a> {
     pub age: usize,
 }
 
-impl<'a> NormalUser<'a> {
+impl NormalUser<'_> {
     /// Helper function for building a `NormalUser`
-    pub fn build() -> NormalUser<'a> {
+    pub const fn build() -> Self {
         NormalUser {
             first_name: "Moe",
             last_name: "Ali",

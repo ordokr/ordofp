@@ -7,7 +7,7 @@ use std::hint::black_box;
 
 const SIZES: &[usize] = &[10, 100, 1_000, 10_000, 100_000];
 
-fn rayon_backend() -> CpuRayon {
+const fn rayon_backend() -> CpuRayon {
     CpuRayon { min_len: 1 }
 }
 
@@ -31,11 +31,14 @@ fn bench_cpu_rayon_for_each_non_indexed(c: &mut Criterion) {
             use std::sync::atomic::{AtomicI32, Ordering};
             b.iter(|| {
                 let total = AtomicI32::new(0);
-                ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                    .filter(|x| x % 2 == 0)
-                    .for_each(&CpuScalar, |x| {
-                        total.fetch_add(work(x), Ordering::Relaxed);
-                    });
+                ParFlumen::from_vec(
+                    (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                        .collect::<Vec<_>>(),
+                )
+                .filter(|x| x % 2 == 0)
+                .for_each(&CpuScalar, |x| {
+                    total.fetch_add(work(x), Ordering::Relaxed);
+                });
                 black_box(total.load(Ordering::Relaxed))
             });
         });
@@ -44,11 +47,14 @@ fn bench_cpu_rayon_for_each_non_indexed(c: &mut Criterion) {
             use std::sync::atomic::{AtomicI32, Ordering};
             b.iter(|| {
                 let total = AtomicI32::new(0);
-                ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                    .filter(|x| x % 2 == 0)
-                    .for_each(&rayon, |x| {
-                        total.fetch_add(work(x), Ordering::Relaxed);
-                    });
+                ParFlumen::from_vec(
+                    (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                        .collect::<Vec<_>>(),
+                )
+                .filter(|x| x % 2 == 0)
+                .for_each(&rayon, |x| {
+                    total.fetch_add(work(x), Ordering::Relaxed);
+                });
                 black_box(total.load(Ordering::Relaxed))
             });
         });
@@ -68,10 +74,13 @@ fn bench_cpu_rayon_reduce_non_indexed(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Scalar", n), &n, |b, &n| {
             b.iter(|| {
                 black_box(
-                    ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                        .filter(|x| x % 2 == 0)
-                        .map(work)
-                        .reduce(&CpuScalar, i32::wrapping_add),
+                    ParFlumen::from_vec(
+                        (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                            .collect::<Vec<_>>(),
+                    )
+                    .filter(|x| x % 2 == 0)
+                    .map(work)
+                    .reduce(&CpuScalar, i32::wrapping_add),
                 )
             });
         });
@@ -79,10 +88,13 @@ fn bench_cpu_rayon_reduce_non_indexed(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Parallel", n), &n, |b, &n| {
             b.iter(|| {
                 black_box(
-                    ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                        .filter(|x| x % 2 == 0)
-                        .map(work)
-                        .reduce(&rayon, i32::wrapping_add),
+                    ParFlumen::from_vec(
+                        (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                            .collect::<Vec<_>>(),
+                    )
+                    .filter(|x| x % 2 == 0)
+                    .map(work)
+                    .reduce(&rayon, i32::wrapping_add),
                 )
             });
         });
@@ -103,12 +115,15 @@ fn bench_cpu_rayon_map_for_each_non_indexed(c: &mut Criterion) {
             use std::sync::atomic::{AtomicI32, Ordering};
             b.iter(|| {
                 let total = AtomicI32::new(0);
-                ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                    .filter(|x| x % 2 == 0)
-                    .map(work)
-                    .for_each(&CpuScalar, |x| {
-                        total.fetch_add(x, Ordering::Relaxed);
-                    });
+                ParFlumen::from_vec(
+                    (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                        .collect::<Vec<_>>(),
+                )
+                .filter(|x| x % 2 == 0)
+                .map(work)
+                .for_each(&CpuScalar, |x| {
+                    total.fetch_add(x, Ordering::Relaxed);
+                });
                 black_box(total.load(Ordering::Relaxed))
             });
         });
@@ -117,12 +132,15 @@ fn bench_cpu_rayon_map_for_each_non_indexed(c: &mut Criterion) {
             use std::sync::atomic::{AtomicI32, Ordering};
             b.iter(|| {
                 let total = AtomicI32::new(0);
-                ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                    .filter(|x| x % 2 == 0)
-                    .map(work)
-                    .for_each(&rayon, |x| {
-                        total.fetch_add(x, Ordering::Relaxed);
-                    });
+                ParFlumen::from_vec(
+                    (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                        .collect::<Vec<_>>(),
+                )
+                .filter(|x| x % 2 == 0)
+                .map(work)
+                .for_each(&rayon, |x| {
+                    total.fetch_add(x, Ordering::Relaxed);
+                });
                 black_box(total.load(Ordering::Relaxed))
             });
         });
@@ -142,9 +160,12 @@ fn bench_cpu_rayon_filter_reduce_non_indexed(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Scalar", n), &n, |b, &n| {
             b.iter(|| {
                 black_box(
-                    ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                        .filter(|x| x % 2 == 0)
-                        .reduce(&CpuScalar, i32::wrapping_add),
+                    ParFlumen::from_vec(
+                        (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                            .collect::<Vec<_>>(),
+                    )
+                    .filter(|x| x % 2 == 0)
+                    .reduce(&CpuScalar, i32::wrapping_add),
                 )
             });
         });
@@ -152,9 +173,12 @@ fn bench_cpu_rayon_filter_reduce_non_indexed(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Parallel", n), &n, |b, &n| {
             b.iter(|| {
                 black_box(
-                    ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                        .filter(|x| x % 2 == 0)
-                        .reduce(&rayon, i32::wrapping_add),
+                    ParFlumen::from_vec(
+                        (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                            .collect::<Vec<_>>(),
+                    )
+                    .filter(|x| x % 2 == 0)
+                    .reduce(&rayon, i32::wrapping_add),
                 )
             });
         });
@@ -166,9 +190,12 @@ fn bench_cpu_rayon_filter_reduce_non_indexed(c: &mut Criterion) {
             let default = CpuRayon::default();
             b.iter(|| {
                 black_box(
-                    ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-                        .filter(|x| x % 2 == 0)
-                        .reduce(&default, i32::wrapping_add),
+                    ParFlumen::from_vec(
+                        (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+                            .collect::<Vec<_>>(),
+                    )
+                    .filter(|x| x % 2 == 0)
+                    .reduce(&default, i32::wrapping_add),
                 )
             });
         });
@@ -185,12 +212,18 @@ fn bench_cpu_rayon_chain_reduce_non_indexed(c: &mut Criterion) {
     let rayon = rayon_backend();
 
     let build = |n: usize| {
-        ParFlumen::from_vec((0..n as i32).collect::<Vec<_>>())
-            .filter(|x| x % 2 == 0)
-            .chain(
-                ParFlumen::from_vec((n as i32..2 * n as i32).collect::<Vec<_>>())
-                    .filter(|x| x % 3 == 0),
+        ParFlumen::from_vec(
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect::<Vec<_>>(),
+        )
+        .filter(|x| x % 2 == 0)
+        .chain(
+            ParFlumen::from_vec(
+                (i32::try_from(n).expect("benchmark input size fits in i32")
+                    ..2 * i32::try_from(n).expect("benchmark input size fits in i32"))
+                    .collect::<Vec<_>>(),
             )
+            .filter(|x| x % 3 == 0),
+        )
     };
 
     for &n in SIZES {

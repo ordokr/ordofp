@@ -31,8 +31,8 @@ struct Outer {
 }
 
 impl Outer {
-    fn new() -> Outer {
-        Outer {
+    const fn new() -> Self {
+        Self {
             v: Inner2 {
                 v: Inner3 {
                     v: Inner4 { v: Inner5 { v: 3 } },
@@ -45,10 +45,10 @@ impl Outer {
 fn normal_path_read_value(c: &mut Criterion) {
     c.bench_function("normal_path_read_value", |b| {
         b.iter(|| {
-            let o = Outer::new();
-            let v = o.v.v.v.v.v;
-            let r = v + 1;
-            black_box(r)
+            let outer = Outer::new();
+            let value = outer.v.v.v.v.v;
+            let result = value + 1;
+            black_box(result)
         });
     });
 }
@@ -57,10 +57,10 @@ fn lens_path_read_value(c: &mut Criterion) {
     let p = path!(v.v.v.v.v);
     c.bench_function("lens_path_read_value", |b| {
         b.iter(|| {
-            let o = Outer::new();
-            let v = p.get(o);
-            let r = v + 1;
-            black_box(r)
+            let outer = Outer::new();
+            let value = p.get(outer);
+            let result = value + 1;
+            black_box(result)
         });
     });
 }
@@ -68,10 +68,10 @@ fn lens_path_read_value(c: &mut Criterion) {
 fn normal_path_read_ref(c: &mut Criterion) {
     c.bench_function("normal_path_read_ref", |b| {
         b.iter(|| {
-            let o = Outer::new();
-            let v = &o.v.v.v.v.v;
-            let r = v + 1;
-            black_box(r)
+            let outer = Outer::new();
+            let value = &outer.v.v.v.v.v;
+            let result = value + 1;
+            black_box(result)
         });
     });
 }
@@ -80,10 +80,10 @@ fn lens_path_read_ref(c: &mut Criterion) {
     let p = path!(v.v.v.v.v);
     c.bench_function("lens_path_read_ref", |b| {
         b.iter(|| {
-            let o = Outer::new();
-            let v = p.get(&o);
-            let r = v + 1;
-            black_box(r)
+            let outer = Outer::new();
+            let value = p.get(&outer);
+            let result = value + 1;
+            black_box(result)
         });
     });
 }

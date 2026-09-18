@@ -60,7 +60,7 @@ impl<T> Unrestricted<T> {
     /// ```
     #[inline]
     pub const fn new(value: T) -> Self {
-        Unrestricted { value }
+        Self { value }
     }
 
     /// Extract the inner value.
@@ -84,13 +84,13 @@ impl<T> Unrestricted<T> {
 
     /// Get a reference to the inner value.
     #[inline]
-    pub fn inner_ref(&self) -> &T {
+    pub const fn inner_ref(&self) -> &T {
         &self.value
     }
 
     /// Get a mutable reference to the inner value.
     #[inline]
-    pub fn inner_mut(&mut self) -> &mut T {
+    pub const fn inner_mut(&mut self) -> &mut T {
         &mut self.value
     }
 
@@ -148,14 +148,11 @@ impl<T> Unrestricted<T> {
     /// assert_eq!(b.extract(), 42);
     /// ```
     #[inline]
-    pub fn duplicate(&self) -> (Unrestricted<T>, Unrestricted<T>)
+    pub fn duplicate(&self) -> (Self, Self)
     where
         T: Clone,
     {
-        (
-            Unrestricted::new(self.value.clone()),
-            Unrestricted::new(self.value.clone()),
-        )
+        (Self::new(self.value.clone()), Self::new(self.value.clone()))
     }
 
     /// Zip two unrestricted values together.
@@ -177,7 +174,7 @@ impl<T: Clone> Unrestricted<T> {
 
 impl<T> From<T> for Unrestricted<T> {
     fn from(value: T) -> Self {
-        Unrestricted::new(value)
+        Self::new(value)
     }
 }
 

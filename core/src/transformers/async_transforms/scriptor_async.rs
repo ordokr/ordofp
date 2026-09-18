@@ -100,7 +100,7 @@ where
     where
         Fut: Future<Output = (W, A)> + Send + 'static,
     {
-        ScriptorAsync {
+        Self {
             inner: Box::pin(fut),
         }
     }
@@ -136,7 +136,7 @@ where
     where
         W: Default,
     {
-        ScriptorAsync::new(async move { (W::default(), value) })
+        Self::new(async move { (W::default(), value) })
     }
 
     /// Write output without producing a meaningful value.
@@ -298,11 +298,12 @@ where
     /// assert_eq!(result, 42);
     /// ```
     #[inline]
-    pub fn censor<F>(self, f: F) -> ScriptorAsync<W, A>
+    #[must_use]
+    pub fn censor<F>(self, f: F) -> Self
     where
         F: FnOnce(W) -> W + Send + 'static,
     {
-        ScriptorAsync::new(async move {
+        Self::new(async move {
             let (w, a) = self.inner.await;
             (f(w), a)
         })
@@ -312,6 +313,7 @@ where
     ///
     /// Returns both the value and the output as part of the result.
     #[inline]
+    #[must_use]
     pub fn listen(self) -> ScriptorAsync<W, (A, W)>
     where
         W: Clone,
@@ -344,7 +346,8 @@ where
     /// shape is not expressible with this signature, so this method
     /// currently returns `self` unchanged and never modifies the log.
     #[inline]
-    pub fn pass(self) -> ScriptorAsync<W, A>
+    #[must_use]
+    pub const fn pass(self) -> Self
     where
         A: Clone,
     {
@@ -414,6 +417,7 @@ where
 
     /// Sequence this computation before another, discarding the first result.
     #[inline]
+    #[must_use]
     pub fn then<B>(self, next: ScriptorAsync<Vec<T>, B>) -> ScriptorAsync<Vec<T>, B>
     where
         B: Send + 'static,
@@ -472,7 +476,7 @@ where
     where
         Fut: Future<Output = (W, A)> + Send + 'static,
     {
-        ScriptorAsync::new(fut)
+        Self::new(fut)
     }
 }
 

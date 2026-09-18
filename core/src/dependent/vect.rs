@@ -84,8 +84,9 @@ impl<T> Vectum<T, Zero> {
     /// assert!(v.is_empty());
     /// ```
     #[inline]
-    pub fn vacuus() -> Self {
-        Vectum {
+    #[must_use]
+    pub const fn vacuus() -> Self {
+        Self {
             data: Vec::new(),
             _len: PhantomData,
         }
@@ -93,7 +94,8 @@ impl<T> Vectum<T, Zero> {
 
     /// Alias for `vacuus`.
     #[inline]
-    pub fn empty() -> Self {
+    #[must_use]
+    pub const fn empty() -> Self {
         Self::vacuus()
     }
 }
@@ -101,19 +103,22 @@ impl<T> Vectum<T, Zero> {
 impl<T, N: Naturalis> Vectum<T, N> {
     /// Get the runtime length.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         N::VALUE
     }
 
     /// Check if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         N::VALUE == 0
     }
 
     /// Get the type-level length as a runtime value.
     #[inline]
-    pub fn type_len() -> usize {
+    #[must_use]
+    pub const fn type_len() -> usize {
         N::VALUE
     }
 
@@ -122,18 +127,21 @@ impl<T, N: Naturalis> Vectum<T, N> {
     /// # Latin Etymology
     /// *Resolvo* means "to unfasten, release".
     #[inline]
+    #[must_use]
     pub fn resolvere(self) -> Vec<T> {
         self.data
     }
 
     /// Get a reference to the underlying Vec.
     #[inline]
-    pub fn as_vec(&self) -> &Vec<T> {
+    #[must_use]
+    pub const fn as_vec(&self) -> &Vec<T> {
         &self.data
     }
 
     /// Get a reference to the underlying slice.
     #[inline]
+    #[must_use]
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -151,7 +159,7 @@ pub trait FromArray<T, const N: usize>: Sized {
 
 impl<T> FromArray<T, 0> for Vectum<T, Zero> {
     fn from_array(_arr: [T; 0]) -> Self {
-        Vectum::vacuus()
+        Self::vacuus()
     }
 }
 
@@ -189,7 +197,7 @@ impl<T> Vectum<T, Succ<Zero>> {
     /// *Singulus* means "one at a time, single".
     #[inline]
     pub fn singulus(value: T) -> Self {
-        Vectum {
+        Self {
             data: alloc::vec![value],
             _len: PhantomData,
         }
@@ -219,6 +227,7 @@ impl<T, N: NonNihil> Vectum<T, N> {
     /// assert_eq!(*v.caput(), 1);
     /// ```
     #[inline]
+    #[must_use]
     pub fn caput(&self) -> &T {
         // SAFETY: NonNihil guarantees at least one element
         &self.data[0]
@@ -241,6 +250,7 @@ impl<T, N: NonNihil> Vectum<T, N> {
     /// violated by the underlying storage, which indicates a bug in this
     /// crate.
     #[inline]
+    #[must_use]
     pub fn ultimus(&self) -> &T {
         self.data
             .last()
@@ -283,6 +293,7 @@ where
     /// assert_eq!(tail.len(), 2);
     /// ```
     #[inline]
+    #[must_use]
     pub fn cauda(&self) -> Vectum<T, N::Prior> {
         Vectum {
             data: self.data[1..].to_vec(),
@@ -295,6 +306,7 @@ where
     /// # Latin Etymology
     /// *Initium* means "beginning".
     #[inline]
+    #[must_use]
     pub fn initium(&self) -> Vectum<T, N::Prior> {
         Vectum {
             data: self.data[..self.data.len() - 1].to_vec(),
@@ -385,6 +397,7 @@ impl<T, N: Naturalis> Vectum<T, N> {
     /// assert_eq!(v3.len(), 5);
     /// ```
     #[inline]
+    #[must_use]
     pub fn concatenare<M: Naturalis>(
         mut self,
         other: Vectum<T, M>,
@@ -403,6 +416,7 @@ impl<T, N: Naturalis> Vectum<T, N> {
 
     /// Alias for `concatenare`.
     #[inline]
+    #[must_use]
     pub fn append<M: Naturalis>(self, other: Vectum<T, M>) -> Vectum<T, <N as Additio<M>>::Summa>
     where
         N: Additio<M>,
@@ -465,6 +479,7 @@ impl<T, N: Naturalis> Vectum<T, N> {
     /// # Latin Etymology
     /// *Coniungere* means "to join together".
     #[inline]
+    #[must_use]
     pub fn coniungere<U>(self, other: Vectum<U, N>) -> Vectum<(T, U), N> {
         Vectum {
             data: self.data.into_iter().zip(other.data).collect(),
@@ -474,6 +489,7 @@ impl<T, N: Naturalis> Vectum<T, N> {
 
     /// Alias for `coniungere`.
     #[inline]
+    #[must_use]
     pub fn zip<U>(self, other: Vectum<U, N>) -> Vectum<(T, U), N> {
         self.coniungere(other)
     }
@@ -550,6 +566,7 @@ impl<T, N: Naturalis> Vectum<T, N> {
     ///
     /// For compile-time-safe indexing, use `at_type` with type-level indices.
     #[inline]
+    #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.data.get(index)
     }
@@ -657,7 +674,8 @@ impl<T, N: Naturalis> Vectum<T, N> {
 
     /// Create a reversed copy.
     #[inline]
-    pub fn inversus(mut self) -> Vectum<T, N> {
+    #[must_use]
+    pub fn inversus(mut self) -> Self {
         self.data.reverse();
         self
     }
@@ -879,13 +897,13 @@ mod tests {
         let mut v: Vectum<i32, N5> = Vectum::from_array([1, 2, 3, 4, 5]);
 
         // Get four disjoint mutable references
-        let [a, b, c, d] = v
+        let [first, second, fourth, fifth] = v
             .get_disjoint_mut([0, 1, 3, 4])
             .expect("indices 0, 1, 3, 4 are valid and disjoint within a 5-element array");
-        *a = 10;
-        *b = 20;
-        *c = 40;
-        *d = 50;
+        *first = 10;
+        *second = 20;
+        *fourth = 40;
+        *fifth = 50;
 
         assert_eq!(v.as_slice(), &[10, 20, 3, 40, 50]);
     }

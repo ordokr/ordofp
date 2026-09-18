@@ -120,7 +120,7 @@ pub enum SupervisioError {
 impl core::fmt::Display for SupervisioError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            SupervisioError::IntensitasExcedit {
+            Self::IntensitasExcedit {
                 child_id,
                 restarts,
                 window_secs,
@@ -130,16 +130,16 @@ impl core::fmt::Display for SupervisioError {
                     "restart intensity exceeded for '{child_id}': {restarts} restarts in {window_secs}s"
                 )
             }
-            SupervisioError::InitiumDefectum { child_id, reason } => {
+            Self::InitiumDefectum { child_id, reason } => {
                 write!(f, "child '{child_id}' failed to start: {reason}")
             }
-            SupervisioError::TerminatioAbnormis { child_id, reason } => {
+            Self::TerminatioAbnormis { child_id, reason } => {
                 write!(f, "child '{child_id}' terminated abnormally: {reason}")
             }
-            SupervisioError::SupervisioTerminata => {
+            Self::SupervisioTerminata => {
                 write!(f, "supervisor was terminated")
             }
-            SupervisioError::Alius(msg) => {
+            Self::Alius(msg) => {
                 write!(f, "supervision error: {msg}")
             }
         }

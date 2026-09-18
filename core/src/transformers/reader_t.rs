@@ -175,7 +175,7 @@ impl<E, M> ReaderT<E, M> {
     where
         F: Fn(&E) -> M + Send + Sync + 'static,
     {
-        ReaderT {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -216,12 +216,13 @@ impl<E, M> ReaderT<E, M> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn ask() -> Self
     where
         E: Clone + 'static,
         M: From<E> + 'static,
     {
-        ReaderT::new(|env: &E| M::from(env.clone()))
+        Self::new(|env: &E| M::from(env.clone()))
     }
 
     /// Modifies the environment before running another reader.
@@ -242,13 +243,14 @@ impl<E, M> ReaderT<E, M> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn local<F>(self, f: F) -> Self
     where
         F: Fn(&E) -> E + Send + Sync + 'static,
         E: 'static,
         M: 'static,
     {
-        ReaderT::new(move |env: &E| {
+        Self::new(move |env: &E| {
             let modified_env = f(env);
             (self.run_fn)(&modified_env)
         })
@@ -354,7 +356,7 @@ where
     /// ```
     #[inline]
     pub fn pure(value: M::Inner) -> Self {
-        ReaderT::new(move |_: &E| M::pure(value.clone()))
+        Self::new(move |_: &E| M::pure(value.clone()))
     }
 }
 
@@ -380,8 +382,9 @@ impl<E: 'static, A: 'static> ReaderT<E, Option<A>> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn none() -> Self {
-        ReaderT::new(|_: &E| None)
+        Self::new(|_: &E| None)
     }
 
     /// Applies a wrapped function to this value.
@@ -403,6 +406,7 @@ impl<E: 'static, A: 'static> ReaderT<E, Option<A>> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn apply<B, F>(self, f: ReaderT<E, Option<F>>) -> ReaderT<E, Option<B>>
     where
         F: FnOnce(A) -> B + Clone + Send + Sync + 'static,
@@ -471,7 +475,7 @@ impl<E: 'static, A: 'static, Err: 'static> ReaderT<E, Result<A, Err>> {
     where
         A: Clone + Send + Sync,
     {
-        ReaderT::new(move |_: &E| Ok(value.clone()))
+        Self::new(move |_: &E| Ok(value.clone()))
     }
 
     /// Creates a `ReaderT` that always returns `Err(error)`.
@@ -494,7 +498,7 @@ impl<E: 'static, A: 'static, Err: 'static> ReaderT<E, Result<A, Err>> {
     where
         Err: Clone + Send + Sync,
     {
-        ReaderT::new(move |_: &E| Err(error.clone()))
+        Self::new(move |_: &E| Err(error.clone()))
     }
 
     /// Maps a function over the error value.
@@ -553,13 +557,14 @@ impl<E: 'static, A: 'static> ReaderT<E, Vec<A>> {
     where
         A: Clone + Send + Sync,
     {
-        ReaderT::new(move |_: &E| alloc::vec![value.clone()])
+        Self::new(move |_: &E| alloc::vec![value.clone()])
     }
 
     /// Creates a `ReaderT` that returns an empty vector.
     #[inline]
+    #[must_use]
     pub fn empty() -> Self {
-        ReaderT::new(|_: &E| alloc::vec![])
+        Self::new(|_: &E| alloc::vec![])
     }
 
     /// Chains a computation (alias for `flat_map` on Vec-based `ReaderT`).
@@ -618,7 +623,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::type_complexity)] // spelled-out nested transformer type is the point
+    #[allow(
+        clippy::type_complexity,
+        reason = "spelled-out nested transformer type is the point"
+    )]
     fn test_reader_t_apply() {
         let val: ReaderT<(), Option<i32>> = ReaderT::pure(21);
         let func: ReaderT<(), Option<fn(i32) -> i32>> =

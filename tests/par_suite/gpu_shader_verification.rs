@@ -9,7 +9,7 @@ use ordofp_core::par::backend::wgpu::GpuWgpu;
 use ordofp_core::par::codegen::wgsl::generate_map_shader;
 
 #[test]
-#[ignore] // Requires GPU, run with --ignored
+#[ignore = "requires GPU hardware; run with --ignored"]
 fn test_gpu_backend_initialization() {
     // Test that GPU backend can be initialized
     match GpuWgpu::new() {
@@ -45,6 +45,6 @@ fn test_wgsl_shader_generation_no_gpu() {
     assert!(shader_128.contains("128"));
 
     // Test types
-    let shader_i32 = generate_map_shader("map_i32", "x + 1", 64, "i32");
-    assert!(shader_i32.contains("array<i32>"));
+    let typed = generate_map_shader("map_i32", "x + 1", 64, "i32");
+    assert!(typed.contains("array<i32>"));
 }

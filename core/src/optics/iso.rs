@@ -386,6 +386,7 @@ where
 /// assert_eq!(id_aeq.backward(&42), 42);
 /// ```
 #[inline]
+#[must_use]
 pub fn identitas<T: Clone>() -> Aequivalentia<T, T, impl Fn(&T) -> T, impl Fn(&T) -> T> {
     aequivalentia(|t: &T| t.clone(), |t: &T| t.clone())
 }
@@ -409,6 +410,7 @@ pub type PermutatioAequivalentia<A, B> =
 /// assert_eq!(swap_aeq.backward(&("world", 2)), (2, "world"));
 /// ```
 #[inline]
+#[must_use]
 pub fn permutatio<A: Clone, B: Clone>() -> PermutatioAequivalentia<A, B> {
     aequivalentia(
         |(a, b): &(A, B)| (b.clone(), a.clone()),

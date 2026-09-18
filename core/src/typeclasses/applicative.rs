@@ -206,8 +206,7 @@ impl<A, E> Apply for Result<A, E> {
     {
         match (ff, self) {
             (Ok(mut f), Ok(a)) => Ok(f(a)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -229,11 +228,11 @@ impl<A, E> Applicatio for Result<A, E> {
 // ============================================================================
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Apply for Vec<A> {
+impl<T: Clone> Apply for Vec<T> {
     #[inline]
     fn apply<B, F>(self, ff: Vec<F>) -> Vec<B>
     where
-        F: FnMut(A) -> B,
+        F: FnMut(T) -> B,
     {
         // Cartesian product application: apply each function to each element
         let mut result = Vec::with_capacity(ff.len() * self.len());
@@ -247,9 +246,9 @@ impl<A: Clone> Apply for Vec<A> {
 }
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Applicatio for Vec<A> {
+impl<Elem: Clone> Applicatio for Vec<Elem> {
     #[inline]
-    fn pure(a: A) -> Self {
+    fn pure(a: Elem) -> Self {
         alloc::vec![a]
     }
 

@@ -59,7 +59,7 @@ pub struct Queue<A> {
 #[cfg(feature = "alloc")]
 impl<A> Default for Queue<A> {
     fn default() -> Self {
-        Queue::new()
+        Self::new()
     }
 }
 
@@ -83,8 +83,9 @@ impl<A: Eq> Eq for Queue<A> {}
 impl<A> Queue<A> {
     /// Create a new empty queue.
     #[inline]
-    pub fn new() -> Self {
-        Queue {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             front: Vec::new(),
             rear: Vec::new(),
         }
@@ -92,13 +93,15 @@ impl<A> Queue<A> {
 
     /// Check if the queue is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.front.is_empty() && self.rear.is_empty()
     }
 
     /// Get the number of elements in the queue.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.front.len() + self.rear.len()
     }
 
@@ -106,18 +109,17 @@ impl<A> Queue<A> {
     ///
     /// Returns a new queue with the value added.
     #[inline]
+    #[must_use]
     pub fn enqueue(mut self, value: A) -> Self {
         self.rear.push(value);
-        Queue {
-            front: self.front,
-            rear: self.rear,
-        }
+        self
     }
 
     /// Dequeue a value from the front of the queue.
     ///
     /// Returns `Some((value, new_queue))` if non-empty, `None` otherwise.
     #[inline]
+    #[must_use]
     pub fn dequeue(mut self) -> Option<(A, Self)>
     where
         A: Clone,
@@ -133,17 +135,12 @@ impl<A> Queue<A> {
 
         // Pop from end (which is head of queue)
         let value = self.front.pop()?;
-        Some((
-            value,
-            Queue {
-                front: self.front,
-                rear: self.rear,
-            },
-        ))
+        Some((value, self))
     }
 
     /// Peek at the front value without removing it.
     #[inline]
+    #[must_use]
     pub fn peek(&self) -> Option<&A> {
         if !self.front.is_empty() {
             // Head is at the end of front
@@ -158,6 +155,7 @@ impl<A> Queue<A> {
 
     /// Peek at the back value without removing it.
     #[inline]
+    #[must_use]
     pub fn peek_back(&self) -> Option<&A> {
         if !self.rear.is_empty() {
             // Last enqueued is at the end of rear
@@ -198,6 +196,7 @@ impl<A> Queue<A> {
 
     /// Filter elements that satisfy the predicate.
     #[inline]
+    #[must_use]
     pub fn filter<F>(&self, pred: F) -> Self
     where
         A: Clone,
@@ -206,11 +205,12 @@ impl<A> Queue<A> {
         // front is reversed. Filtering preserves order, so it remains reversed.
         let front: Vec<A> = self.front.iter().filter(|x| pred(x)).cloned().collect();
         let rear: Vec<A> = self.rear.iter().filter(|x| pred(x)).cloned().collect();
-        Queue { front, rear }
+        Self { front, rear }
     }
 
     /// Convert to a Vec (in FIFO order).
     #[inline]
+    #[must_use]
     pub fn to_vec(&self) -> Vec<A>
     where
         A: Clone,
@@ -224,6 +224,7 @@ impl<A> Queue<A> {
 
     /// Concatenate two queues.
     #[inline]
+    #[must_use]
     pub fn concat(&self, other: &Self) -> Self
     where
         A: Clone,
@@ -246,7 +247,7 @@ impl<A: Clone> From<Vec<A>> for Queue<A> {
     fn from(vec: Vec<A>) -> Self {
         // Put everything in rear to avoid O(N) reverse.
         // First dequeue will handle reversal.
-        Queue {
+        Self {
             front: Vec::new(),
             rear: vec,
         }
@@ -256,7 +257,7 @@ impl<A: Clone> From<Vec<A>> for Queue<A> {
 #[cfg(feature = "alloc")]
 impl<A: Clone> FromIterator<A> for Queue<A> {
     fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-        Queue {
+        Self {
             front: Vec::new(),
             rear: iter.into_iter().collect(),
         }

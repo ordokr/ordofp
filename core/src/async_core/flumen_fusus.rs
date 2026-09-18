@@ -95,7 +95,7 @@ pub struct FlumenFusus<S, StepFn, A> {
 
 impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     /// Construct a fused stream from state and a step function.
-    #[inline(always)]
+    #[inline]
     pub fn new(state: S, step: StepFn) -> Self {
         Self {
             state,
@@ -105,7 +105,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Map over yielded items (fused).
-    #[inline(always)]
+    #[inline]
     pub fn map<B, F>(
         self,
         mut f: F,
@@ -128,7 +128,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Filter yielded items (fused; uses `Skip`).
-    #[inline(always)]
+    #[inline]
     pub fn filter<F>(
         self,
         mut predicate: F,
@@ -157,7 +157,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Filter-map yielded items (fused; uses `Skip`).
-    #[inline(always)]
+    #[inline]
     pub fn filter_map<B, F>(
         self,
         mut f: F,
@@ -172,10 +172,10 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
             self.state,
             move |s: &mut S, cx: &mut Context<'_>| match step0(s, cx) {
                 Poll::Pending => Poll::Pending,
-                Poll::Ready(Gradus::Yield(a)) => match f(a) {
-                    Some(b) => Poll::Ready(Gradus::Yield(b)),
-                    None => Poll::Ready(Gradus::Skip),
-                },
+                Poll::Ready(Gradus::Yield(a)) => f(a).map_or_else(
+                    || Poll::Ready(Gradus::Skip),
+                    |b| Poll::Ready(Gradus::Yield(b)),
+                ),
                 Poll::Ready(Gradus::Skip) => Poll::Ready(Gradus::Skip),
                 Poll::Ready(Gradus::Done) => Poll::Ready(Gradus::Done),
             },
@@ -183,7 +183,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Take at most `n` items (fused).
-    #[inline(always)]
+    #[inline]
     pub fn take(self, n: usize) -> FlumenFusus<(S, usize), impl GradusStep<(S, usize), A>, A>
     where
         S: Unpin,
@@ -211,7 +211,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Skip the first `n` items (fused).
-    #[inline(always)]
+    #[inline]
     pub fn skip(self, n: usize) -> FlumenFusus<(S, usize), impl GradusStep<(S, usize), A>, A>
     where
         S: Unpin,
@@ -244,7 +244,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     /// `Some` between steps) is violated, which would indicate a bug in
     /// this crate. A panic inside `f` can strand the slot empty, so a
     /// stream whose closure panicked must not be polled again.
-    #[inline(always)]
+    #[inline]
     pub fn scan<B, F>(
         self,
         init: B,
@@ -279,7 +279,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     /// Scan with state that differs from the output type (fused).
     ///
     /// Returns `None` to terminate the stream early.
-    #[inline(always)]
+    #[inline]
     pub fn scan_with<St, B, F>(
         self,
         init: St,
@@ -317,7 +317,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Inspect each yielded item without modifying it (fused).
-    #[inline(always)]
+    #[inline]
     pub fn inspect<F>(
         self,
         mut f: F,
@@ -343,7 +343,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Enumerate yielded items with their index (fused).
-    #[inline(always)]
+    #[inline]
     pub fn enumerate(self) -> FlumenFusus<(S, usize), impl EnumerateStep<S, A>, (usize, A)>
     where
         S: Unpin,
@@ -366,7 +366,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Take items while a predicate holds (fused).
-    #[inline(always)]
+    #[inline]
     pub fn take_while<F>(
         self,
         mut predicate: F,
@@ -402,7 +402,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     }
 
     /// Skip items while a predicate holds (fused).
-    #[inline(always)]
+    #[inline]
     pub fn skip_while<F>(
         self,
         mut predicate: F,
@@ -570,7 +570,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     /// generally cannot know their output size without running.
     /// Use `collect_vec_with_capacity` when you have an estimate.
     #[inline]
-    pub fn size_hint(&self) -> (usize, Option<usize>) {
+    pub const fn size_hint(&self) -> (usize, Option<usize>) {
         (0, None)
     }
 
@@ -762,7 +762,7 @@ impl<S, StepFn, A> FlumenFusus<S, StepFn, A> {
     /// when the first stream is exhausted, at which point the step function
     /// delegates to `other`'s step. A `Skip` is emitted on the transition so
     /// the outer `poll_next` loop immediately tries the second stream.
-    #[inline(always)]
+    #[inline]
     pub fn chain<S2, StepFn2>(
         self,
         other: FlumenFusus<S2, StepFn2, A>,
@@ -862,7 +862,7 @@ where
 {
     type Item = A;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         loop {
@@ -885,10 +885,7 @@ mod tests {
 
     /// Step function over a vec iterator that yields each item immediately.
     fn ready_step(it: &mut IntoIter<i32>, _cx: &mut Context<'_>) -> Poll<Gradus<i32>> {
-        Poll::Ready(match it.next() {
-            Some(x) => Gradus::Yield(x),
-            None => Gradus::Done,
-        })
+        Poll::Ready(it.next().map_or(Gradus::Done, Gradus::Yield))
     }
 
     /// Step function that returns `Pending` once before each item.
@@ -902,10 +899,7 @@ mod tests {
             return Poll::Pending;
         }
         st.1 = false;
-        Poll::Ready(match st.0.next() {
-            Some(x) => Gradus::Yield(x),
-            None => Gradus::Done,
-        })
+        Poll::Ready(st.0.next().map_or(Gradus::Done, Gradus::Yield))
     }
 
     /// Busy-poll a future to completion (the test steps wake the noop waker).

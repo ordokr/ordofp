@@ -153,10 +153,8 @@ where
         F: FnOnce(A) -> A,
         S: Clone,
     {
-        match self.preview(source) {
-            Some(a) => self.set(source, f(a)),
-            None => source.clone(),
-        }
+        self.preview(source)
+            .map_or_else(|| source.clone(), |a| self.set(source, f(a)))
     }
 
     /// Check if the affine has a focus for the given source.
@@ -235,17 +233,14 @@ where
         A: Clone,
         S: Clone,
     {
-        match self.outer.preview(source) {
-            Some(a) => {
+        // If outer has no focus, we can't set; return source unchanged.
+        self.outer.preview(source).map_or_else(
+            || source.clone(),
+            |a| {
                 let new_a = self.inner.set(&a, value);
                 self.outer.set(source, new_a)
-            }
-            None => {
-                // If outer has no focus, we can't set
-                // Return source unchanged
-                source.clone()
-            }
-        }
+            },
+        )
     }
 
     /// Modify the focused value through both affines.
@@ -256,17 +251,16 @@ where
         S: Clone,
         A: Clone,
     {
-        match self.outer.preview(source) {
-            Some(a) => match self.inner.preview(&a) {
-                Some(b) => {
+        self.outer
+            .preview(source)
+            .and_then(|a| {
+                self.inner.preview(&a).map(|b| {
                     let new_b = f(b);
                     let new_a = self.inner.set(&a, new_b);
                     self.outer.set(source, new_a)
-                }
-                None => source.clone(),
-            },
-            None => source.clone(),
-        }
+                })
+            })
+            .unwrap_or_else(|| source.clone())
     }
 
     /// Check if there is a focus through both affines.
@@ -439,6 +433,7 @@ where
 /// Create an affine traversal for a vector index.
 #[cfg(feature = "alloc")]
 #[inline]
+#[must_use]
 pub fn iteratio_at_index<T>(
     index: usize,
 ) -> IteratioAffinis<

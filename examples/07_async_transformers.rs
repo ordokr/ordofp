@@ -78,14 +78,14 @@ fn reader_t_send_sync_example() {
 /// Demonstrates `StateT` with thread-safe state management
 #[cfg(feature = "alloc")]
 fn state_t_send_sync_example() {
-    println!("\n=== StateT Send/Sync Example ===");
-
     // StateT with a counter state
     #[derive(Clone)]
     struct Counter {
         value: i32,
         operations: Vec<String>,
     }
+
+    println!("\n=== StateT Send/Sync Example ===");
 
     // Increment counter - closure is Send + Sync
     let increment: StateT<Counter, Option<(Counter, i32)>> = StateT::new(|mut c: Counter| {
@@ -145,12 +145,12 @@ fn either_t_send_example() {
 /// Demonstrates combining transformers in an async-compatible way
 #[cfg(feature = "alloc")]
 fn combined_transformers_example() {
-    println!("\n=== Combined Transformers Example ===");
-
     #[derive(Clone)]
     struct Config {
         multiplier: i32,
     }
+
+    println!("\n=== Combined Transformers Example ===");
 
     // Chain of ReaderT computations - all closures are Send + Sync
     let step1: ReaderT<Config, Option<i32>> = ReaderT::new(|cfg: &Config| Some(cfg.multiplier));

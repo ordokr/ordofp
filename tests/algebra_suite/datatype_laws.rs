@@ -1,8 +1,8 @@
-//! Law tests for OrdoFP's own datatypes.
+//! Law tests for `OrdoFP`'s own datatypes.
 //!
 //! `tests/laws_suite.rs` runs the `ordofp_laws` machinery against std types
 //! (`Option`, `Vec`, `Result`, tuples). This suite points the same laws at
-//! the library's own instances — the semigroup/monoid wrappers, HList
+//! the library's own instances — the semigroup/monoid wrappers, `HList`
 //! monoids, `NonEmpty`'s functor/applicative/monad, and `Probatum`'s
 //! error-accumulating applicative — which previously had no law coverage.
 
@@ -25,45 +25,45 @@ quickcheck! {
     // numeric ones with i8 widened to i64: |i8|^3 products can't overflow.
     fn multiplicatio_associativity(a: i8, b: i8, c: i8) -> bool {
         semigroup_laws::associativity(
-            Multiplicatio(i64::from(a)),
-            Multiplicatio(i64::from(b)),
-            Multiplicatio(i64::from(c)),
+            &Multiplicatio(i64::from(a)),
+            &Multiplicatio(i64::from(b)),
+            &Multiplicatio(i64::from(c)),
         )
     }
 
     fn aggregatio_associativity(a: i8, b: i8, c: i8) -> bool {
         semigroup_laws::associativity(
-            Aggregatio(i64::from(a)),
-            Aggregatio(i64::from(b)),
-            Aggregatio(i64::from(c)),
+            &Aggregatio(i64::from(a)),
+            &Aggregatio(i64::from(b)),
+            &Aggregatio(i64::from(c)),
         )
     }
 
     fn multiplicatio_identity(a: i8) -> bool {
         let a = Multiplicatio(i64::from(a));
-        monoid_laws::left_identity(a) && monoid_laws::right_identity(a)
+        monoid_laws::left_identity(&a) && monoid_laws::right_identity(&a)
     }
 
     fn aggregatio_identity(a: i8) -> bool {
         let a = Aggregatio(i64::from(a));
-        monoid_laws::left_identity(a) && monoid_laws::right_identity(a)
+        monoid_laws::left_identity(&a) && monoid_laws::right_identity(&a)
     }
 
     fn omnis_bool_monoid_laws(a: bool, b: bool, c: bool) -> bool {
-        semigroup_laws::associativity(Omnis(a), Omnis(b), Omnis(c))
-            && monoid_laws::left_identity(Omnis(a))
-            && monoid_laws::right_identity(Omnis(a))
+        semigroup_laws::associativity(&Omnis(a), &Omnis(b), &Omnis(c))
+            && monoid_laws::left_identity(&Omnis(a))
+            && monoid_laws::right_identity(&Omnis(a))
     }
 
     fn aliquid_bool_monoid_laws(a: bool, b: bool, c: bool) -> bool {
-        semigroup_laws::associativity(Aliquid(a), Aliquid(b), Aliquid(c))
-            && monoid_laws::left_identity(Aliquid(a))
-            && monoid_laws::right_identity(Aliquid(a))
+        semigroup_laws::associativity(&Aliquid(a), &Aliquid(b), &Aliquid(c))
+            && monoid_laws::left_identity(&Aliquid(a))
+            && monoid_laws::right_identity(&Aliquid(a))
     }
 
     fn primus_ultimus_associativity(a: i32, b: i32, c: i32) -> bool {
-        semigroup_laws::associativity(Primus(a), Primus(b), Primus(c))
-            && semigroup_laws::associativity(Ultimus(a), Ultimus(b), Ultimus(c))
+        semigroup_laws::associativity(&Primus(a), &Primus(b), &Primus(c))
+            && semigroup_laws::associativity(&Ultimus(a), &Ultimus(b), &Ultimus(c))
     }
 
     /// `Option<T: Compositio>` lifts a semigroup to a monoid with `None` as
@@ -71,9 +71,9 @@ quickcheck! {
     fn option_aggregatio_monoid_laws(a: Option<i8>, b: Option<i8>, c: Option<i8>) -> bool {
         let lift = |o: Option<i8>| o.map(|x| Aggregatio(i64::from(x)));
         let (a, b, c) = (lift(a), lift(b), lift(c));
-        semigroup_laws::associativity(a, b, c)
-            && monoid_laws::left_identity(a)
-            && monoid_laws::right_identity(a)
+        semigroup_laws::associativity(&a, &b, &c)
+            && monoid_laws::left_identity(&a)
+            && monoid_laws::right_identity(&a)
     }
 
     /// HLists of semigroups combine component-wise. (Coniunctio implements
@@ -82,7 +82,7 @@ quickcheck! {
         let a: HList![String, Vec<u8>] = hlist![s1, v1];
         let b: HList![String, Vec<u8>] = hlist![s2, v2];
         let c: HList![String, Vec<u8>] = hlist![String::from("c"), vec![9]];
-        semigroup_laws::associativity(a, b, c)
+        semigroup_laws::associativity(&a, &b, &c)
     }
 }
 
@@ -90,7 +90,7 @@ quickcheck! {
 // NonEmpty: functor / applicative / monad laws
 // =============================================================================
 
-fn ne(head: i8, tail: Vec<i8>) -> NonEmpty<i8> {
+const fn ne(head: i8, tail: Vec<i8>) -> NonEmpty<i8> {
     NonEmpty::new(head, tail)
 }
 
@@ -193,7 +193,7 @@ quickcheck! {
             .collect();
         let expected_values: Vec<i32> = items.iter().filter_map(|p| p.value()).copied().collect();
 
-        let collected = Probatum::<u8, i32>::collect(items.clone());
+        let collected = Probatum::<u8, i32>::collect(items);
         if expected_errors.is_empty() {
             collected == Probatum::valid(expected_values)
         } else {

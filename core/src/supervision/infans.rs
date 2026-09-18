@@ -53,7 +53,7 @@ impl InfansSpec {
     ///
     /// Workers are leaf nodes that do actual work.
     pub fn worker(id: impl Into<String>) -> Self {
-        InfansSpec {
+        Self {
             id: id.into(),
             genus: GenusInfantis::Operarius,
             modus: ModusRestitutio::default(),
@@ -66,7 +66,7 @@ impl InfansSpec {
     ///
     /// Supervisors manage other children.
     pub fn supervisor(id: impl Into<String>) -> Self {
-        InfansSpec {
+        Self {
             id: id.into(),
             genus: GenusInfantis::Supervisor,
             modus: ModusRestitutio::Permanens,
@@ -77,52 +77,60 @@ impl InfansSpec {
 
     /// Set the restart mode.
     #[inline]
-    pub fn with_modus(mut self, modus: ModusRestitutio) -> Self {
+    #[must_use]
+    pub const fn with_modus(mut self, modus: ModusRestitutio) -> Self {
         self.modus = modus;
         self
     }
 
     /// Set the shutdown timeout.
     #[inline]
-    pub fn with_shutdown_timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn with_shutdown_timeout(mut self, timeout: Duration) -> Self {
         self.shutdown_timeout = timeout;
         self
     }
 
     /// Set the start priority.
     #[inline]
-    pub fn with_priority(mut self, priority: u32) -> Self {
+    #[must_use]
+    pub const fn with_priority(mut self, priority: u32) -> Self {
         self.priority = priority;
         self
     }
 
     /// Get the child ID.
     #[inline]
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
     /// Get the child type.
     #[inline]
-    pub fn genus(&self) -> GenusInfantis {
+    #[must_use]
+    pub const fn genus(&self) -> GenusInfantis {
         self.genus
     }
 
     /// Get the restart mode.
     #[inline]
-    pub fn modus(&self) -> ModusRestitutio {
+    #[must_use]
+    pub const fn modus(&self) -> ModusRestitutio {
         self.modus
     }
 
     /// Get the shutdown timeout.
     #[inline]
-    pub fn shutdown_timeout(&self) -> Duration {
+    #[must_use]
+    pub const fn shutdown_timeout(&self) -> Duration {
         self.shutdown_timeout
     }
 
     /// Get the start priority.
     #[inline]
-    pub fn priority(&self) -> u32 {
+    #[must_use]
+    pub const fn priority(&self) -> u32 {
         self.priority
     }
 }
@@ -183,8 +191,9 @@ pub struct InfansCurrens {
 
 impl InfansCurrens {
     /// Create a new running child from a specification.
-    pub fn new(spec: InfansSpec) -> Self {
-        InfansCurrens {
+    #[must_use]
+    pub const fn new(spec: InfansSpec) -> Self {
+        Self {
             spec,
             status: StatusInfantis::Incipiens,
             restart_count: 0,
@@ -194,31 +203,34 @@ impl InfansCurrens {
 
     /// Get the child specification.
     #[inline]
-    pub fn spec(&self) -> &InfansSpec {
+    #[must_use]
+    pub const fn spec(&self) -> &InfansSpec {
         &self.spec
     }
 
     /// Get the current status.
     #[inline]
-    pub fn status(&self) -> StatusInfantis {
+    #[must_use]
+    pub const fn status(&self) -> StatusInfantis {
         self.status
     }
 
     /// Set the current status.
     #[inline]
-    pub fn set_status(&mut self, status: StatusInfantis) {
+    pub const fn set_status(&mut self, status: StatusInfantis) {
         self.status = status;
     }
 
     /// Get the restart count.
     #[inline]
-    pub fn restart_count(&self) -> u32 {
+    #[must_use]
+    pub const fn restart_count(&self) -> u32 {
         self.restart_count
     }
 
     /// Record a restart.
     #[inline]
-    pub fn record_restart(&mut self, time: u64) {
+    pub const fn record_restart(&mut self, time: u64) {
         self.restart_count += 1;
         self.last_restart_time = Some(time);
         self.status = StatusInfantis::Restituens;
@@ -226,19 +238,19 @@ impl InfansCurrens {
 
     /// Mark as running.
     #[inline]
-    pub fn mark_running(&mut self) {
+    pub const fn mark_running(&mut self) {
         self.status = StatusInfantis::Currens;
     }
 
     /// Mark as failed.
     #[inline]
-    pub fn mark_failed(&mut self) {
+    pub const fn mark_failed(&mut self) {
         self.status = StatusInfantis::Defectus;
     }
 
     /// Mark as terminated.
     #[inline]
-    pub fn mark_terminated(&mut self) {
+    pub const fn mark_terminated(&mut self) {
         self.status = StatusInfantis::Terminatus;
     }
 }
@@ -289,8 +301,8 @@ where
     T: Send + 'static,
 {
     /// Create a new simple factory.
-    pub fn new(factory: F) -> Self {
-        FabricaSimplex {
+    pub const fn new(factory: F) -> Self {
+        Self {
             factory,
             _marker: PhantomData,
         }
@@ -328,15 +340,17 @@ pub struct ManubriumInfantis<T> {
 
 impl<T> ManubriumInfantis<T> {
     /// Create a new child handle.
-    pub fn new(spec: InfansSpec) -> Self {
-        ManubriumInfantis {
+    #[must_use]
+    pub const fn new(spec: InfansSpec) -> Self {
+        Self {
             spec,
             _marker: PhantomData,
         }
     }
 
     /// Get the child specification.
-    pub fn spec(&self) -> &InfansSpec {
+    #[must_use]
+    pub const fn spec(&self) -> &InfansSpec {
         &self.spec
     }
 }

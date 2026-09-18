@@ -1,3 +1,5 @@
+//! Benchmarks scalar-reference fast-visit traversal throughput.
+
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use ordofp_core::par::{FlumenParallelumFast, ParFlumen, backend::CpuScalar};
 use std::hint::black_box;
@@ -12,7 +14,7 @@ struct Payload {
 impl Payload {
     fn new(v: i32) -> Self {
         // 64-byte heap string to make Clone measurably expensive.
-        Payload {
+        Self {
             s: format!("{v:064}"),
             v,
         }
@@ -25,7 +27,9 @@ fn bench_fast_filter_scalar_ref(c: &mut Criterion) {
     let mut group = c.benchmark_group("FastFilter/VisitScalarRef");
 
     for &n in SIZES {
-        let data: Vec<Payload> = (0..n as i32).map(Payload::new).collect();
+        let data: Vec<Payload> = (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+            .map(Payload::new)
+            .collect();
 
         // Fast path: monomorphic, uses overridden visit_scalar_ref (zero vtable)
         group.bench_with_input(BenchmarkId::new("FastPath", n), &n, |b, _| {
@@ -68,7 +72,9 @@ fn bench_fast_filter_scalar_ref(c: &mut Criterion) {
 fn bench_fast_inspect_scalar_ref(c: &mut Criterion) {
     let mut group = c.benchmark_group("FastInspect/VisitScalarRef");
     for &n in SIZES {
-        let data: Vec<Payload> = (0..n as i32).map(Payload::new).collect();
+        let data: Vec<Payload> = (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+            .map(Payload::new)
+            .collect();
 
         group.bench_with_input(BenchmarkId::new("FastPath", n), &n, |b, _| {
             b.iter(|| {
@@ -115,7 +121,8 @@ fn bench_fast_scan_scalar_ref(c: &mut Criterion) {
     let mut group = c.benchmark_group("FastScan/VisitScalarRef");
 
     for &n in SIZES {
-        let data: Vec<i32> = (0..n as i32).collect();
+        let data: Vec<i32> =
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
         // Use a String accumulator to make Clone cost visible.
         let init = String::with_capacity(64);
 
@@ -124,7 +131,7 @@ fn bench_fast_scan_scalar_ref(c: &mut Criterion) {
                 black_box(
                     FlumenParallelumFast::from_vec(data.clone())
                         .scan(init.clone(), |acc, x| {
-                            let mut next = acc.clone();
+                            let mut next = acc;
                             next.push_str(&x.to_string());
                             if next.len() > 64 {
                                 next.truncate(64);
@@ -141,7 +148,7 @@ fn bench_fast_scan_scalar_ref(c: &mut Criterion) {
                 black_box(
                     ParFlumen::from_vec(data.clone())
                         .scan(init.clone(), |acc, x| {
-                            let mut next = acc.clone();
+                            let mut next = acc;
                             next.push_str(&x.to_string());
                             if next.len() > 64 {
                                 next.truncate(64);

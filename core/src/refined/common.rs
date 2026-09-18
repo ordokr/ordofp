@@ -305,10 +305,10 @@ impl<const MIN: i64, const MAX: i64> Praedicatum<usize> for IntraFines<MIN, MAX>
         if MIN < 0 {
             return false; // usize can't be negative
         }
-        // `as` wraps for values above i64::MAX, but the wrapped value is
-        // negative and MAX can never exceed i64::MAX, so the comparison
-        // still (correctly) rejects such values.
-        let v = *value as i64;
+        // Values above i64::MAX exceed any valid MAX (a const i64).
+        let Ok(v) = i64::try_from(*value) else {
+            return false;
+        };
         v >= MIN && v <= MAX
     }
     #[inline]
@@ -365,7 +365,7 @@ impl<const THRESHOLD: i64> Praedicatum<u64> for MaiorQuam<THRESHOLD> {
         if THRESHOLD < 0 {
             return true; // Any u64 is > negative
         }
-        *value > THRESHOLD as u64
+        *value > THRESHOLD.cast_unsigned()
     }
     #[inline]
     fn description() -> &'static str {
@@ -382,7 +382,7 @@ impl<const THRESHOLD: i64> Praedicatum<usize> for MaiorQuam<THRESHOLD> {
         // Compare in u64: `THRESHOLD as usize` truncates on 32-bit targets
         // for thresholds above usize::MAX (see IntraFines above for the
         // same-hazard handling).
-        (*value as u64) > THRESHOLD as u64
+        (*value as u64) > THRESHOLD.cast_unsigned()
     }
     #[inline]
     fn description() -> &'static str {
@@ -441,7 +441,7 @@ impl<const THRESHOLD: i64> Praedicatum<usize> for MinorQuam<THRESHOLD> {
         if THRESHOLD < 0 {
             return false;
         }
-        (*value as u64) < THRESHOLD as u64
+        (*value as u64) < THRESHOLD.cast_unsigned()
     }
     #[inline]
     fn description() -> &'static str {

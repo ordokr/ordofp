@@ -76,67 +76,73 @@ pub enum Multiplicitas {
 impl Multiplicitas {
     /// Check if this is the zero (erased) multiplicity.
     #[inline]
+    #[must_use]
     pub const fn is_nihil(&self) -> bool {
-        matches!(self, Multiplicitas::Nihil)
+        matches!(self, Self::Nihil)
     }
 
     /// Check if this is the one (linear) multiplicity.
     #[inline]
+    #[must_use]
     pub const fn is_semel(&self) -> bool {
-        matches!(self, Multiplicitas::Semel)
+        matches!(self, Self::Semel)
     }
 
     /// Check if this is the omega (unrestricted) multiplicity.
     #[inline]
+    #[must_use]
     pub const fn is_omega(&self) -> bool {
-        matches!(self, Multiplicitas::Omega)
+        matches!(self, Self::Omega)
     }
 
     /// Check if this multiplicity allows zero uses.
     ///
     /// Returns true for `Nihil` and `Omega`.
     #[inline]
+    #[must_use]
     pub const fn allows_zero(&self) -> bool {
-        matches!(self, Multiplicitas::Nihil | Multiplicitas::Omega)
+        matches!(self, Self::Nihil | Self::Omega)
     }
 
     /// Check if this multiplicity requires at least one use.
     ///
     /// Returns true for `Semel`.
     #[inline]
+    #[must_use]
     pub const fn requires_use(&self) -> bool {
-        matches!(self, Multiplicitas::Semel)
+        matches!(self, Self::Semel)
     }
 
     /// Check if this multiplicity allows multiple uses.
     ///
     /// Returns true for `Omega`.
     #[inline]
+    #[must_use]
     pub const fn allows_many(&self) -> bool {
-        matches!(self, Multiplicitas::Omega)
+        matches!(self, Self::Omega)
     }
 
     /// Check if `self` is a subusage of `other`.
     ///
     /// Subusage relation: 0 ≤ 1 ≤ ω
     #[inline]
-    pub const fn is_subusage_of(&self, other: &Multiplicitas) -> bool {
+    #[must_use]
+    pub const fn is_subusage_of(&self, other: &Self) -> bool {
         match (self, other) {
-            (Multiplicitas::Nihil, _) => true,
-            (Multiplicitas::Semel, Multiplicitas::Nihil) => false,
-            (Multiplicitas::Semel, _) => true,
-            (Multiplicitas::Omega, Multiplicitas::Omega) => true,
-            (Multiplicitas::Omega, _) => false,
+            (Self::Semel, Self::Nihil) => false,
+            (Self::Nihil | Self::Semel, _) | (Self::Omega, Self::Omega) => true,
+            (Self::Omega, _) => false,
         }
     }
 
     /// Convert to a numeric representation for display.
     #[inline]
+    #[must_use]
     pub const fn to_symbol(&self) -> &'static str {
         match self {
-            Multiplicitas::Nihil => "0",
-            Multiplicitas::Semel => "1",
-            Multiplicitas::Omega => "ω",
+            Self::Nihil => "0",
+            Self::Semel => "1",
+            Self::Omega => "ω",
         }
     }
 }
@@ -145,7 +151,7 @@ impl Default for Multiplicitas {
     /// Default multiplicity is unrestricted (ω).
     #[inline]
     fn default() -> Self {
-        Multiplicitas::Omega
+        Self::Omega
     }
 }
 
@@ -174,9 +180,11 @@ pub trait MultiplicitasSemiring {
     fn one() -> Self;
 
     /// Semiring addition (sequential composition).
+    #[must_use]
     fn add(self, other: Self) -> Self;
 
     /// Semiring multiplication (context composition).
+    #[must_use]
     fn mul(self, other: Self) -> Self;
 }
 
@@ -184,13 +192,13 @@ impl MultiplicitasSemiring for Multiplicitas {
     /// Zero for addition is `Nihil`.
     #[inline]
     fn zero() -> Self {
-        Multiplicitas::Nihil
+        Self::Nihil
     }
 
     /// One for multiplication is `Semel`.
     #[inline]
     fn one() -> Self {
-        Multiplicitas::Semel
+        Self::Semel
     }
 
     /// Addition is the maximum operation.
@@ -200,9 +208,9 @@ impl MultiplicitasSemiring for Multiplicitas {
     #[inline]
     fn add(self, other: Self) -> Self {
         match (self, other) {
-            (Multiplicitas::Omega, _) | (_, Multiplicitas::Omega) => Multiplicitas::Omega,
-            (Multiplicitas::Semel, _) | (_, Multiplicitas::Semel) => Multiplicitas::Semel,
-            (Multiplicitas::Nihil, Multiplicitas::Nihil) => Multiplicitas::Nihil,
+            (Self::Omega, _) | (_, Self::Omega) => Self::Omega,
+            (Self::Semel, _) | (_, Self::Semel) => Self::Semel,
+            (Self::Nihil, Self::Nihil) => Self::Nihil,
         }
     }
 
@@ -213,28 +221,31 @@ impl MultiplicitasSemiring for Multiplicitas {
     #[inline]
     fn mul(self, other: Self) -> Self {
         match (self, other) {
-            (Multiplicitas::Nihil, _) | (_, Multiplicitas::Nihil) => Multiplicitas::Nihil,
-            (Multiplicitas::Semel, x) | (x, Multiplicitas::Semel) => x,
-            (Multiplicitas::Omega, Multiplicitas::Omega) => Multiplicitas::Omega,
+            (Self::Nihil, _) | (_, Self::Nihil) => Self::Nihil,
+            (Self::Semel, x) | (x, Self::Semel) => x,
+            (Self::Omega, Self::Omega) => Self::Omega,
         }
     }
 }
 
 /// Convenience function for multiplicity addition.
 #[inline]
+#[must_use]
 pub fn mult_add(a: Multiplicitas, b: Multiplicitas) -> Multiplicitas {
     a.add(b)
 }
 
 /// Convenience function for multiplicity multiplication.
 #[inline]
+#[must_use]
 pub fn mult_mul(a: Multiplicitas, b: Multiplicitas) -> Multiplicitas {
     a.mul(b)
 }
 
 /// Check if one multiplicity is a subusage of another.
 #[inline]
-pub fn is_subusage(a: Multiplicitas, b: Multiplicitas) -> bool {
+#[must_use]
+pub const fn is_subusage(a: Multiplicitas, b: Multiplicitas) -> bool {
     a.is_subusage_of(&b)
 }
 
@@ -468,17 +479,17 @@ mod tests {
 
     #[test]
     fn test_type_level_usage() {
-        assert_eq!(Nihil::VALUE, Multiplicitas::Nihil);
-        assert_eq!(Semel::VALUE, Multiplicitas::Semel);
-        assert_eq!(Omega::VALUE, Multiplicitas::Omega);
+        const _: () = assert!(matches!(Nihil::VALUE, Multiplicitas::Nihil));
+        const _: () = assert!(matches!(Semel::VALUE, Multiplicitas::Semel));
+        const _: () = assert!(matches!(Omega::VALUE, Multiplicitas::Omega));
 
-        assert!(Nihil::ALLOWS_DISCARD);
-        assert!(!Semel::ALLOWS_DISCARD);
-        assert!(Omega::ALLOWS_DISCARD);
+        const _: () = assert!(Nihil::ALLOWS_DISCARD);
+        const _: () = assert!(!Semel::ALLOWS_DISCARD);
+        const _: () = assert!(Omega::ALLOWS_DISCARD);
 
-        assert!(Nihil::ALLOWS_DUP);
-        assert!(!Semel::ALLOWS_DUP);
-        assert!(Omega::ALLOWS_DUP);
+        const _: () = assert!(Nihil::ALLOWS_DUP);
+        const _: () = assert!(!Semel::ALLOWS_DUP);
+        const _: () = assert!(Omega::ALLOWS_DUP);
     }
 
     #[test]

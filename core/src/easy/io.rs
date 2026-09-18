@@ -40,13 +40,14 @@ impl<A: 'static> IO<A> {
     where
         F: FnOnce() -> A + 'static,
     {
-        IO {
+        Self {
             run_fn: Box::new(f),
         }
     }
 
     /// Run the IO computation.
     #[inline]
+    #[must_use]
     pub fn run(self) -> A {
         (self.run_fn)()
     }
@@ -71,6 +72,7 @@ impl<A: 'static> IO<A> {
 
     /// Sequence, keeping the second result.
     #[inline]
+    #[must_use]
     pub fn then<B: 'static>(self, next: IO<B>) -> IO<B> {
         IO::new(move || {
             let _ = self.run();
@@ -80,8 +82,9 @@ impl<A: 'static> IO<A> {
 
     /// Sequence, keeping the first result.
     #[inline]
-    pub fn before<B: 'static>(self, other: IO<B>) -> IO<A> {
-        IO::new(move || {
+    #[must_use]
+    pub fn before<B: 'static>(self, other: IO<B>) -> Self {
+        Self::new(move || {
             let a = self.run();
             let _ = other.run();
             a
@@ -90,12 +93,14 @@ impl<A: 'static> IO<A> {
 
     /// Run only if condition is true.
     #[inline]
+    #[must_use]
     pub fn when(self, condition: bool) -> IO<Option<A>> {
         IO::new(move || if condition { Some(self.run()) } else { None })
     }
 
     /// Run only if condition is false.
     #[inline]
+    #[must_use]
     pub fn unless(self, condition: bool) -> IO<Option<A>> {
         self.when(!condition)
     }
@@ -118,6 +123,7 @@ where
 
 /// Create an IO computation that does nothing.
 #[inline]
+#[must_use]
 pub fn io_unit() -> IO<()> {
     IO::new(|| ())
 }
@@ -127,25 +133,29 @@ pub fn io_unit() -> IO<()> {
 // =============================================================================
 
 /// Sequence multiple IO computations.
+#[must_use]
 pub fn io_sequence<A: 'static>(computations: Vec<IO<A>>) -> IO<Vec<A>> {
     IO::new(move || computations.into_iter().map(IO::run).collect())
 }
 
 /// Sequence, discarding results.
+#[must_use]
 pub fn io_sequence_<A: 'static>(computations: Vec<IO<A>>) -> IO<()> {
     IO::new(move || {
         for io in computations {
-            io.run();
+            let _ = io.run();
         }
     })
 }
 
 /// Run two IO computations and combine results.
+#[must_use]
 pub fn io_both<A: 'static, B: 'static>(first: IO<A>, second: IO<B>) -> IO<(A, B)> {
     IO::new(move || (first.run(), second.run()))
 }
 
 /// Apply a function in IO to a value in IO.
+#[must_use]
 pub fn io_ap<A: 'static, B: 'static, F>(io_f: IO<F>, io_a: IO<A>) -> IO<B>
 where
     F: FnOnce(A) -> B + 'static,
@@ -161,6 +171,7 @@ where
 ///
 /// The effect executes a single time; the produced value is cloned. For
 /// run-it-each-time semantics use [`io_replicate_m`].
+#[must_use]
 pub fn io_replicate<A: Clone + 'static>(n: usize, io_a: IO<A>) -> IO<Vec<A>>
 where
 {
@@ -179,6 +190,7 @@ where
 }
 
 /// Conditional IO.
+#[must_use]
 pub fn io_if_then_else<A: 'static>(condition: bool, if_true: IO<A>, if_false: IO<A>) -> IO<A> {
     IO::new(move || {
         if condition {
@@ -286,7 +298,7 @@ impl<A: 'static, E: 'static> IOResult<A, E> {
     where
         F: FnOnce() -> Result<A, E> + 'static,
     {
-        IOResult {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -306,13 +318,13 @@ impl<A: 'static, E: 'static> IOResult<A, E> {
     /// Create a successful computation.
     #[inline]
     pub fn ok(value: A) -> Self {
-        IOResult::new(move || Ok(value))
+        Self::new(move || Ok(value))
     }
 
     /// Create a failed computation.
     #[inline]
     pub fn err(error: E) -> Self {
-        IOResult::new(move || Err(error))
+        Self::new(move || Err(error))
     }
 
     /// Map over the success value.
@@ -344,11 +356,12 @@ impl<A: 'static, E: 'static> IOResult<A, E> {
 
     /// Recover from an error.
     #[inline]
-    pub fn or_else<F>(self, f: F) -> IOResult<A, E>
+    #[must_use]
+    pub fn or_else<F>(self, f: F) -> Self
     where
-        F: FnOnce(E) -> IOResult<A, E> + 'static,
+        F: FnOnce(E) -> Self + 'static,
     {
-        IOResult::new(move || self.run().or_else(|e| f(e).run()))
+        Self::new(move || self.run().or_else(|e| f(e).run()))
     }
 
     /// Convert to IO, panicking on error.
@@ -359,6 +372,7 @@ impl<A: 'static, E: 'static> IOResult<A, E> {
     /// `Err`; the panic message includes the error's `Debug` rendering.
     /// Use [`IOResult::unwrap_or`] to substitute a default instead.
     #[inline]
+    #[must_use]
     pub fn unwrap(self) -> IO<A>
     where
         E: core::fmt::Debug,
@@ -384,6 +398,7 @@ where
 
 /// Lift an IO into `IOResult`.
 #[inline]
+#[must_use]
 pub fn io_lift<A: 'static, E: 'static>(io_a: IO<A>) -> IOResult<A, E> {
     IOResult::new(move || Ok(io_a.run()))
 }
@@ -402,7 +417,7 @@ impl<A> Lazy<A> {
     /// Create a new lazy value.
     #[inline]
     pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
-        Lazy {
+        Self {
             thunk: core::cell::OnceCell::new(),
             compute: core::cell::Cell::new(Some(Box::new(f))),
         }

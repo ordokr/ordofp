@@ -52,13 +52,13 @@ struct Node<A> {
     value: A,
     size: usize,
     height: u8,
-    left: Option<Arc<Node<A>>>,
-    right: Option<Arc<Node<A>>>,
+    left: Option<Arc<Self>>,
+    right: Option<Arc<Self>>,
 }
 
 impl<A: Clone> Clone for Node<A> {
     fn clone(&self) -> Self {
-        Node {
+        Self {
             value: self.value.clone(),
             size: self.size,
             height: self.height,
@@ -69,8 +69,8 @@ impl<A: Clone> Clone for Node<A> {
 }
 
 impl<A> Node<A> {
-    fn new(value: A) -> Self {
-        Node {
+    const fn new(value: A) -> Self {
+        Self {
             value,
             size: 1,
             height: 1,
@@ -83,10 +83,10 @@ impl<A> Node<A> {
     /// deriving both the subtree `size` and the AVL `height` from the
     /// children. Every rebuild site funnels through here so both invariants
     /// stay consistent.
-    fn with_children(value: A, left: Option<Arc<Node<A>>>, right: Option<Arc<Node<A>>>) -> Self {
-        let size = 1 + node_size(&left) + node_size(&right);
-        let height = 1 + core::cmp::max(node_height(&left), node_height(&right));
-        Node {
+    fn with_children(value: A, left: Option<Arc<Self>>, right: Option<Arc<Self>>) -> Self {
+        let size = 1 + node_size(left.as_ref()) + node_size(right.as_ref());
+        let height = 1 + core::cmp::max(node_height(left.as_ref()), node_height(right.as_ref()));
+        Self {
             value,
             size,
             height,
@@ -96,12 +96,12 @@ impl<A> Node<A> {
     }
 }
 
-fn node_size<A>(node: &Option<Arc<Node<A>>>) -> usize {
-    node.as_ref().map_or(0, |n| n.size)
+fn node_size<A>(node: Option<&Arc<Node<A>>>) -> usize {
+    node.map_or(0, |n| n.size)
 }
 
-fn node_height<A>(node: &Option<Arc<Node<A>>>) -> u8 {
-    node.as_ref().map_or(0, |n| n.height)
+fn node_height<A>(node: Option<&Arc<Node<A>>>) -> u8 {
+    node.map_or(0, |n| n.height)
 }
 
 /// AVL balance factor: positive means right-heavy, negative means left-heavy.
@@ -110,12 +110,12 @@ fn node_height<A>(node: &Option<Arc<Node<A>>>) -> u8 {
 /// were somehow corrupted — a defensive measure so a malformed tree degrades
 /// gracefully instead of aborting the process.
 fn balance_factor<A>(node: &Node<A>) -> i16 {
-    i16::from(node_height(&node.right)) - i16::from(node_height(&node.left))
+    i16::from(node_height(node.right.as_ref())) - i16::from(node_height(node.left.as_ref()))
 }
 
 impl<A> Clone for Seq<A> {
     fn clone(&self) -> Self {
-        Seq {
+        Self {
             root: self.root.clone(),
         }
     }
@@ -168,20 +168,23 @@ impl<A> Default for Seq<A> {
 impl<A> Seq<A> {
     /// Create an empty sequence.
     #[inline]
-    pub fn new() -> Self {
-        Seq { root: None }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { root: None }
     }
 
     /// Check if the sequence is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.root.is_none()
     }
 
     /// Get the number of elements.
     #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
-        node_size(&self.root)
+        node_size(self.root.as_ref())
     }
 
     /// Get element at index.
@@ -189,18 +192,21 @@ impl<A> Seq<A> {
     /// # Complexity
     /// O(log n) worst-case (self-balancing AVL; see module docs)
     #[inline]
+    #[must_use]
     pub fn get(&self, index: usize) -> Option<&A> {
-        get_at(&self.root, index)
+        get_at(self.root.as_ref(), index)
     }
 
     /// Get first element.
     #[inline]
+    #[must_use]
     pub fn first(&self) -> Option<&A> {
         self.get(0)
     }
 
     /// Get last element.
     #[inline]
+    #[must_use]
     pub fn last(&self) -> Option<&A> {
         let len = self.len();
         if len == 0 { None } else { self.get(len - 1) }
@@ -213,11 +219,12 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) worst-case (self-balancing AVL; see module docs)
     #[inline]
+    #[must_use]
     pub fn push_front(mut self, value: A) -> Self {
         // `take` moves the root out (leaving `self` empty) so the by-value
         // `self` can drop cheaply — a partial move is impossible now that
         // `Seq` implements `Drop`.
-        Seq {
+        Self {
             root: Some(insert_at(self.root.take(), 0, value)),
         }
     }
@@ -227,9 +234,10 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) worst-case (self-balancing AVL; see module docs)
     #[inline]
+    #[must_use]
     pub fn push_back(mut self, value: A) -> Self {
         let len = self.len();
-        Seq {
+        Self {
             root: Some(insert_at(self.root.take(), len, value)),
         }
     }
@@ -239,12 +247,13 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) worst-case (self-balancing AVL; see module docs)
     #[inline]
+    #[must_use]
     pub fn pop_front(mut self) -> Option<(A, Self)> {
         if self.is_empty() {
             return None;
         }
         let (value, new_root) = remove_at(self.root.take(), 0);
-        Some((value, Seq { root: new_root }))
+        Some((value, Self { root: new_root }))
     }
 
     /// Pop from back.
@@ -252,13 +261,14 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) worst-case (self-balancing AVL; see module docs)
     #[inline]
+    #[must_use]
     pub fn pop_back(mut self) -> Option<(Self, A)> {
         let len = self.len();
         if len == 0 {
             return None;
         }
         let (value, new_root) = remove_at(self.root.take(), len - 1);
-        Some((Seq { root: new_root }, value))
+        Some((Self { root: new_root }, value))
     }
 
     /// Update element at index.
@@ -270,8 +280,8 @@ impl<A: Clone> Seq<A> {
         if index >= self.len() {
             return None;
         }
-        Some(Seq {
-            root: Some(update_at(&self.root, index, value)?),
+        Some(Self {
+            root: Some(update_at(self.root.as_ref(), index, value)?),
         })
     }
 
@@ -280,15 +290,16 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) — height-aware join; the result is a fully balanced AVL tree.
     #[inline]
+    #[must_use]
     pub fn split_at(&self, index: usize) -> (Self, Self) {
         if index == 0 {
-            return (Seq::new(), self.clone());
+            return (Self::new(), self.clone());
         }
         if index >= self.len() {
-            return (self.clone(), Seq::new());
+            return (self.clone(), Self::new());
         }
-        let (left, right) = split_tree(&self.root, index);
-        (Seq { root: left }, Seq { root: right })
+        let (left, right) = split_tree(self.root.as_ref(), index);
+        (Self { root: left }, Self { root: right })
     }
 
     /// Concatenate two sequences.
@@ -296,9 +307,10 @@ impl<A: Clone> Seq<A> {
     /// # Complexity
     /// O(log n) — height-aware join; the result is a fully balanced AVL tree.
     #[inline]
+    #[must_use]
     pub fn concat(&self, other: &Self) -> Self {
-        Seq {
-            root: join_trees(&self.root, &other.root),
+        Self {
+            root: join_trees(self.root.as_ref(), other.root.as_ref()),
         }
     }
 
@@ -310,12 +322,14 @@ impl<A: Clone> Seq<A> {
 
     /// Filter elements.
     #[inline]
+    #[must_use]
     pub fn filter<F: Fn(&A) -> bool>(&self, f: F) -> Self {
         self.iter().filter(|x| f(*x)).cloned().collect()
     }
 
     /// Reverse the sequence.
     #[inline]
+    #[must_use]
     pub fn reverse(&self) -> Self {
         self.iter().rev().cloned().collect()
     }
@@ -347,14 +361,14 @@ impl<A> Seq<A> {
 // Tree Operations
 // ============================================================================
 
-fn get_at<A>(node: &Option<Arc<Node<A>>>, index: usize) -> Option<&A> {
-    let n = node.as_ref()?;
-    let left_size = node_size(&n.left);
+fn get_at<A>(node: Option<&Arc<Node<A>>>, index: usize) -> Option<&A> {
+    let n = node?;
+    let left_size = node_size(n.left.as_ref());
 
     match index.cmp(&left_size) {
-        core::cmp::Ordering::Less => get_at(&n.left, index),
+        core::cmp::Ordering::Less => get_at(n.left.as_ref(), index),
         core::cmp::Ordering::Equal => Some(&n.value),
-        core::cmp::Ordering::Greater => get_at(&n.right, index - left_size - 1),
+        core::cmp::Ordering::Greater => get_at(n.right.as_ref(), index - left_size - 1),
     }
 }
 
@@ -362,7 +376,7 @@ fn insert_at<A: Clone>(node: Option<Arc<Node<A>>>, index: usize, value: A) -> Ar
     match node {
         None => Arc::new(Node::new(value)),
         Some(n) => {
-            let left_size = node_size(&n.left);
+            let left_size = node_size(n.left.as_ref());
 
             let rebuilt = if index <= left_size {
                 let new_left = insert_at(n.left.clone(), index, value);
@@ -378,7 +392,7 @@ fn insert_at<A: Clone>(node: Option<Arc<Node<A>>>, index: usize, value: A) -> Ar
 
 fn remove_at<A: Clone>(node: Option<Arc<Node<A>>>, index: usize) -> (A, Option<Arc<Node<A>>>) {
     let n = node.expect("remove_at called on empty node");
-    let left_size = node_size(&n.left);
+    let left_size = node_size(n.left.as_ref());
 
     match index.cmp(&left_size) {
         core::cmp::Ordering::Less => {
@@ -413,21 +427,21 @@ fn remove_at<A: Clone>(node: Option<Arc<Node<A>>>, index: usize) -> (A, Option<A
 }
 
 fn update_at<A: Clone>(
-    node: &Option<Arc<Node<A>>>,
+    node: Option<&Arc<Node<A>>>,
     index: usize,
     value: A,
 ) -> Option<Arc<Node<A>>> {
-    let n = node.as_ref()?;
-    let left_size = node_size(&n.left);
+    let n = node?;
+    let left_size = node_size(n.left.as_ref());
 
     let new_node = match index.cmp(&left_size) {
         core::cmp::Ordering::Less => {
-            let new_left = update_at(&n.left, index, value);
+            let new_left = update_at(n.left.as_ref(), index, value);
             Node::with_children(n.value.clone(), new_left, n.right.clone())
         }
         core::cmp::Ordering::Equal => Node::with_children(value, n.left.clone(), n.right.clone()),
         core::cmp::Ordering::Greater => {
-            let new_right = update_at(&n.right, index - left_size - 1, value);
+            let new_right = update_at(n.right.as_ref(), index - left_size - 1, value);
             Node::with_children(n.value.clone(), n.left.clone(), new_right)
         }
     };
@@ -439,11 +453,11 @@ fn update_at<A: Clone>(
 /// persistent balanced tree.
 type Tree<A> = Option<Arc<Node<A>>>;
 
-fn split_tree<A: Clone>(node: &Tree<A>, index: usize) -> (Tree<A>, Tree<A>) {
-    match node {
-        None => (None, None),
-        Some(n) => {
-            let left_size = node_size(&n.left);
+fn split_tree<A: Clone>(node: Option<&Arc<Node<A>>>, index: usize) -> (Tree<A>, Tree<A>) {
+    node.map_or_else(
+        || (None, None),
+        |n| {
+            let left_size = node_size(n.left.as_ref());
 
             if index <= left_size {
                 // This node's value (at position `left_size`) and its whole
@@ -451,17 +465,17 @@ fn split_tree<A: Clone>(node: &Tree<A>, index: usize) -> (Tree<A>, Tree<A>) {
                 // subtree, then three-way-join the right remainder back onto
                 // the pivot — both operands are already valid AVL trees, so
                 // the join produces a fully balanced result.
-                let (ll, lr) = split_tree(&n.left, index);
+                let (ll, lr) = split_tree(n.left.as_ref(), index);
                 let right = Some(join_nodes(lr, n.value.clone(), n.right.clone()));
                 (ll, right)
             } else {
                 // This node's value belongs to the left half.
-                let (rl, rr) = split_tree(&n.right, index - left_size - 1);
+                let (rl, rr) = split_tree(n.right.as_ref(), index - left_size - 1);
                 let left = Some(join_nodes(n.left.clone(), n.value.clone(), rl));
                 (left, rr)
             }
-        }
-    }
+        },
+    )
 }
 
 /// Concatenate two (already-balanced) AVL trees.
@@ -471,8 +485,8 @@ fn split_tree<A: Clone>(node: &Tree<A>, index: usize) -> (Tree<A>, Tree<A>) {
 /// three-way join splices the two trees together, so the result is a fully
 /// balanced AVL tree in `O(|h_left` − `h_right`|).
 fn join_trees<A: Clone>(
-    left: &Option<Arc<Node<A>>>,
-    right: &Option<Arc<Node<A>>>,
+    left: Option<&Arc<Node<A>>>,
+    right: Option<&Arc<Node<A>>>,
 ) -> Option<Arc<Node<A>>> {
     match (left, right) {
         (None, None) => None,
@@ -496,8 +510,8 @@ fn join_trees<A: Clone>(
 /// length `O(|h_left` − `h_right`|), so the whole join costs `O(|h_left` − `h_right`|)
 /// and the result satisfies |balance factor| ≤ 1 at every node.
 fn join_nodes<A: Clone>(left: Tree<A>, pivot: A, right: Tree<A>) -> Arc<Node<A>> {
-    let hl = node_height(&left);
-    let hr = node_height(&right);
+    let hl = node_height(left.as_ref());
+    let hr = node_height(right.as_ref());
 
     if hl > hr + 1 {
         // Left is the taller tree: descend its right spine.
@@ -518,14 +532,14 @@ fn join_nodes<A: Clone>(left: Tree<A>, pivot: A, right: Tree<A>) -> Arc<Node<A>>
 }
 
 fn extract_max<A: Clone>(node: &Arc<Node<A>>) -> (Option<Arc<Node<A>>>, A) {
-    match &node.right {
-        None => (node.left.clone(), node.value.clone()),
-        Some(right) => {
+    node.right.as_ref().map_or_else(
+        || (node.left.clone(), node.value.clone()),
+        |right| {
             let (new_right, max) = extract_max(right);
             let rebuilt = Node::with_children(node.value.clone(), node.left.clone(), new_right);
             (Some(balance(rebuilt)), max)
-        }
-    }
+        },
+    )
 }
 
 // ============================================================================
@@ -688,7 +702,7 @@ impl<A> FromIterator<A> for Seq<A> {
         let items: Vec<A> = iter.into_iter().collect();
         let n = items.len();
         let mut it = items.into_iter();
-        Seq {
+        Self {
             root: build(n, &mut it),
         }
     }
@@ -728,7 +742,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let items = Vec::<A>::deserialize(d)?;
-        Ok(Seq::from_iter(items))
+        Ok(Self::from_iter(items))
     }
 }
 
@@ -747,21 +761,18 @@ mod tests {
     ///   1. |balance factor| ≤ 1 (the tree is height-balanced),
     ///   2. stored `height` == 1 + max(child heights),
     ///   3. stored `size`   == 1 + sum(child sizes).
-    fn check_avl_invariant<A>(node: &Option<Arc<Node<A>>>) -> (u8, usize) {
-        match node {
-            None => (0, 0),
-            Some(n) => {
-                let (lh, ls) = check_avl_invariant(&n.left);
-                let (rh, rs) = check_avl_invariant(&n.right);
-                let bf = i16::from(rh) - i16::from(lh);
-                assert!(bf.abs() <= 1, "AVL invariant broken: balance factor {bf}");
-                let expected_height = 1 + core::cmp::max(lh, rh);
-                assert_eq!(n.height, expected_height, "stored height out of sync");
-                let expected_size = 1 + ls + rs;
-                assert_eq!(n.size, expected_size, "stored size out of sync");
-                (expected_height, expected_size)
-            }
-        }
+    fn check_avl_invariant<A>(node: Option<&Arc<Node<A>>>) -> (u8, usize) {
+        node.map_or((0, 0), |n| {
+            let (lh, ls) = check_avl_invariant(n.left.as_ref());
+            let (rh, rs) = check_avl_invariant(n.right.as_ref());
+            let bf = i16::from(rh) - i16::from(lh);
+            assert!(bf.abs() <= 1, "AVL invariant broken: balance factor {bf}");
+            let expected_height = 1 + core::cmp::max(lh, rh);
+            assert_eq!(n.height, expected_height, "stored height out of sync");
+            let expected_size = 1 + ls + rs;
+            assert_eq!(n.size, expected_size, "stored size out of sync");
+            (expected_height, expected_size)
+        })
     }
 
     #[test]
@@ -842,7 +853,7 @@ mod tests {
         let items: Vec<i32> = (1..=33).collect();
         let seq = Seq::from_iter(items.iter().copied());
         let rev: Vec<_> = seq.iter().rev().copied().collect();
-        let mut expected = items.clone();
+        let mut expected = items;
         expected.reverse();
         assert_eq!(rev, expected);
     }
@@ -935,8 +946,8 @@ mod tests {
                         // reproduce the original sequence.
                         let idx = (v as usize) % (model.len() + 1);
                         let (l, r) = seq.split_at(idx);
-                        check_avl_invariant(&l.root);
-                        check_avl_invariant(&r.root);
+                        check_avl_invariant(l.root.as_ref());
+                        check_avl_invariant(r.root.as_ref());
                         seq = l.concat(&r);
                     }
                     _ => {
@@ -946,7 +957,7 @@ mod tests {
                         seq = seq.concat(&extra.iter().copied().collect());
                     }
                 }
-                check_avl_invariant(&seq.root);
+                check_avl_invariant(seq.root.as_ref());
                 if model.len() != seq.len()
                     || !model.iter().enumerate().all(|(i, x)| seq.get(i) == Some(x))
                 {
@@ -987,7 +998,7 @@ mod tests {
                     }
                 }
             }
-            check_avl_invariant(&seq.root);
+            check_avl_invariant(seq.root.as_ref());
         }
         assert_eq!(seq.len(), model.len());
         assert!(model.iter().enumerate().all(|(i, x)| seq.get(i) == Some(x)));
@@ -1001,12 +1012,12 @@ mod tests {
         let small: Seq<u32> = (1000..1010).collect();
 
         let a = big.concat(&small);
-        check_avl_invariant(&a.root);
+        check_avl_invariant(a.root.as_ref());
         assert_eq!(a.len(), 1010);
         assert!((0..1010).all(|i| a.get(i as usize) == Some(&i)));
 
         let b = small.concat(&big);
-        check_avl_invariant(&b.root);
+        check_avl_invariant(b.root.as_ref());
         assert_eq!(b.len(), 1010);
     }
 
@@ -1019,7 +1030,7 @@ mod tests {
             let single: Seq<u32> = core::iter::once(i).collect();
             seq = seq.concat(&single);
         }
-        check_avl_invariant(&seq.root);
+        check_avl_invariant(seq.root.as_ref());
         assert_eq!(seq.len(), 2000);
         assert!((0..2000).all(|i| seq.get(i as usize) == Some(&i)));
     }
@@ -1031,15 +1042,23 @@ mod tests {
         let seq: Seq<u32> = (0..1000).collect();
         for &idx in &[1usize, 2, 250, 499, 500, 501, 750, 998, 999] {
             let (left, right) = seq.split_at(idx);
-            check_avl_invariant(&left.root);
-            check_avl_invariant(&right.root);
+            check_avl_invariant(left.root.as_ref());
+            check_avl_invariant(right.root.as_ref());
             assert_eq!(left.len(), idx);
             assert_eq!(right.len(), 1000 - idx);
-            assert!((0..idx).all(|i| left.get(i) == Some(&(i as u32))));
-            assert!((0..1000 - idx).all(|i| right.get(i) == Some(&((idx + i) as u32))));
+            assert!(
+                (0..idx)
+                    .all(|i| left.get(i)
+                        == Some(&(u32::try_from(i).expect("test index fits in u32"))))
+            );
+            assert!((0..1000 - idx).all(|i| right.get(i)
+                == Some(&(u32::try_from(idx + i).expect("test index fits in u32")))));
             let rejoined = left.concat(&right);
-            check_avl_invariant(&rejoined.root);
-            assert!((0..1000).all(|i| rejoined.get(i) == Some(&(i as u32))));
+            check_avl_invariant(rejoined.root.as_ref());
+            assert!(
+                (0..1000).all(|i| rejoined.get(i)
+                    == Some(&(u32::try_from(i).expect("test index fits in u32"))))
+            );
         }
     }
 

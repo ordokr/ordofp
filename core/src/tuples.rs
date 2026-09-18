@@ -101,8 +101,8 @@ impl<A, B, C, D> Universalis for (A, B, C, D) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d] = r;
-        (a, b, c, d)
+        let coniunctio_pat![first, second, third, fourth] = r;
+        (first, second, third, fourth)
     }
 }
 impl<A, B, C, D> From<(A, B, C, D)> for HList![A, B, C, D] {
@@ -126,8 +126,8 @@ impl<A, B, C, D, E> Universalis for (A, B, C, D, E) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e] = r;
-        (a, b, c, d, e)
+        let coniunctio_pat![first, second, third, fourth, fifth] = r;
+        (first, second, third, fourth, fifth)
     }
 }
 impl<A, B, C, D, E> From<(A, B, C, D, E)> for HList![A, B, C, D, E] {
@@ -151,8 +151,8 @@ impl<A, B, C, D, E, F> Universalis for (A, B, C, D, E, F) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f] = r;
-        (a, b, c, d, e, f)
+        let coniunctio_pat![first, second, third, fourth, fifth, sixth] = r;
+        (first, second, third, fourth, fifth, sixth)
     }
 }
 impl<A, B, C, D, E, F> From<(A, B, C, D, E, F)> for HList![A, B, C, D, E, F] {
@@ -176,8 +176,8 @@ impl<A, B, C, D, E, F, G> Universalis for (A, B, C, D, E, F, G) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g] = r;
-        (a, b, c, d, e, f, g)
+        let coniunctio_pat![first, second, third, fourth, fifth, sixth, seventh] = r;
+        (first, second, third, fourth, fifth, sixth, seventh)
     }
 }
 impl<A, B, C, D, E, F, G> From<(A, B, C, D, E, F, G)> for HList![A, B, C, D, E, F, G] {
@@ -203,8 +203,8 @@ impl<A, B, C, D, E, F, G, H> Universalis for (A, B, C, D, E, F, G, H) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g, h] = r;
-        (a, b, c, d, e, f, g, h)
+        let coniunctio_pat![first, second, third, fourth, fifth, sixth, seventh, eighth] = r;
+        (first, second, third, fourth, fifth, sixth, seventh, eighth)
     }
 }
 impl<A, B, C, D, E, F, G, H> From<(A, B, C, D, E, F, G, H)> for HList![A, B, C, D, E, F, G, H] {
@@ -230,8 +230,12 @@ impl<A, B, C, D, E, F, G, H, I> Universalis for (A, B, C, D, E, F, G, H, I) {
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g, h, i] = r;
-        (a, b, c, d, e, f, g, h, i)
+        let coniunctio_pat![
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth
+        ] = r;
+        (
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth,
+        )
     }
 }
 impl<A, B, C, D, E, F, G, H, I> From<(A, B, C, D, E, F, G, H, I)>
@@ -261,8 +265,12 @@ impl<A, B, C, D, E, F, G, H, I, J> Universalis for (A, B, C, D, E, F, G, H, I, J
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g, h, i, j] = r;
-        (a, b, c, d, e, f, g, h, i, j)
+        let coniunctio_pat![
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+        ] = r;
+        (
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth,
+        )
     }
 }
 impl<A, B, C, D, E, F, G, H, I, J> From<(A, B, C, D, E, F, G, H, I, J)>
@@ -292,8 +300,12 @@ impl<A, B, C, D, E, F, G, H, I, J, K> Universalis for (A, B, C, D, E, F, G, H, I
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g, h, i, j, k] = r;
-        (a, b, c, d, e, f, g, h, i, j, k)
+        let coniunctio_pat![
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth, eleventh
+        ] = r;
+        (
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth, eleventh,
+        )
     }
 }
 impl<A, B, C, D, E, F, G, H, I, J, K> From<(A, B, C, D, E, F, G, H, I, J, K)>
@@ -324,8 +336,14 @@ impl<A, B, C, D, E, F, G, H, I, J, K, L> Universalis for (A, B, C, D, E, F, G, H
     }
     #[inline]
     fn from(r: Self::Repr) -> Self {
-        let coniunctio_pat![a, b, c, d, e, f, g, h, i, j, k, l] = r;
-        (a, b, c, d, e, f, g, h, i, j, k, l)
+        let coniunctio_pat![
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth, eleventh,
+            twelfth
+        ] = r;
+        (
+            first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth, eleventh,
+            twelfth,
+        )
     }
 }
 impl<A, B, C, D, E, F, G, H, I, J, K, L> From<(A, B, C, D, E, F, G, H, I, J, K, L)>

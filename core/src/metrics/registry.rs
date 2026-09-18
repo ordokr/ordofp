@@ -32,7 +32,7 @@ unsafe impl<T: Send + Sync> Sync for SpinRwLock<T> {}
 
 impl<T> SpinRwLock<T> {
     const fn new(data: T) -> Self {
-        SpinRwLock {
+        Self {
             data: core::cell::UnsafeCell::new(data),
             state: core::sync::atomic::AtomicUsize::new(0),
         }
@@ -192,10 +192,39 @@ pub struct RegistrumMensurarum {
     supervisors: SpinRwLock<BTreeMap<String, Arc<MensuraArboris>>>,
 }
 
+/// Snapshot constructor for `u64` counter metrics.
+fn counter_snapshot(name: &str, value: u64, labels: Vec<(String, String)>) -> MetricSnapshot {
+    MetricSnapshot {
+        name: name.into(),
+        metric_type: MetricType::Counter,
+        value: MetricValue::Counter(value),
+        labels,
+    }
+}
+
+/// Snapshot constructor for `u64` gauge metrics.
+fn gauge_snapshot(name: &str, value: u64, labels: Vec<(String, String)>) -> MetricSnapshot {
+    MetricSnapshot {
+        name: name.into(),
+        metric_type: MetricType::Gauge,
+        value: MetricValue::Gauge(value),
+        labels,
+    }
+}
+
+/// Labels identifying one effect's metrics.
+fn effect_labels(metrics: &MensuraEffectus) -> Vec<(String, String)> {
+    vec![
+        ("effect_id".into(), metrics.effect_id().to_string()),
+        ("effect_name".into(), metrics.effect_name().into()),
+    ]
+}
+
 impl RegistrumMensurarum {
     /// Create a new metrics registry.
+    #[must_use]
     pub fn new() -> Self {
-        RegistrumMensurarum {
+        Self {
             effects: SpinRwLock::new(BTreeMap::new()),
             fibers: Arc::new(MensuraFibrae::new()),
             supervisors: SpinRwLock::new(BTreeMap::new()),
@@ -267,9 +296,6 @@ impl RegistrumMensurarum {
     }
 
     /// Export all metrics as snapshots.
-    // One pass per metric kind; the length comes from enumerating kinds, not
-    // from tangled control flow.
-    #[allow(clippy::too_many_lines)]
     pub fn export(&self) -> Vec<MetricSnapshot> {
         let mut snapshots = Vec::with_capacity(32);
 
@@ -284,49 +310,26 @@ impl RegistrumMensurarum {
 
         // Export effect metrics
         for metrics in &effect_metrics {
-            // Operations counter
-            snapshots.push(MetricSnapshot {
-                name: "effect_operations_total".into(),
-                metric_type: MetricType::Counter,
-                value: MetricValue::Counter(metrics.total_operations()),
-                labels: vec![
-                    ("effect_id".into(), metrics.effect_id().to_string()),
-                    ("effect_name".into(), metrics.effect_name().into()),
-                ],
-            });
-
-            // Successes counter
-            snapshots.push(MetricSnapshot {
-                name: "effect_successes_total".into(),
-                metric_type: MetricType::Counter,
-                value: MetricValue::Counter(metrics.success_count()),
-                labels: vec![
-                    ("effect_id".into(), metrics.effect_id().to_string()),
-                    ("effect_name".into(), metrics.effect_name().into()),
-                ],
-            });
-
-            // Failures counter
-            snapshots.push(MetricSnapshot {
-                name: "effect_failures_total".into(),
-                metric_type: MetricType::Counter,
-                value: MetricValue::Counter(metrics.failure_count()),
-                labels: vec![
-                    ("effect_id".into(), metrics.effect_id().to_string()),
-                    ("effect_name".into(), metrics.effect_name().into()),
-                ],
-            });
-
-            // In-flight gauge
-            snapshots.push(MetricSnapshot {
-                name: "effect_in_flight".into(),
-                metric_type: MetricType::Gauge,
-                value: MetricValue::Gauge(metrics.in_flight()),
-                labels: vec![
-                    ("effect_id".into(), metrics.effect_id().to_string()),
-                    ("effect_name".into(), metrics.effect_name().into()),
-                ],
-            });
+            snapshots.push(counter_snapshot(
+                "effect_operations_total",
+                metrics.total_operations(),
+                effect_labels(metrics),
+            ));
+            snapshots.push(counter_snapshot(
+                "effect_successes_total",
+                metrics.success_count(),
+                effect_labels(metrics),
+            ));
+            snapshots.push(counter_snapshot(
+                "effect_failures_total",
+                metrics.failure_count(),
+                effect_labels(metrics),
+            ));
+            snapshots.push(gauge_snapshot(
+                "effect_in_flight",
+                metrics.in_flight(),
+                effect_labels(metrics),
+            ));
 
             // Latency histogram
             let hist = metrics.latency_histogram();
@@ -345,56 +348,42 @@ impl RegistrumMensurarum {
                     sum: hist.sum(),
                     buckets,
                 },
-                labels: vec![
-                    ("effect_id".into(), metrics.effect_id().to_string()),
-                    ("effect_name".into(), metrics.effect_name().into()),
-                ],
+                labels: effect_labels(metrics),
             });
         }
 
         // Export fiber metrics
         let fibers = &self.fibers;
-        snapshots.push(MetricSnapshot {
-            name: "fibers_spawned_total".into(),
-            metric_type: MetricType::Counter,
-            value: MetricValue::Counter(fibers.total_spawned()),
-            labels: vec![],
-        });
-
-        snapshots.push(MetricSnapshot {
-            name: "fibers_completed_total".into(),
-            metric_type: MetricType::Counter,
-            value: MetricValue::Counter(fibers.completed_count()),
-            labels: vec![],
-        });
-
-        snapshots.push(MetricSnapshot {
-            name: "fibers_failed_total".into(),
-            metric_type: MetricType::Counter,
-            value: MetricValue::Counter(fibers.failed_count()),
-            labels: vec![],
-        });
-
-        snapshots.push(MetricSnapshot {
-            name: "fibers_cancelled_total".into(),
-            metric_type: MetricType::Counter,
-            value: MetricValue::Counter(fibers.cancelled_count()),
-            labels: vec![],
-        });
-
-        snapshots.push(MetricSnapshot {
-            name: "fibers_active".into(),
-            metric_type: MetricType::Gauge,
-            value: MetricValue::Gauge(fibers.active_count()),
-            labels: vec![],
-        });
-
-        snapshots.push(MetricSnapshot {
-            name: "fibers_peak_active".into(),
-            metric_type: MetricType::Gauge,
-            value: MetricValue::Gauge(fibers.peak_active()),
-            labels: vec![],
-        });
+        snapshots.push(counter_snapshot(
+            "fibers_spawned_total",
+            fibers.total_spawned(),
+            vec![],
+        ));
+        snapshots.push(counter_snapshot(
+            "fibers_completed_total",
+            fibers.completed_count(),
+            vec![],
+        ));
+        snapshots.push(counter_snapshot(
+            "fibers_failed_total",
+            fibers.failed_count(),
+            vec![],
+        ));
+        snapshots.push(counter_snapshot(
+            "fibers_cancelled_total",
+            fibers.cancelled_count(),
+            vec![],
+        ));
+        snapshots.push(gauge_snapshot(
+            "fibers_active",
+            fibers.active_count(),
+            vec![],
+        ));
+        snapshots.push(gauge_snapshot(
+            "fibers_peak_active",
+            fibers.peak_active(),
+            vec![],
+        ));
 
         snapshots
     }
@@ -441,11 +430,7 @@ impl RegistrumMensurarum {
 
             // Write value
             match snapshot.value {
-                MetricValue::Counter(v) => {
-                    writeln!(output, "{}{} {}", snapshot.name, labels, v)
-                        .expect("writing to String is infallible");
-                }
-                MetricValue::Gauge(v) => {
+                MetricValue::Counter(v) | MetricValue::Gauge(v) => {
                     writeln!(output, "{}{} {}", snapshot.name, labels, v)
                         .expect("writing to String is infallible");
                 }

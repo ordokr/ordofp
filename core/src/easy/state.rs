@@ -135,7 +135,7 @@ impl<S: 'static, A: 'static> State<S, A> {
     where
         F: FnOnce(S) -> (A, S) + 'static,
     {
-        State { run: Box::new(f) }
+        Self { run: Box::new(f) }
     }
 
     /// Run the computation with initial state.
@@ -182,6 +182,7 @@ impl<S: 'static, A: 'static> State<S, A> {
 
     /// Sequence two computations, keeping the second result.
     #[inline]
+    #[must_use]
     pub fn then<B: 'static>(self, next: State<S, B>) -> State<S, B> {
         State::new(move |s| {
             let (_, s2) = (self.run)(s);
@@ -198,6 +199,7 @@ pub fn state_pure<S: 'static, A: 'static>(value: A) -> State<S, A> {
 
 /// Get the current state.
 #[inline]
+#[must_use]
 pub fn get<S: Clone + 'static>() -> State<S, S> {
     State::new(|s: S| (s.clone(), s))
 }
@@ -296,8 +298,8 @@ where
     F: FnMut(&T, &mut S) -> U,
 {
     let mut state = initial;
-    let mapped: Vec<U> = items.iter().map(|x| mapper(x, &mut state)).collect();
-    (mapped, state)
+    let outputs: Vec<U> = items.iter().map(|x| mapper(x, &mut state)).collect();
+    (outputs, state)
 }
 
 // =============================================================================
@@ -318,7 +320,7 @@ pub struct LocalState<S> {
 impl<S> LocalState<S> {
     /// Create a new local state.
     pub const fn new() -> Self {
-        LocalState {
+        Self {
             cell: RefCell::new(None),
         }
     }

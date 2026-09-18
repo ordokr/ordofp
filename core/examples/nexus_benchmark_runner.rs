@@ -30,7 +30,7 @@ use ordofp_core::nexus::optim::{
 };
 
 #[cfg(all(feature = "nexus", feature = "std"))]
-fn black_box<T>(x: T) -> T {
+const fn black_box<T>(x: T) -> T {
     std::hint::black_box(x)
 }
 
@@ -48,11 +48,22 @@ struct BenchResult {
 impl BenchResult {
     fn new(name: &'static str, nexus_ns: u64, baseline_ns: u64, target_pct: f64) -> Self {
         let overhead_pct = if baseline_ns > 0 {
-            ((nexus_ns as f64 - baseline_ns as f64) / baseline_ns as f64) * 100.0
+            // Exact below 2^53 ns (104 days); saturates beyond. Reassembled
+            // through 32-bit halves: every step is exact.
+            let to_f64 = |v: u64| {
+                if v < 9_007_199_254_740_992 {
+                    f64::from(u32::try_from(v >> 32).expect("53-bit value fits in u32"))
+                        * 4_294_967_296.0
+                        + f64::from(u32::try_from(v & 0xFFFF_FFFF).expect("masked to 32 bits"))
+                } else {
+                    9_007_199_254_740_992.0
+                }
+            };
+            ((to_f64(nexus_ns) - to_f64(baseline_ns)) / to_f64(baseline_ns)) * 100.0
         } else {
             0.0
         };
-        BenchResult {
+        Self {
             name,
             nexus_ns,
             baseline_ns,
@@ -109,8 +120,8 @@ fn bench_state_get_put() -> BenchResult {
 
     BenchResult::new(
         "state_get_put",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -159,8 +170,8 @@ fn bench_state_chain() -> BenchResult {
 
     BenchResult::new(
         "state_chain_100",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         100.0,
     )
 }
@@ -204,8 +215,8 @@ fn bench_reader_asks() -> BenchResult {
 
     BenchResult::new(
         "reader_asks",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -257,8 +268,8 @@ fn bench_reader_chain() -> BenchResult {
 
     BenchResult::new(
         "reader_chain_100",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         100.0,
     )
 }
@@ -315,8 +326,8 @@ fn bench_reader_op_chain() -> BenchResult {
 
     BenchResult::new(
         "reader_op_chain",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -350,8 +361,8 @@ fn bench_error_ok() -> BenchResult {
 
     BenchResult::new(
         "error_ok",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         10.0,
     )
 }
@@ -388,8 +399,8 @@ fn bench_error_chain() -> BenchResult {
 
     BenchResult::new(
         "error_chain_100",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         20.0,
     )
 }
@@ -423,8 +434,8 @@ fn bench_writer_tell() -> BenchResult {
 
     BenchResult::new(
         "writer_tell",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -458,8 +469,8 @@ fn bench_writer_op_tell() -> BenchResult {
 
     BenchResult::new(
         "writer_op_tell",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         20.0,
     )
 }
@@ -507,8 +518,8 @@ fn bench_writer_op_chain() -> BenchResult {
 
     BenchResult::new(
         "writer_op_chain",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -541,8 +552,8 @@ fn bench_io_pure() -> BenchResult {
 
     BenchResult::new(
         "io_pure",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -589,8 +600,8 @@ fn bench_io_chain() -> BenchResult {
 
     BenchResult::new(
         "io_chain_100",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         100.0,
     )
 }
@@ -619,8 +630,8 @@ fn bench_io_op_pure() -> BenchResult {
 
     BenchResult::new(
         "io_op_pure",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         10.0,
     )
 }
@@ -674,8 +685,8 @@ fn bench_state_op_chain() -> BenchResult {
 
     BenchResult::new(
         "state_op_chain",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -727,8 +738,8 @@ fn bench_io_op_chain() -> BenchResult {
 
     BenchResult::new(
         "io_op_chain",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -747,7 +758,9 @@ fn bench_region_alloc() -> BenchResult {
         || {
             let mut boxes: Vec<Box<i64>> = Vec::with_capacity(ALLOCS);
             for i in 0..ALLOCS {
-                boxes.push(Box::new(i as i64));
+                boxes.push(Box::new(
+                    i64::try_from(i).expect("benchmark index fits in i64"),
+                ));
             }
             let sum: i64 = boxes.iter().map(|b| **b).sum();
             black_box(sum);
@@ -762,7 +775,7 @@ fn bench_region_alloc() -> BenchResult {
             let sum = with_region(|region| {
                 let mut sum = 0i64;
                 for i in 0..ALLOCS {
-                    let ptr = region.alloc(i as i64);
+                    let ptr = region.alloc(i64::try_from(i).expect("benchmark index fits in i64"));
                     sum += *ptr;
                 }
                 sum
@@ -776,8 +789,8 @@ fn bench_region_alloc() -> BenchResult {
     // Region should be faster due to batch deallocation
     BenchResult::new(
         "region_alloc_1k",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         50.0,
     )
 }
@@ -792,7 +805,7 @@ fn bench_region_vec() -> BenchResult {
         || {
             let mut v = Vec::with_capacity(SIZE);
             for i in 0..SIZE {
-                v.push(i as i64);
+                v.push(i64::try_from(i).expect("benchmark index fits in i64"));
             }
             let sum: i64 = v.iter().sum();
             black_box(sum);
@@ -806,7 +819,7 @@ fn bench_region_vec() -> BenchResult {
             let sum = with_region(|region| {
                 let mut v = RegionVec::<i64>::with_capacity(region, SIZE);
                 for i in 0..SIZE {
-                    v.push(i as i64);
+                    v.push(i64::try_from(i).expect("benchmark index fits in i64"));
                 }
                 v.iter().sum::<i64>()
             });
@@ -817,8 +830,8 @@ fn bench_region_vec() -> BenchResult {
 
     BenchResult::new(
         "region_vec_1000",
-        nexus.as_nanos() as u64,
-        baseline.as_nanos() as u64,
+        u64::try_from(nexus.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
+        u64::try_from(baseline.as_nanos()).expect("benchmark duration fits in u64 nanoseconds"),
         20.0,
     )
 }

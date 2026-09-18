@@ -209,9 +209,11 @@ pub trait Foldable {
     where
         Self::Elem: Ord + Clone,
     {
-        self.fold_left(None, |acc: Option<Self::Elem>, x| match acc {
-            None => Some(x.clone()),
-            Some(max) => Some(if x > &max { x.clone() } else { max }),
+        self.fold_left(None, |acc: Option<Self::Elem>, x| {
+            acc.map_or_else(
+                || Some(x.clone()),
+                |max| Some(if x > &max { x.clone() } else { max }),
+            )
         })
     }
 
@@ -233,9 +235,11 @@ pub trait Foldable {
     where
         Self::Elem: Ord + Clone,
     {
-        self.fold_left(None, |acc: Option<Self::Elem>, x| match acc {
-            None => Some(x.clone()),
-            Some(min) => Some(if x < &min { x.clone() } else { min }),
+        self.fold_left(None, |acc: Option<Self::Elem>, x| {
+            acc.map_or_else(
+                || Some(x.clone()),
+                |min| Some(if x < &min { x.clone() } else { min }),
+            )
         })
     }
 
@@ -259,10 +263,10 @@ pub trait Foldable {
     {
         self.fold_left((true, None::<Self::Elem>), |(is_sorted, prev), curr| {
             if is_sorted {
-                match prev {
-                    None => (true, Some(curr.clone())),
-                    Some(p) => (&p <= curr, Some(curr.clone())),
-                }
+                prev.map_or_else(
+                    || (true, Some(curr.clone())),
+                    |p| (&p <= curr, Some(curr.clone())),
+                )
             } else {
                 (false, Some(curr.clone()))
             }
@@ -309,8 +313,8 @@ pub trait Foldable {
 
 // Implementation for Vec
 #[cfg(feature = "alloc")]
-impl<A> Foldable for Vec<A> {
-    type Elem = A;
+impl<T> Foldable for Vec<T> {
+    type Elem = T;
 
     #[inline]
     fn fold_left<B, F>(&self, init: B, f: F) -> B

@@ -76,7 +76,7 @@ impl<A> Identitas<A> {
     /// ```
     #[inline]
     pub const fn new(value: A) -> Self {
-        Identitas { value }
+        Self { value }
     }
 
     /// Extracts the inner value.
@@ -102,7 +102,7 @@ impl<A> Identitas<A> {
 
     /// Returns a mutable reference to the inner value.
     #[inline]
-    pub fn value_mut(&mut self) -> &mut A {
+    pub const fn value_mut(&mut self) -> &mut A {
         &mut self.value
     }
 
@@ -123,8 +123,8 @@ impl<A> Identitas<A> {
     /// assert_eq!(x.unwrap(), 42);
     /// ```
     #[inline]
-    pub fn pure(value: A) -> Self {
-        Identitas::new(value)
+    pub const fn pure(value: A) -> Self {
+        Self::new(value)
     }
 
     /// Maps a function over the wrapped value.
@@ -192,7 +192,7 @@ impl<A> Identitas<A> {
 
     /// Comonadic duplicate operation.
     #[inline]
-    pub fn duplicate(self) -> Identitas<Identitas<A>> {
+    pub const fn duplicate(self) -> Identitas<Self> {
         Identitas::new(self)
     }
 
@@ -200,7 +200,7 @@ impl<A> Identitas<A> {
     #[inline]
     pub fn extend<B, F>(self, f: F) -> Identitas<B>
     where
-        F: FnOnce(Identitas<A>) -> B,
+        F: FnOnce(Self) -> B,
     {
         Identitas::new(f(self))
     }
@@ -215,7 +215,7 @@ impl<A> Identitas<A> {
 impl<A> From<A> for Identitas<A> {
     #[inline]
     fn from(value: A) -> Self {
-        Identitas::new(value)
+        Self::new(value)
     }
 }
 

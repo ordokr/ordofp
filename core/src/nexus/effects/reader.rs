@@ -96,6 +96,7 @@ pub enum ReaderOp<E, A> {
 /// let config = comp.run(&Config::default());
 /// assert_eq!(config.port, 0);
 /// ```
+#[must_use]
 pub fn reader_ask<E: Clone + 'static>() -> Eff<ReaderRow, E> {
     Eff::lazy(|| crate::cold_panic!("reader_ask requires Reader handler"))
 }
@@ -139,28 +140,28 @@ pub enum ReaderComputation<E, A> {
 
 impl<E: 'static, A: 'static> ReaderComputation<E, A> {
     /// Create a new reader computation.
-    #[inline(always)]
+    #[inline]
     pub fn new<F: FnOnce(&E) -> A + 'static>(f: F) -> Self {
-        ReaderComputation::Boxed(Box::new(f))
+        Self::Boxed(Box::new(f))
     }
 
     /// Run the computation with an environment.
-    #[inline(always)]
+    #[inline]
     pub fn run(self, env: &E) -> A {
         match self {
-            ReaderComputation::Pure(a) => a,
-            ReaderComputation::Boxed(f) => f(env),
+            Self::Pure(a) => a,
+            Self::Boxed(f) => f(env),
         }
     }
 
     /// Pure value in reader context - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn pure(value: A) -> Self {
-        ReaderComputation::Pure(value)
+    #[inline]
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Get the environment.
-    #[inline(always)]
+    #[inline]
     pub fn ask() -> ReaderComputation<E, E>
     where
         E: Clone,
@@ -169,22 +170,22 @@ impl<E: 'static, A: 'static> ReaderComputation<E, A> {
     }
 
     /// Extract from the environment.
-    #[inline(always)]
+    #[inline]
     pub fn asks<F: FnOnce(&E) -> A + 'static>(f: F) -> Self {
-        ReaderComputation::new(f)
+        Self::new(f)
     }
 
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: 'static, F: FnOnce(A) -> B + 'static>(self, f: F) -> ReaderComputation<E, B> {
         match self {
-            ReaderComputation::Pure(a) => ReaderComputation::Pure(f(a)),
-            ReaderComputation::Boxed(run_fn) => ReaderComputation::new(move |e| f(run_fn(e))),
+            Self::Pure(a) => ReaderComputation::Pure(f(a)),
+            Self::Boxed(run_fn) => ReaderComputation::new(move |e| f(run_fn(e))),
         }
     }
 
     /// Chain two reader computations.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B: 'static, F: FnOnce(A) -> ReaderComputation<E, B> + 'static>(
         self,
         f: F,
@@ -196,9 +197,9 @@ impl<E: 'static, A: 'static> ReaderComputation<E, A> {
     }
 
     /// Run with a locally modified environment.
-    #[inline(always)]
-    pub fn local<F: FnOnce(&E) -> E + 'static>(self, modify: F) -> ReaderComputation<E, A> {
-        ReaderComputation::new(move |e| {
+    #[inline]
+    pub fn local<F: FnOnce(&E) -> E + 'static>(self, modify: F) -> Self {
+        Self::new(move |e| {
             let new_env = modify(e);
             self.run(&new_env)
         })

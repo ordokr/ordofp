@@ -57,7 +57,7 @@ impl<A, B> FunctioLinearis<A, B> {
     where
         F: FnOnce(A) -> B + Send + 'static,
     {
-        FunctioLinearis { f: Box::new(f) }
+        Self { f: Box::new(f) }
     }
 
     /// Apply the linear function to an argument.
@@ -95,6 +95,7 @@ impl<A, B> FunctioLinearis<A, B> {
     /// assert_eq!(result, 12); // (5 + 1) * 2
     /// ```
     #[inline]
+    #[must_use]
     pub fn compose<C>(self, g: FunctioLinearis<B, C>) -> FunctioLinearis<A, C>
     where
         A: 'static,
@@ -108,6 +109,7 @@ impl<A, B> FunctioLinearis<A, B> {
     ///
     /// Creates `f ∘ g` where `g` is applied first, then `f`.
     #[inline]
+    #[must_use]
     pub fn and_then<C>(self, g: FunctioLinearis<B, C>) -> FunctioLinearis<A, C>
     where
         A: 'static,
@@ -140,10 +142,11 @@ impl<A, B> FunctioLinearis<A, B> {
     }
 }
 
-impl<A: Send + 'static> FunctioLinearis<A, A> {
+impl<T: Send + 'static> FunctioLinearis<T, T> {
     /// Create an identity linear function.
+    #[must_use]
     pub fn identity() -> Self {
-        FunctioLinearis::new(|a: A| a)
+        Self::new(|a: T| a)
     }
 }
 
@@ -201,6 +204,7 @@ pub fn linear_apply<A, B>(f: FunctioLinearis<A, B>, a: A) -> B {
 /// assert_eq!(h.apply(5), 12); // (5 + 1) * 2
 /// ```
 #[inline]
+#[must_use]
 pub fn linear_compose<A: 'static, B: 'static, C: 'static>(
     f: FunctioLinearis<A, B>,
     g: FunctioLinearis<B, C>,
@@ -212,6 +216,7 @@ pub fn linear_compose<A: 'static, B: 'static, C: 'static>(
 ///
 /// Transforms `A ⊸ (B ⊸ C)` to `B ⊸ (A ⊸ C)`.
 #[inline]
+#[must_use]
 pub fn linear_flip<A: 'static + Send, B: 'static + Send, C: 'static + Send>(
     f: FunctioLinearis<A, FunctioLinearis<B, C>>,
 ) -> FunctioLinearis<B, FunctioLinearis<A, C>> {
@@ -235,6 +240,7 @@ pub fn linear_const<A: 'static, B: Send + 'static>(b: B) -> FunctioLinearis<A, B
 ///
 /// Transforms `(A, B) ⊸ C` to `A ⊸ (B ⊸ C)`.
 #[inline]
+#[must_use]
 pub fn linear_curry<A: 'static + Send, B: 'static + Send, C: 'static + Send>(
     f: FunctioLinearis<(A, B), C>,
 ) -> FunctioLinearis<A, FunctioLinearis<B, C>> {
@@ -245,6 +251,7 @@ pub fn linear_curry<A: 'static + Send, B: 'static + Send, C: 'static + Send>(
 ///
 /// Transforms `A ⊸ (B ⊸ C)` to `(A, B) ⊸ C`.
 #[inline]
+#[must_use]
 pub fn linear_uncurry<A: 'static + Send, B: 'static + Send, C: 'static + Send>(
     f: FunctioLinearis<A, FunctioLinearis<B, C>>,
 ) -> FunctioLinearis<(A, B), C> {

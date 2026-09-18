@@ -77,8 +77,8 @@ pub enum StateOp<S> {
 impl<S: Clone> Clone for StateOp<S> {
     fn clone(&self) -> Self {
         match self {
-            StateOp::Get => StateOp::Get,
-            StateOp::Put(s) => StateOp::Put(s.clone()),
+            Self::Get => Self::Get,
+            Self::Put(s) => Self::Put(s.clone()),
         }
     }
 }
@@ -99,6 +99,7 @@ impl<S: Clone> Clone for StateOp<S> {
 /// assert_eq!(result, 11);
 /// assert_eq!(state, 10);
 /// ```
+#[must_use]
 pub fn state_get<S: Clone + 'static>() -> Eff<StateRow, S> {
     Eff::lazy(|| {
         // In a full implementation, this would be handled by the State handler
@@ -202,22 +203,22 @@ pub enum StatefulComputation<S, A> {
 
 impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
     /// Create a new stateful computation from a function.
-    #[inline(always)]
+    #[inline]
     pub fn new<F: FnOnce(S) -> (A, S) + 'static>(f: F) -> Self {
-        StatefulComputation::Boxed(Box::new(f))
+        Self::Boxed(Box::new(f))
     }
 
     /// Pure value in state context - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn pure(value: A) -> Self {
-        StatefulComputation::Pure(value)
+    #[inline]
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: 'static, F: FnOnce(A) -> B + 'static>(self, f: F) -> StatefulComputation<S, B> {
         match self {
-            StatefulComputation::Pure(a) => StatefulComputation::Pure(f(a)),
+            Self::Pure(a) => StatefulComputation::Pure(f(a)),
             _ => StatefulComputation::Boxed(Box::new(move |s| {
                 let (a, s2) = self.run_internal(s);
                 (f(a), s2)
@@ -226,7 +227,7 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
     }
 
     /// Chain two stateful computations.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B: 'static, F: FnOnce(A) -> StatefulComputation<S, B> + 'static>(
         self,
         f: F,
@@ -241,14 +242,14 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
     #[inline]
     fn run_internal(self, state: S) -> (A, S) {
         match self {
-            StatefulComputation::Pure(a) => (a, state),
-            StatefulComputation::Boxed(f) => f(state),
+            Self::Pure(a) => (a, state),
+            Self::Boxed(f) => f(state),
             // For Get/Put/Modify, the variant invariant (see enum doc) fixes the
             // relationship between `A` and the variant payload type. We verify
             // it with a `TypeId` assertion, then move the value into `A` via a
             // safe `Option<…> as &mut dyn Any` downcast + take — entirely safe
             // code, no transmute; stack-only, no heap allocation.
-            StatefulComputation::Get => {
+            Self::Get => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<S>(),
                     "StatefulComputation::Get type mismatch: A must be S"
@@ -259,7 +260,7 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
                 let a: A = downcast.take().unwrap();
                 (a, state)
             }
-            StatefulComputation::Put(new_state) => {
+            Self::Put(new_state) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "StatefulComputation::Put type mismatch: A must be ()"
@@ -270,7 +271,7 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
                 let unit: A = downcast.take().unwrap();
                 (unit, new_state)
             }
-            StatefulComputation::Modify(f) => {
+            Self::Modify(f) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "StatefulComputation::Modify type mismatch: A must be ()"
@@ -286,11 +287,11 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
 }
 
 /// Specialized implementation for Get operation (A = S).
-impl<S: Clone + 'static> StatefulComputation<S, S> {
+impl<T: Clone + 'static> StatefulComputation<T, T> {
     /// Get the current state - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn get() -> Self {
-        StatefulComputation::Get
+    #[inline]
+    pub const fn get() -> Self {
+        Self::Get
     }
 
     /// Run Get computation (specialized for A = S).
@@ -301,16 +302,16 @@ impl<S: Clone + 'static> StatefulComputation<S, S> {
     /// `()`, which cannot be an `S` here. The typed constructors never
     /// produce such a value at `A = S`, so this can only fire on a
     /// hand-constructed variant.
-    #[inline(always)]
-    pub fn run_get(self, initial: S) -> (S, S) {
+    #[inline]
+    pub fn run_get(self, initial: T) -> (T, T) {
         match self {
-            StatefulComputation::Pure(a) => (a, initial),
-            StatefulComputation::Get => (initial.clone(), initial),
-            StatefulComputation::Boxed(f) => f(initial),
-            StatefulComputation::Put(_) => {
+            Self::Pure(a) => (a, initial),
+            Self::Get => (initial.clone(), initial),
+            Self::Boxed(f) => f(initial),
+            Self::Put(_) => {
                 panic!("StatefulComputation::Put encountered in run_get where A must be S")
             }
-            StatefulComputation::Modify(_) => {
+            Self::Modify(_) => {
                 panic!("StatefulComputation::Modify encountered in run_get where A must be S")
             }
         }
@@ -320,15 +321,15 @@ impl<S: Clone + 'static> StatefulComputation<S, S> {
 /// Specialized implementation for Put/Modify operations (A = ()).
 impl<S: 'static> StatefulComputation<S, ()> {
     /// Set the state - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn put(value: S) -> Self {
-        StatefulComputation::Put(value)
+    #[inline]
+    pub const fn put(value: S) -> Self {
+        Self::Put(value)
     }
 
     /// Modify the state with a function.
-    #[inline(always)]
+    #[inline]
     pub fn modify<F: FnOnce(S) -> S + 'static>(f: F) -> Self {
-        StatefulComputation::Modify(Box::new(f))
+        Self::Modify(Box::new(f))
     }
 
     /// Run Put/Modify computation (specialized for A = ()).
@@ -339,14 +340,14 @@ impl<S: 'static> StatefulComputation<S, ()> {
     /// this specialization returns. The typed constructors never produce
     /// a `Get` at `A = ()`, so this can only fire on a hand-constructed
     /// variant.
-    #[inline(always)]
+    #[inline]
     pub fn run_unit(self, initial: S) -> ((), S) {
         match self {
-            StatefulComputation::Pure(()) => ((), initial),
-            StatefulComputation::Put(new_state) => ((), new_state),
-            StatefulComputation::Modify(f) => ((), f(initial)),
-            StatefulComputation::Boxed(f) => f(initial),
-            StatefulComputation::Get => {
+            Self::Pure(()) => ((), initial),
+            Self::Put(new_state) => ((), new_state),
+            Self::Modify(f) => ((), f(initial)),
+            Self::Boxed(f) => f(initial),
+            Self::Get => {
                 panic!("StatefulComputation::Get encountered in run_unit where A must be ()")
             }
         }
@@ -370,10 +371,10 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
     #[inline]
     pub fn run(self, initial: S) -> (A, S) {
         match self {
-            StatefulComputation::Pure(a) => (a, initial),
-            StatefulComputation::Boxed(f) => f(initial),
+            Self::Pure(a) => (a, initial),
+            Self::Boxed(f) => f(initial),
             // Handle Get/Put/Modify by boxing (fallback for Universalis case)
-            StatefulComputation::Get => {
+            Self::Get => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<S>(),
                     "StatefulComputation::Get type mismatch: A must be S"
@@ -385,7 +386,7 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
                 let a: A = downcast.take().unwrap();
                 (a, initial)
             }
-            StatefulComputation::Put(new_state) => {
+            Self::Put(new_state) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "StatefulComputation::Put type mismatch: A must be ()"
@@ -396,7 +397,7 @@ impl<S: Clone + 'static, A: 'static> StatefulComputation<S, A> {
                 let unit: A = downcast.take().unwrap();
                 (unit, new_state)
             }
-            StatefulComputation::Modify(f) => {
+            Self::Modify(f) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "StatefulComputation::Modify type mismatch: A must be ()"

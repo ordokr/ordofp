@@ -6,7 +6,7 @@ use syn::Data;
 /// Given an AST, returns an implementation of Universalis using `HList`
 ///
 /// Only works with Structs and Tuple Structs
-pub(crate) fn impl_universalis(input: TokenStream) -> impl ToTokens {
+pub fn impl_universalis(input: TokenStream) -> impl ToTokens {
     let ast = to_ast(input);
     let name = &ast.ident;
 

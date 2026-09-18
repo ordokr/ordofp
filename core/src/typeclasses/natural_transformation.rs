@@ -167,7 +167,8 @@ pub struct IdentitasNat<F>(PhantomData<F>);
 impl<F> IdentitasNat<F> {
     /// Create a new identity natural transformation.
     #[inline]
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
@@ -188,7 +189,8 @@ impl<F> TransformatioNaturalis<F, F> for IdentitasNat<F> {
 
 /// Create an identity natural transformation.
 #[inline]
-pub fn identitas_nat<F>() -> IdentitasNat<F> {
+#[must_use]
+pub const fn identitas_nat<F>() -> IdentitasNat<F> {
     IdentitasNat::new()
 }
 
@@ -343,10 +345,7 @@ pub struct OptionAdVec;
 impl<T> TransformatioNaturalis<Option<T>, Vec<T>> for OptionAdVec {
     #[inline]
     fn transformare(&self, fa: Option<T>) -> Vec<T> {
-        match fa {
-            Some(x) => vec![x],
-            None => Vec::new(),
-        }
+        fa.map_or_else(Vec::new, |x| vec![x])
     }
 }
 
@@ -359,10 +358,7 @@ pub struct ResultAdVec;
 impl<T, E> TransformatioNaturalis<Result<T, E>, Vec<T>> for ResultAdVec {
     #[inline]
     fn transformare(&self, fa: Result<T, E>) -> Vec<T> {
-        match fa {
-            Ok(x) => vec![x],
-            Err(_) => Vec::new(),
-        }
+        fa.map_or_else(|_| Vec::new(), |x| vec![x])
     }
 }
 

@@ -437,7 +437,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -451,7 +451,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -465,7 +465,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -478,7 +478,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -493,7 +493,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -509,7 +509,7 @@ mod tests {
         let ok_prism = divisio(
             |r: &Result2<Shape, String>| match r {
                 Result2::Ok(s) => Some(s.clone()),
-                _ => None,
+                Result2::Err(_) => None,
             },
             Result2::Ok,
         );
@@ -518,7 +518,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -540,7 +540,7 @@ mod tests {
         let circle_prism = divisio(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -665,7 +665,7 @@ mod tests {
 
         #[derive(Clone, Debug, PartialEq)]
         enum Theme {
-            #[allow(dead_code)] // fixture variant; only Dark/Custom are exercised
+            #[allow(dead_code, reason = "fixture variant; only Dark/Custom are exercised")]
             Light,
             Dark,
             Custom(String),

@@ -75,7 +75,7 @@ impl<T> Linearis<T> {
     /// ```
     #[inline]
     pub const fn new(value: T) -> Self {
-        Linearis { value }
+        Self { value }
     }
 
     /// Consume the linear value, returning the inner value.
@@ -262,7 +262,7 @@ impl<T> Linearis<T> {
     /// let _ = x.consume(); // Still must consume
     /// ```
     #[inline]
-    pub fn peek(&self) -> &T {
+    pub const fn peek(&self) -> &T {
         &self.value
     }
 
@@ -334,7 +334,7 @@ impl<T, E> Linearis<Result<T, E>> {
 impl<T: Default> Default for Linearis<T> {
     #[inline]
     fn default() -> Self {
-        Linearis::new(T::default())
+        Self::new(T::default())
     }
 }
 
@@ -355,7 +355,7 @@ impl<T: fmt::Display> fmt::Display for Linearis<T> {
 impl<T> From<T> for Linearis<T> {
     #[inline]
     fn from(value: T) -> Self {
-        Linearis::new(value)
+        Self::new(value)
     }
 }
 

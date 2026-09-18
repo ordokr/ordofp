@@ -60,8 +60,9 @@ pub struct Numerator {
 impl Numerator {
     /// Create a new counter.
     #[inline]
-    pub fn new() -> Self {
-        Numerator {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             value: AtomicU64::new(0),
         }
     }
@@ -93,7 +94,7 @@ impl Default for Numerator {
 
 impl Clone for Numerator {
     fn clone(&self) -> Self {
-        Numerator {
+        Self {
             value: AtomicU64::new(self.value()),
         }
     }
@@ -115,8 +116,9 @@ pub struct Indicium {
 impl Indicium {
     /// Create a new gauge.
     #[inline]
-    pub fn new() -> Self {
-        Indicium {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             value: AtomicU64::new(0),
         }
     }
@@ -159,7 +161,7 @@ impl Default for Indicium {
 
 impl Clone for Indicium {
     fn clone(&self) -> Self {
-        Indicium {
+        Self {
             value: AtomicU64::new(self.value()),
         }
     }
@@ -211,18 +213,20 @@ impl Distributio {
     ];
 
     /// Create a new histogram with default latency buckets.
+    #[must_use]
     pub fn new() -> Self {
         Self::with_boundaries(Self::LATENCY_BUCKETS)
     }
 
     /// Create a histogram with custom boundaries.
+    #[must_use]
     pub fn with_boundaries(boundaries: &'static [u64]) -> Self {
         let mut buckets = Vec::with_capacity(boundaries.len() + 1);
         for _ in 0..=boundaries.len() {
             buckets.push(AtomicU64::new(0));
         }
 
-        Distributio {
+        Self {
             boundaries,
             buckets,
             sum: AtomicU64::new(0),
@@ -263,7 +267,10 @@ impl Distributio {
     /// any realistic histogram total — inherent to exporting a counter ratio
     /// as a float.
     #[inline]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "u64 counters as f64 ratios; lossy only past 2^52"
+    )]
     pub fn mean(&self) -> f64 {
         let count = self.count();
         if count == 0 {
@@ -284,7 +291,7 @@ impl Distributio {
 
     /// Get the boundaries.
     #[inline]
-    pub fn boundaries(&self) -> &[u64] {
+    pub const fn boundaries(&self) -> &[u64] {
         self.boundaries
     }
 
@@ -303,7 +310,8 @@ impl Distributio {
         #[allow(
             clippy::cast_precision_loss,
             clippy::cast_possible_truncation,
-            clippy::cast_sign_loss
+            clippy::cast_sign_loss,
+            reason = "percentile rank is clamped into u64 range before truncating"
         )]
         let target = (count as f64 * p / 100.0).max(0.0).min(u64::MAX as f64) as u64;
         let mut cumulative = 0u64;
@@ -415,7 +423,7 @@ mod tests {
     }
 
     /// M14 regression: an unpaired decrement must saturate at 0, not wrap to
-    /// u64::MAX.
+    /// `u64::MAX`.
     #[test]
     fn test_indicium_decrement_saturates_at_zero() {
         let gauge = Indicium::new();

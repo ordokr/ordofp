@@ -33,13 +33,13 @@ pub struct Cofree<F: FunctorHKT, A> {
     /// The annotation at this node.
     pub attribute: A,
     /// The functor containing children.
-    pub children: Box<F::Target<Cofree<F, A>>>,
+    pub children: Box<F::Target<Self>>,
 }
 
 #[cfg(feature = "alloc")]
 impl<F: FunctorHKT + CloneHKT, A: Clone> Clone for Cofree<F, A> {
     fn clone(&self) -> Self {
-        Cofree {
+        Self {
             attribute: self.attribute.clone(),
             children: Box::new(F::clone_hkt(&self.children)),
         }
@@ -50,8 +50,8 @@ impl<F: FunctorHKT + CloneHKT, A: Clone> Clone for Cofree<F, A> {
 impl<F: FunctorHKT, A> Cofree<F, A> {
     /// Create a new Cofree node.
     #[inline]
-    pub fn new(attribute: A, children: F::Target<Cofree<F, A>>) -> Self {
-        Cofree {
+    pub fn new(attribute: A, children: F::Target<Self>) -> Self {
+        Self {
             attribute,
             children: Box::new(children),
         }
@@ -59,19 +59,19 @@ impl<F: FunctorHKT, A> Cofree<F, A> {
 
     /// Extract the attribute (comonad extract).
     #[inline]
-    pub fn extract(&self) -> &A {
+    pub const fn extract(&self) -> &A {
         &self.attribute
     }
 
     /// Get the children functor.
     #[inline]
-    pub fn unwrap(self) -> F::Target<Cofree<F, A>> {
+    pub fn unwrap(self) -> F::Target<Self> {
         *self.children
     }
 
     /// Get a reference to the children.
     #[inline]
-    pub fn children_ref(&self) -> &F::Target<Cofree<F, A>> {
+    pub fn children_ref(&self) -> &F::Target<Self> {
         &self.children
     }
 
@@ -80,7 +80,7 @@ impl<F: FunctorHKT, A> Cofree<F, A> {
     pub fn map_attr<B, G>(self, f: G) -> Cofree<F, B>
     where
         G: Fn(A) -> B + Clone,
-        F::Target<Cofree<F, A>>: Clone,
+        F::Target<Self>: Clone,
     {
         self.map_attr_impl(f)
     }
@@ -89,7 +89,7 @@ impl<F: FunctorHKT, A> Cofree<F, A> {
     fn map_attr_impl<B, G>(self, f: G) -> Cofree<F, B>
     where
         G: Fn(A) -> B + Clone,
-        F::Target<Cofree<F, A>>: Clone,
+        F::Target<Self>: Clone,
     {
         let new_attr = f(self.attribute);
         let new_children = F::map(*self.children, |child| child.map_attr_impl(f.clone()));

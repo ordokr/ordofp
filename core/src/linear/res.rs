@@ -81,7 +81,7 @@ impl<R, A> Res<R, A> {
         Acq: FnOnce() -> A + Send + 'static,
         Rel: FnOnce(A) + Send + 'static,
     {
-        Res {
+        Self {
             acquire: Box::new(acquire),
             release: Box::new(release),
             _resource: PhantomData,
@@ -193,6 +193,7 @@ impl<R, A: 'static + Send> Res<R, A> {
     /// assert_eq!(result, "1: hello");
     /// ```
     #[inline]
+    #[must_use]
     pub fn zip<B: 'static + Send>(self, other: Res<R, B>) -> Res<R, (A, B)> {
         let acquire1 = self.acquire;
         let release1 = self.release;
@@ -232,7 +233,7 @@ impl<R, A> ResAsync<R, A> {
         Rel: FnOnce(A) -> RelFut + Send + 'static,
         RelFut: Future<Output = ()> + Send + 'static,
     {
-        ResAsync {
+        Self {
             acquire: Box::pin(acquire),
             release: Box::new(move |a| Box::pin(release(a))),
             _resource: PhantomData,

@@ -123,13 +123,14 @@ pub struct Path<T>(PhantomData<T>);
 
 impl<T> Path<T> {
     /// Creates a new Path
-    #[inline(always)]
-    pub fn new() -> Path<T> {
-        Path(PhantomData)
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(PhantomData)
     }
 
     /// Gets something using the current path
-    #[inline(always)]
+    #[inline]
     pub fn get<V, I, O>(&self, o: O) -> V
     where
         O: ViaTraversor<Self, I, TargetValue = V>,
@@ -139,7 +140,7 @@ impl<T> Path<T> {
 }
 
 impl<T> Default for Path<T> {
-    #[inline(always)]
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -166,7 +167,7 @@ where
         PluckIndex,
     >>::TargetValue;
 
-    #[inline(always)]
+    #[inline]
     fn get(self) -> Self::TargetValue {
         self.into().pluck_by_name().0.value
     }
@@ -191,7 +192,7 @@ where
         HeadPluckIndex,
     >>::TargetValue as ViaTraversor<Path<TailNames>, TailPluckIndices>>::TargetValue;
 
-    #[inline(always)]
+    #[inline]
     fn get(self) -> Self::TargetValue {
         self.into().pluck_by_name().0.value.get()
     }
@@ -201,7 +202,7 @@ where
 impl<Name, RHSParam> Add<Path<RHSParam>> for Path<Coniunctio<Name, Nihil>> {
     type Output = Path<Coniunctio<Name, Path<RHSParam>>>;
 
-    #[inline(always)]
+    #[inline]
     fn add(self, _: Path<RHSParam>) -> Self::Output {
         Path::new()
     }
@@ -213,7 +214,7 @@ where
 {
     type Output = Path<Coniunctio<Name, <Path<Tail> as Add<Path<RHSParam>>>::Output>>;
 
-    #[inline(always)]
+    #[inline]
     fn add(self, _: Path<RHSParam>) -> <Self as Add<Path<RHSParam>>>::Output {
         Path::new()
     }

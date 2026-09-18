@@ -6,6 +6,7 @@
 #![cfg(feature = "tokio")]
 
 use criterion::{BenchmarkId, Criterion, criterion_group};
+use std::future::{Future, ready};
 use std::hint::black_box;
 use tokio::runtime::Runtime;
 
@@ -359,19 +360,19 @@ fn bench_traversable_async(c: &mut Criterion) {
 fn bench_async_macros(c: &mut Criterion) {
     use ordofp_core::{chain_async, compose_async, pipe_async};
 
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
+    }
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
+    }
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
+    }
+
     let rt = Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("Async Macros vs Manual");
-
-    async fn add_one(x: i32) -> i32 {
-        x + 1
-    }
-    async fn double(x: i32) -> i32 {
-        x * 2
-    }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
-    }
 
     // pipe_async!
     group.bench_function("pipe_async! x3", |b| {

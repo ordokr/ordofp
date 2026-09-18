@@ -545,17 +545,11 @@ mod tests {
         assert!(t);
         assert!(!f);
 
-        let and_tt = InterpresAestimationis::et(true, true);
-        let and_tf = InterpresAestimationis::et(true, false);
-        let or_ff = InterpresAestimationis::vel(false, false);
-        let or_tf = InterpresAestimationis::vel(true, false);
-        let not_t = InterpresAestimationis::non(true);
-
-        assert!(and_tt);
-        assert!(!and_tf);
-        assert!(!or_ff);
-        assert!(or_tf);
-        assert!(!not_t);
+        assert!(InterpresAestimationis::et(true, true));
+        assert!(!InterpresAestimationis::et(true, false));
+        assert!(!InterpresAestimationis::vel(false, false));
+        assert!(InterpresAestimationis::vel(true, false));
+        assert!(!InterpresAestimationis::non(true));
     }
 
     #[cfg(feature = "alloc")]

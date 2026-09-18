@@ -24,22 +24,22 @@ pub enum GpuError {
 impl core::fmt::Display for GpuError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            GpuError::DeviceCreationFailed(msg) => {
+            Self::DeviceCreationFailed(msg) => {
                 write!(f, "Failed to create wgpu device: {msg}")
             }
-            GpuError::AdapterNotFound => {
+            Self::AdapterNotFound => {
                 write!(f, "No suitable GPU adapter found")
             }
-            GpuError::ComputeNotSupported => {
+            Self::ComputeNotSupported => {
                 write!(f, "GPU adapter does not support compute shaders")
             }
-            GpuError::BufferCreationFailed(msg) => {
+            Self::BufferCreationFailed(msg) => {
                 write!(f, "Failed to create buffer: {msg}")
             }
-            GpuError::ShaderCompilationFailed(msg) => {
+            Self::ShaderCompilationFailed(msg) => {
                 write!(f, "Shader compilation failed: {msg}")
             }
-            GpuError::BufferMappingFailed(msg) => {
+            Self::BufferMappingFailed(msg) => {
                 write!(f, "Buffer mapping failed: {msg}")
             }
         }

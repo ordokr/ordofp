@@ -183,7 +183,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// let _: Vi32Vf32 = Disiunctio::inject::<Vec<i32>, _>(vec![]);
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn inject<T, Index>(to_insert: T) -> Self
     where
         Self: DisiunctioInjector<T, Index>,
@@ -215,7 +215,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// assert_eq!(co2.get::<f32, _>(), None);
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn get<S, Index>(&self) -> Option<&S>
     where
         Self: DisiunctioSelector<S, Index>,
@@ -247,7 +247,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// assert_eq!(co2.take::<f32, _>(), None);
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn take<T, Index>(self) -> Option<T>
     where
         Self: DisiunctioTaker<T, Index>,
@@ -330,7 +330,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// re-typed with `T` removed from the possibilities — when the
     /// inhabited variant is not `T`. Nothing is lost: the `Err` side is
     /// how exhaustive matching proceeds to the next candidate type.
-    #[inline(always)]
+    #[inline]
     pub fn uninject<T, Index>(
         self,
     ) -> Result<T, <Self as DisiunctioUninjector<T, Index>>::Remainder>
@@ -430,7 +430,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// re-typed with every `Targets` type removed — when the inhabited
     /// variant is not one of the `Targets`. Nothing is lost: the `Err`
     /// side is how exhaustive matching proceeds on the leftover types.
-    #[inline(always)]
+    #[inline]
     pub fn subset<Targets, Indices>(
         self,
     ) -> Result<Targets, <Self as DisiunctioSubsetter<Targets, Indices>>::Remainder>
@@ -489,7 +489,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// assert_eq!(embedded, I32BoolF32::inject(true));
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn embed<Targets, Indices>(self) -> Targets
     where
         Self: DisiunctioEmbedder<Targets, Indices>,
@@ -514,7 +514,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// assert!(co.to_ref().subset::<Disiunctio!(&bool, &String), _>().is_ok());
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn to_ref<'a>(&'a self) -> <Self as ToRef<'a>>::Output
     where
         Self: ToRef<'a>,
@@ -539,7 +539,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// assert!(co.to_mut().subset::<Disiunctio!(&mut bool, &mut String), _>().is_ok());
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn to_mut<'a>(&'a mut self) -> <Self as ToMut<'a>>::Output
     where
         Self: ToMut<'a>,
@@ -612,7 +612,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// let folded = co1.fold(Poly(P));
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn fold<Output, Folder>(self, folder: Folder) -> Output
     where
         Self: DisiunctioFoldable<Folder, Output>,
@@ -691,7 +691,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     /// let co = IntInt::Sinister(42);
     /// assert_eq!(co.map(mapper), BoolBool::Sinister(true));
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn map<F>(self, mapper: F) -> <Self as DisiunctioMappable<F>>::Output
     where
         Self: DisiunctioMappable<F>,
@@ -700,7 +700,7 @@ impl<Head, Tail> Disiunctio<Head, Tail> {
     }
 }
 
-impl<T> Disiunctio<T, Absurdum> {
+impl<H> Disiunctio<H, Absurdum> {
     /// Extract the value from a Disiunctio with only one variant.
     ///
     /// # Example
@@ -715,11 +715,11 @@ impl<T> Disiunctio<T, Absurdum> {
     /// assert_eq!(co.extract(), 5);
     /// # }
     /// ```
-    #[inline(always)]
-    pub fn extract(self) -> T {
+    #[inline]
+    pub fn extract(self) -> H {
         match self {
-            Disiunctio::Sinister(v) => v,
-            Disiunctio::Dexter(never) => match never {},
+            Self::Sinister(v) => v,
+            Self::Dexter(never) => match never {},
         }
     }
 }
@@ -750,7 +750,7 @@ pub trait DisiunctioInjector<InjectType, Index> {
 impl<I, Tail> DisiunctioInjector<I, Here> for Disiunctio<I, Tail> {
     #[inline]
     fn inject(to_insert: I) -> Self {
-        Disiunctio::Sinister(to_insert)
+        Self::Sinister(to_insert)
     }
 }
 
@@ -761,7 +761,7 @@ where
     #[inline]
     fn inject(to_insert: I) -> Self {
         let tail_inserted = <Tail as DisiunctioInjector<I, TailIndex>>::inject(to_insert);
-        Disiunctio::Dexter(tail_inserted)
+        Self::Dexter(tail_inserted)
     }
 }
 
@@ -796,7 +796,7 @@ impl<Head, Tail> DisiunctioSelector<Head, Here> for Disiunctio<Head, Tail> {
         use Disiunctio::Sinister;
         match *self {
             Sinister(ref thing) => Some(thing),
-            Disiunctio::Dexter(_) => None, // Impossible
+            Self::Dexter(_) => None, // Impossible
         }
     }
 }
@@ -811,7 +811,7 @@ where
         use Disiunctio::Dexter;
         match *self {
             Dexter(ref rest) => rest.get(),
-            Disiunctio::Sinister(_) => None, // Impossible
+            Self::Sinister(_) => None, // Impossible
         }
     }
 }
@@ -845,7 +845,7 @@ impl<Head, Tail> DisiunctioTaker<Head, Here> for Disiunctio<Head, Tail> {
         use Disiunctio::Sinister;
         match self {
             Sinister(thing) => Some(thing),
-            Disiunctio::Dexter(_) => None, // Impossible
+            Self::Dexter(_) => None, // Impossible
         }
     }
 }
@@ -860,7 +860,7 @@ where
         use Disiunctio::Dexter;
         match self {
             Dexter(rest) => rest.take(),
-            Disiunctio::Sinister(_) => None, // Impossible
+            Self::Sinister(_) => None, // Impossible
         }
     }
 }
@@ -922,7 +922,7 @@ where
 
 /// This is literally impossible; Absurdum is not instantiable
 impl<F, R> DisiunctioFoldable<F, R> for Absurdum {
-    #[inline(always)]
+    #[inline]
     fn fold(self, _: F) -> R {
         match self {}
     }
@@ -962,11 +962,11 @@ where
 {
     type Output = Disiunctio<R, <CTail as DisiunctioMappable<MapperTail>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, mapper: Coniunctio<F, MapperTail>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(mapper.tail)),
+            Self::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(mapper.tail)),
         }
     }
 }
@@ -980,11 +980,11 @@ where
 {
     type Output = Disiunctio<R, <CTail as DisiunctioMappable<&'a MapperTail>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, mapper: &'a Coniunctio<F, MapperTail>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(&mapper.tail)),
+            Self::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(&mapper.tail)),
         }
     }
 }
@@ -998,11 +998,11 @@ where
 {
     type Output = Disiunctio<R, <CTail as DisiunctioMappable<&'a mut MapperTail>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, mapper: &'a mut Coniunctio<F, MapperTail>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(&mut mapper.tail)),
+            Self::Sinister(l) => Disiunctio::Sinister((mapper.head)(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(&mut mapper.tail)),
         }
     }
 }
@@ -1016,11 +1016,11 @@ where
     type Output =
         Disiunctio<<P as Func<CH>>::Output, <CTail as DisiunctioMappable<Poly<P>>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, poly: Poly<P>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister(P::call(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
+            Self::Sinister(l) => Disiunctio::Sinister(P::call(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
         }
     }
 }
@@ -1034,11 +1034,11 @@ where
     type Output =
         Disiunctio<<P as Func<CH>>::Output, <CTail as DisiunctioMappable<&'a Poly<P>>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, poly: &'a Poly<P>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister(P::call(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
+            Self::Sinister(l) => Disiunctio::Sinister(P::call(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
         }
     }
 }
@@ -1052,11 +1052,11 @@ where
     type Output =
         Disiunctio<<P as Func<CH>>::Output, <CTail as DisiunctioMappable<&'a mut Poly<P>>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, poly: &'a mut Poly<P>) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister(P::call(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
+            Self::Sinister(l) => Disiunctio::Sinister(P::call(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(poly)),
         }
     }
 }
@@ -1070,20 +1070,20 @@ where
 {
     type Output = Disiunctio<R, <CTail as DisiunctioMappable<F>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, mut f: F) -> Self::Output {
         match self {
-            Disiunctio::Sinister(l) => Disiunctio::Sinister(f(l)),
-            Disiunctio::Dexter(rest) => Disiunctio::Dexter(rest.map(f)),
+            Self::Sinister(l) => Disiunctio::Sinister(f(l)),
+            Self::Dexter(rest) => Disiunctio::Dexter(rest.map(f)),
         }
     }
 }
 
 /// Base case map impl.
 impl<F> DisiunctioMappable<F> for Absurdum {
-    type Output = Absurdum;
+    type Output = Self;
 
-    #[inline(always)]
+    #[inline]
     fn map(self, _: F) -> Self::Output {
         match self {}
     }
@@ -1095,20 +1095,24 @@ where
 {
     type Output = Disiunctio<&'a CH, <CTail as ToRef<'a>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn to_ref(&'a self) -> Self::Output {
         match *self {
-            Disiunctio::Sinister(ref r) => Disiunctio::Sinister(r),
-            Disiunctio::Dexter(ref rest) => Disiunctio::Dexter(rest.to_ref()),
+            Self::Sinister(ref r) => Disiunctio::Sinister(r),
+            Self::Dexter(ref rest) => Disiunctio::Dexter(rest.to_ref()),
         }
     }
 }
 
 impl<'a> ToRef<'a> for Absurdum {
-    type Output = Absurdum;
+    type Output = Self;
 
-    #[inline(always)]
-    fn to_ref(&'a self) -> Absurdum {
+    #[inline]
+    #[allow(
+        clippy::uninhabited_references,
+        reason = "Absurdum is uninhabited so this is uncallable; the empty match fails closed at compile time if that ever changes"
+    )]
+    fn to_ref(&'a self) -> Self {
         match *self {}
     }
 }
@@ -1119,20 +1123,24 @@ where
 {
     type Output = Disiunctio<&'a mut CH, <CTail as ToMut<'a>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn to_mut(&'a mut self) -> Self::Output {
         match *self {
-            Disiunctio::Sinister(ref mut r) => Disiunctio::Sinister(r),
-            Disiunctio::Dexter(ref mut rest) => Disiunctio::Dexter(rest.to_mut()),
+            Self::Sinister(ref mut r) => Disiunctio::Sinister(r),
+            Self::Dexter(ref mut rest) => Disiunctio::Dexter(rest.to_mut()),
         }
     }
 }
 
 impl<'a> ToMut<'a> for Absurdum {
-    type Output = Absurdum;
+    type Output = Self;
 
-    #[inline(always)]
-    fn to_mut(&'a mut self) -> Absurdum {
+    #[inline]
+    #[allow(
+        clippy::uninhabited_references,
+        reason = "Absurdum is uninhabited so this is uncallable; the empty match fails closed at compile time if that ever changes"
+    )]
+    fn to_mut(&'a mut self) -> Self {
         match *self {}
     }
 }
@@ -1175,8 +1183,8 @@ impl<Hd, Tl> DisiunctioUninjector<Hd, Here> for Disiunctio<Hd, Tl> {
     #[inline]
     fn uninject(self) -> Result<Hd, Tl> {
         match self {
-            Disiunctio::Sinister(h) => Ok(h),
-            Disiunctio::Dexter(t) => Err(t),
+            Self::Sinister(h) => Ok(h),
+            Self::Dexter(t) => Err(t),
         }
     }
 }
@@ -1190,8 +1198,8 @@ where
     #[inline]
     fn uninject(self) -> Result<T, Self::Remainder> {
         match self {
-            Disiunctio::Sinister(h) => Err(Disiunctio::Sinister(h)),
-            Disiunctio::Dexter(t) => t.uninject().map_err(Disiunctio::Dexter),
+            Self::Sinister(h) => Err(Disiunctio::Sinister(h)),
+            Self::Dexter(t) => t.uninject().map_err(Disiunctio::Dexter),
         }
     }
 }
@@ -1252,7 +1260,7 @@ where
 impl<Choices> DisiunctioSubsetter<Absurdum, Nihil> for Choices {
     type Remainder = Self;
 
-    #[inline(always)]
+    #[inline]
     fn subset(self) -> Result<Absurdum, Self::Remainder> {
         Err(self)
     }
@@ -1281,9 +1289,9 @@ pub trait DisiunctioEmbedder<Out, Indices> {
     fn embed(self) -> Out;
 }
 
-impl DisiunctioEmbedder<Absurdum, Nihil> for Absurdum {
-    #[inline(always)]
-    fn embed(self) -> Absurdum {
+impl DisiunctioEmbedder<Self, Nihil> for Absurdum {
+    #[inline]
+    fn embed(self) -> Self {
         match self {
         // impossible!
     }
@@ -1292,9 +1300,9 @@ impl DisiunctioEmbedder<Absurdum, Nihil> for Absurdum {
 
 impl<Head, Tail> DisiunctioEmbedder<Disiunctio<Head, Tail>, Nihil> for Absurdum
 where
-    Absurdum: DisiunctioEmbedder<Tail, Nihil>,
+    Self: DisiunctioEmbedder<Tail, Nihil>,
 {
-    #[inline(always)]
+    #[inline]
     fn embed(self) -> Disiunctio<Head, Tail> {
         match self {
         // impossible!
@@ -1311,8 +1319,8 @@ where
     #[inline]
     fn embed(self) -> Out {
         match self {
-            Disiunctio::Sinister(this) => Out::inject(this),
-            Disiunctio::Dexter(those) => those.embed(),
+            Self::Sinister(this) => Out::inject(this),
+            Self::Dexter(those) => those.embed(),
         }
     }
 }
@@ -1454,12 +1462,6 @@ mod tests {
 
     #[test]
     fn test_disiunctio_subset() {
-        type I32StrBool = Disiunctio!(i32, &'static str, bool);
-
-        // Absurdum can be extracted from anything.
-        let res: Result<Absurdum, _> = I32StrBool::inject(3).subset();
-        assert!(res.is_err());
-
         // Compile-only proof: ...including from Absurdum itself. Never called —
         // Absurdum has no values — but the call must type-check. (Written as
         // a tail expression: binding the uninhabited result would trip the
@@ -1467,6 +1469,12 @@ mod tests {
         fn _absurdum_subset_typechecks(absurdum: Absurdum) -> Result<Absurdum, Absurdum> {
             absurdum.subset()
         }
+
+        type I32StrBool = Disiunctio!(i32, &'static str, bool);
+
+        // Absurdum can be extracted from anything.
+        let res: Result<Absurdum, _> = I32StrBool::inject(3).subset();
+        assert!(res.is_err());
 
         {
             // Order does not matter.
@@ -1554,6 +1562,7 @@ mod tests {
     #[test]
     fn test_disiunctio_map_with_ref_mapper() {
         type I32Bool = Disiunctio!(i32, bool);
+        type StrStr = Disiunctio!(String, String);
 
         // HList mapper
 
@@ -1577,8 +1586,6 @@ mod tests {
 
         // Fn mapper
 
-        type StrStr = Disiunctio!(String, String);
-
         let captured = String::from("!");
         let mapper = |s: String| format!("{s}{captured}");
 
@@ -1592,6 +1599,7 @@ mod tests {
     #[test]
     fn test_disiunctio_map_with_mut_mapper() {
         type I32Bool = Disiunctio!(i32, bool);
+        type StrStr = Disiunctio!(String, String);
 
         // HList mapper
 
@@ -1635,8 +1643,6 @@ mod tests {
         assert_eq!(co, I32Bool::inject(3));
 
         // Fn mapper
-
-        type StrStr = Disiunctio!(String, String);
 
         let mut captured = String::new();
         let mut mapper = |s: String| {

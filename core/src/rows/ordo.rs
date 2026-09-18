@@ -32,12 +32,12 @@ pub trait Ordo {
 /// > *"Ex nihilo nihil fit."*
 /// > — From nothing, nothing comes.
 impl Ordo for Nihil {
-    type Fields = Nihil;
+    type Fields = Self;
 }
 
 /// Non-empty row - a record with at least one field.
 impl<H, T: HList> Ordo for Coniunctio<H, T> {
-    type Fields = Coniunctio<H, T>;
+    type Fields = Self;
 }
 
 // =============================================================================
@@ -54,7 +54,7 @@ impl<H, T: HList> Ordo for Coniunctio<H, T> {
 pub trait Disiunctus<Other: Ordo>: Ordo {}
 
 /// Two empty rows are trivially disjoint.
-impl Disiunctus<Nihil> for Nihil {}
+impl Disiunctus<Self> for Nihil {}
 
 /// An empty row is disjoint from any row.
 impl<H, T: HList> Disiunctus<Coniunctio<H, T>> for Nihil {}
@@ -213,17 +213,14 @@ mod tests {
 
     #[test]
     fn test_ordo_ops_numerus() {
-        assert_eq!(<Nihil as OrdoOps>::NUMERUS, 0);
-        assert_eq!(<Coniunctio<(), Nihil> as OrdoOps>::NUMERUS, 1);
-        assert_eq!(
-            <Coniunctio<(), Coniunctio<(), Nihil>> as OrdoOps>::NUMERUS,
-            2
-        );
+        const _: () = assert!(<Nihil as OrdoOps>::NUMERUS == 0);
+        const _: () = assert!(<Coniunctio<(), Nihil> as OrdoOps>::NUMERUS == 1);
+        const _: () = assert!(<Coniunctio<(), Coniunctio<(), Nihil>> as OrdoOps>::NUMERUS == 2);
     }
 
     #[test]
     fn test_bool_values() {
-        assert!(Verum::VALUE);
-        assert!(!Falsum::VALUE);
+        const _: () = assert!(Verum::VALUE);
+        const _: () = assert!(!Falsum::VALUE);
     }
 }

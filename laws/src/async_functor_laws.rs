@@ -28,7 +28,7 @@ use ordofp::async_core::FunctorAsync;
 use std::future::Future;
 
 /// The identity function.
-pub fn id<T>(x: T) -> T {
+pub const fn id<T>(x: T) -> T {
     x
 }
 

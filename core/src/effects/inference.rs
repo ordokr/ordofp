@@ -76,6 +76,7 @@ impl<E: EffectId, R: EffectRow> EffectusWitness<E, R> {
     /// replacing the old `HasEffectType` bound that needed
     /// `generic_const_exprs`.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         const {
             assert!(
@@ -83,7 +84,7 @@ impl<E: EffectId, R: EffectRow> EffectusWitness<E, R> {
                 "effect row is missing the witnessed effect"
             );
         }
-        EffectusWitness {
+        Self {
             _effect: PhantomData,
             _row: PhantomData,
         }
@@ -134,8 +135,9 @@ impl Default for EffectusBuilder<EffectSet<0>> {
 impl EffectusBuilder<EffectSet<0>> {
     /// Start building an effect row.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
-        EffectusBuilder { _row: PhantomData }
+        Self { _row: PhantomData }
     }
 }
 
@@ -157,13 +159,15 @@ impl<const MASK: u128> EffectusBuilder<EffectSet<MASK>> {
     ///     .add::<IoEffectus, { 1 << builtin_ids::IO }>();
     /// ```
     #[inline]
-    pub fn add<E: EffectId, const NEXT: u128>(self) -> EffectusBuilder<EffectSet<NEXT>> {
+    #[must_use]
+    pub const fn add<E: EffectId, const NEXT: u128>(self) -> EffectusBuilder<EffectSet<NEXT>> {
         EffectusBuilder { _row: PhantomData }
     }
 
     /// Get the type of the built row.
     #[inline]
-    pub fn build(self) -> PhantomData<EffectSet<MASK>> {
+    #[must_use]
+    pub const fn build(self) -> PhantomData<EffectSet<MASK>> {
         PhantomData
     }
 }
@@ -236,8 +240,8 @@ impl<E1: EffectId, E2: EffectId, E3: EffectId, E4: EffectId, E5: EffectId> Effec
 ///
 /// Successor to the old `RequireEffects<Effects>` bound, whose conditional
 /// impls needed `generic_const_exprs`.
-#[inline(always)]
-pub fn assert_requires_effects<R: EffectRow, Effects: EffectTuple>() {
+#[inline]
+pub const fn assert_requires_effects<R: EffectRow, Effects: EffectTuple>() {
     const {
         assert!(
             (R::MASK & Effects::MASK) == Effects::MASK,
@@ -253,7 +257,7 @@ pub fn assert_requires_effects<R: EffectRow, Effects: EffectTuple>() {
 pub trait RowEquivalent<Other: EffectRow>: EffectRow {}
 
 // Empty rows are equivalent
-impl RowEquivalent<EffectSet<0>> for EffectSet<0> {}
+impl RowEquivalent<Self> for EffectSet<0> {}
 
 /// Type alias for merged rows.
 ///
@@ -347,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_is_pure() {
-        assert!(<EffectSet<0> as IsPure>::IS_PURE);
+        const _: () = assert!(<EffectSet<0> as IsPure>::IS_PURE);
         // Non-empty rows no longer implement IsPure; use the runtime helper.
         assert!(!IoRow::is_empty());
     }

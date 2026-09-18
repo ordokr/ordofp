@@ -46,7 +46,7 @@ impl<A, B> ParLinearis<A, B> {
     /// Both components must eventually be consumed.
     #[inline]
     pub const fn new(first: A, second: B) -> Self {
-        ParLinearis { first, second }
+        Self { first, second }
     }
 
     /// Split the pair, consuming it and returning both components.
@@ -130,7 +130,7 @@ impl<A, B, C> ParLinearis<ParLinearis<A, B>, C> {
 impl<A: Default, B: Default> Default for ParLinearis<A, B> {
     #[inline]
     fn default() -> Self {
-        ParLinearis::new(A::default(), B::default())
+        Self::new(A::default(), B::default())
     }
 }
 
@@ -152,7 +152,7 @@ impl<A: fmt::Display, B: fmt::Display> fmt::Display for ParLinearis<A, B> {
 impl<A, B> From<(A, B)> for ParLinearis<A, B> {
     #[inline]
     fn from((a, b): (A, B)) -> Self {
-        ParLinearis::new(a, b)
+        Self::new(a, b)
     }
 }
 
@@ -210,7 +210,7 @@ impl<A, B> WithLinearis<A, B> {
     /// Exactly one component must eventually be chosen and consumed.
     #[inline]
     pub const fn new(left: A, right: B) -> Self {
-        WithLinearis { left, right }
+        Self { left, right }
     }
 
     /// Choose the left component, discarding the right.
@@ -241,13 +241,13 @@ impl<A, B> WithLinearis<A, B> {
     ///
     /// Note: This breaks strict linearity but is useful for inspection.
     #[inline]
-    pub fn project_left(&self) -> &A {
+    pub const fn project_left(&self) -> &A {
         &self.left
     }
 
     /// Project the right component (non-consuming peek).
     #[inline]
-    pub fn project_right(&self) -> &B {
+    pub const fn project_right(&self) -> &B {
         &self.right
     }
 
@@ -289,7 +289,7 @@ impl<A, B> WithLinearis<A, B> {
 impl<A: Clone, B: Clone> Clone for WithLinearis<A, B> {
     #[inline]
     fn clone(&self) -> Self {
-        WithLinearis::new(self.left.clone(), self.right.clone())
+        Self::new(self.left.clone(), self.right.clone())
     }
 }
 
@@ -325,21 +325,21 @@ impl<A, B> AdditiveChoice<A, B> {
     /// Check if the left was chosen.
     #[inline]
     pub const fn is_left(&self) -> bool {
-        matches!(self, AdditiveChoice::Left(_))
+        matches!(self, Self::Left(_))
     }
 
     /// Check if the right was chosen.
     #[inline]
     pub const fn is_right(&self) -> bool {
-        matches!(self, AdditiveChoice::Right(_))
+        matches!(self, Self::Right(_))
     }
 
     /// Get the left value if present.
     #[inline]
     pub fn left(self) -> Option<A> {
         match self {
-            AdditiveChoice::Left(a) => Some(a),
-            AdditiveChoice::Right(_) => None,
+            Self::Left(a) => Some(a),
+            Self::Right(_) => None,
         }
     }
 
@@ -347,8 +347,8 @@ impl<A, B> AdditiveChoice<A, B> {
     #[inline]
     pub fn right(self) -> Option<B> {
         match self {
-            AdditiveChoice::Left(_) => None,
-            AdditiveChoice::Right(b) => Some(b),
+            Self::Left(_) => None,
+            Self::Right(b) => Some(b),
         }
     }
 
@@ -360,8 +360,8 @@ impl<A, B> AdditiveChoice<A, B> {
         G: FnOnce(B) -> D,
     {
         match self {
-            AdditiveChoice::Left(a) => AdditiveChoice::Left(f(a)),
-            AdditiveChoice::Right(b) => AdditiveChoice::Right(g(b)),
+            Self::Left(a) => AdditiveChoice::Left(f(a)),
+            Self::Right(b) => AdditiveChoice::Right(g(b)),
         }
     }
 
@@ -373,8 +373,8 @@ impl<A, B> AdditiveChoice<A, B> {
         G: FnOnce(B) -> C,
     {
         match self {
-            AdditiveChoice::Left(a) => f(a),
-            AdditiveChoice::Right(b) => g(b),
+            Self::Left(a) => f(a),
+            Self::Right(b) => g(b),
         }
     }
 }
@@ -382,8 +382,8 @@ impl<A, B> AdditiveChoice<A, B> {
 impl<A: fmt::Display, B: fmt::Display> fmt::Display for AdditiveChoice<A, B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AdditiveChoice::Left(a) => write!(f, "Left({a})"),
-            AdditiveChoice::Right(b) => write!(f, "Right({b})"),
+            Self::Left(a) => write!(f, "Left({a})"),
+            Self::Right(b) => write!(f, "Right({b})"),
         }
     }
 }

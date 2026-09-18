@@ -1,4 +1,4 @@
-//! Cross-platform verification driver for OrdoFP.
+//! Cross-platform verification driver for `OrdoFP`.
 //!
 //! This repository has no hosted CI by design: every verification dimension
 //! is machine-owned *locally* by this crate, so any shell on any dev box runs
@@ -557,8 +557,8 @@ fn asan_dll_dir() -> Option<std::path::PathBuf> {
 /// fuzz claim in `SECURITY.md`.
 ///
 /// These are oracle checks over *safe* API surface: pfds diffs `Stack`/`Queue`
-/// against `VecDeque`, zipper and Universalis check round-trips, NonEmpty
-/// exercises the total-API contracts, and the law target drives the QuickCheck
+/// against `VecDeque`, zipper and Universalis check round-trips, `NonEmpty`
+/// exercises the total-API contracts, and the law target drives the `QuickCheck`
 /// properties. No target reaches an `unsafe`-bearing module — UB detection is
 /// Miri's job (see [`MIRI_CORE_FILTERS`]), not the fuzzer's, and
 /// [`assert_fuzz_scope_matches_targets`] prints that boundary on every run so a
@@ -686,6 +686,84 @@ fn fuzz_smoke() {
     }
 }
 
+/// One `perf_guard` reference case: expected checksum and allocation counters.
+struct PerfCase {
+    mode: &'static str,
+    args: &'static [&'static str],
+    checksum: &'static str,
+    allocs: u64,
+    bytes: u64,
+}
+
+/// Extracts the digits following `key` in `out` (e.g. "allocs=54639").
+#[must_use]
+fn perf_field(out: &str, key: &str) -> Option<u64> {
+    let start = out.find(key)? + key.len();
+    let digits: String = out[start..]
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
+/// Runs one [`PerfCase`] against the built `e2e_allocs` binary; returns whether
+/// the checksum and allocation counters all match their references.
+#[must_use]
+fn run_perf_case(exe: &str, case: &PerfCase) -> bool {
+    let output = Command::new(exe).args(case.args).output();
+    let Ok(output) = output else {
+        eprintln!("FAIL [{}]: could not run {exe}", case.mode);
+        exit(1);
+    };
+    let out = String::from_utf8_lossy(&output.stdout);
+
+    let checksum = out.find("checksum=").map_or_else(
+        || "<missing>".to_string(),
+        |i| {
+            out[i + "checksum=".len()..]
+                .chars()
+                .take_while(|c| c.is_ascii_hexdigit() || *c == 'x')
+                .collect::<String>()
+        },
+    );
+    let steady = out
+        .find("steady_per_rep:")
+        .map(|i| &out[i..])
+        .unwrap_or_default();
+    let allocs = perf_field(steady, "allocs=");
+    let bytes = perf_field(steady, "bytes=");
+
+    let checksum_ok = checksum == case.checksum;
+    if !checksum_ok {
+        eprintln!(
+            "FAIL [{}]: checksum {checksum} != expected {} (BEHAVIOR CHANGED)",
+            case.mode, case.checksum
+        );
+    }
+    let allocs_ok = allocs == Some(case.allocs);
+    if !allocs_ok {
+        eprintln!(
+            "FAIL [{}]: steady allocs/rep {allocs:?} != expected {}",
+            case.mode, case.allocs
+        );
+    }
+    let bytes_ok = bytes == Some(case.bytes);
+    if !bytes_ok {
+        eprintln!(
+            "FAIL [{}]: steady bytes/rep {bytes:?} != expected {}",
+            case.mode, case.bytes
+        );
+    }
+    let ok = checksum_ok && allocs_ok && bytes_ok;
+    if ok {
+        println!(
+            "PASS [{}]: checksum {checksum}, allocs/rep {}, bytes/rep {}",
+            case.mode, case.allocs, case.bytes
+        );
+    }
+    ok
+}
+
 /// Deterministic perf/behavior regression guard for the e2e verdict workload.
 ///
 /// Asserts, for both workload modes:
@@ -698,23 +776,16 @@ fn fuzz_smoke() {
 /// sessions for time verdicts. An intentional behavior change must
 /// re-record the reference values below with a fresh measurement.
 fn perf_guard() {
-    struct Case {
-        mode: &'static str,
-        args: &'static [&'static str],
-        checksum: &'static str,
-        allocs: u64,
-        bytes: u64,
-    }
     // Reference values recorded at ErrorBuf=[E;4].
     let expected = [
-        Case {
+        PerfCase {
             mode: "steady",
             args: &["--reps", "10"],
             checksum: "0x2018fd5f861c282f",
             allocs: 54639,
             bytes: 1_799_437,
         },
-        Case {
+        PerfCase {
             mode: "error-heavy",
             args: &["--mode", "error-heavy", "--reps", "10"],
             checksum: "0x7ddbc91595b27746",
@@ -740,69 +811,9 @@ fn perf_guard() {
         "target/release/examples/e2e_allocs{}",
         std::env::consts::EXE_SUFFIX
     );
-    // Extracts the digits following `key` in `out` (e.g. "allocs=54639").
-    fn field(out: &str, key: &str) -> Option<u64> {
-        let start = out.find(key)? + key.len();
-        let digits: String = out[start..]
-            .chars()
-            .take_while(char::is_ascii_digit)
-            .collect();
-        digits.parse().ok()
-    }
-
     let mut failed = false;
     for case in &expected {
-        let output = Command::new(&exe).args(case.args).output();
-        let Ok(output) = output else {
-            eprintln!("FAIL [{}]: could not run {exe}", case.mode);
-            exit(1);
-        };
-        let out = String::from_utf8_lossy(&output.stdout);
-
-        let checksum = out.find("checksum=").map_or_else(
-            || "<missing>".to_string(),
-            |i| {
-                out[i + "checksum=".len()..]
-                    .chars()
-                    .take_while(|c| c.is_ascii_hexdigit() || *c == 'x')
-                    .collect::<String>()
-            },
-        );
-        let steady = out
-            .find("steady_per_rep:")
-            .map(|i| &out[i..])
-            .unwrap_or_default();
-        let allocs = field(steady, "allocs=");
-        let bytes = field(steady, "bytes=");
-
-        let mut ok = true;
-        if checksum != case.checksum {
-            eprintln!(
-                "FAIL [{}]: checksum {checksum} != expected {} (BEHAVIOR CHANGED)",
-                case.mode, case.checksum
-            );
-            ok = false;
-        }
-        if allocs != Some(case.allocs) {
-            eprintln!(
-                "FAIL [{}]: steady allocs/rep {allocs:?} != expected {}",
-                case.mode, case.allocs
-            );
-            ok = false;
-        }
-        if bytes != Some(case.bytes) {
-            eprintln!(
-                "FAIL [{}]: steady bytes/rep {bytes:?} != expected {}",
-                case.mode, case.bytes
-            );
-            ok = false;
-        }
-        if ok {
-            println!(
-                "PASS [{}]: checksum {checksum}, allocs/rep {}, bytes/rep {}",
-                case.mode, case.allocs, case.bytes
-            );
-        } else {
+        if !run_perf_case(&exe, case) {
             failed = true;
         }
     }

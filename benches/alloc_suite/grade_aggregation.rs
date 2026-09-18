@@ -156,14 +156,8 @@ fn calculate_statistics_inplace(scores: &[Decimal]) -> GradeStatistics {
         acc.count += 1;
         acc.sum += s;
         acc.sum_of_squares += s * s;
-        acc.min = Some(match acc.min {
-            Some(m) => m.min(s),
-            None => s,
-        });
-        acc.max = Some(match acc.max {
-            Some(m) => m.max(s),
-            None => s,
-        });
+        acc.min = Some(acc.min.map_or(s, |m| m.min(s)));
+        acc.max = Some(acc.max.map_or(s, |m| m.max(s)));
     }
     acc
 }
@@ -187,7 +181,12 @@ fn weighted_average_inplace(grades: &[(Decimal, Decimal)]) -> Option<Decimal> {
 fn realistic_scores(n: usize) -> Vec<Decimal> {
     // Grades in [0.00, 100.00] with 2-decimal precision (scale = 2), like a gradebook.
     (0..n)
-        .map(|i| Decimal::new(((i as i64 * 137) % 10001).abs(), 2))
+        .map(|i| {
+            Decimal::new(
+                ((i64::try_from(i).expect("benchmark index fits in i64") * 137) % 10001).abs(),
+                2,
+            )
+        })
         .collect()
 }
 
@@ -198,7 +197,16 @@ fn bench(c: &mut Criterion) {
         let scores = realistic_scores(n);
         let weighted: Vec<(Decimal, Decimal)> = scores
             .iter()
-            .map(|&s| (s, Decimal::new(((s.mantissa() % 5) + 1) as i64, 0)))
+            .map(|&s| {
+                (
+                    s,
+                    Decimal::new(
+                        i64::try_from((s.mantissa() % 5) + 1)
+                            .expect("small mantissa expression fits in i64"),
+                        0,
+                    ),
+                )
+            })
             .collect();
 
         // The real consumer pattern: map→Semigroup fold (fresh Self per step).

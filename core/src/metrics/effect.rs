@@ -39,7 +39,7 @@ pub struct MensuraEffectus {
 impl MensuraEffectus {
     /// Create new effect metrics.
     pub fn new(effect_id: u64, effect_name: impl Into<String>) -> Self {
-        MensuraEffectus {
+        Self {
             effect_id,
             effect_name: effect_name.into(),
             operations: Numerator::new(),
@@ -52,7 +52,7 @@ impl MensuraEffectus {
 
     /// Get the effect ID.
     #[inline]
-    pub fn effect_id(&self) -> u64 {
+    pub const fn effect_id(&self) -> u64 {
         self.effect_id
     }
 
@@ -132,7 +132,10 @@ impl MensuraEffectus {
     /// `u64 as f64` loses precision only past 2^52 operations, far beyond any
     /// realistic counter value — inherent to exporting a counter ratio as a float.
     #[inline]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "u64 counters as f64 ratios; lossy only past 2^52"
+    )]
     pub fn success_rate(&self) -> f64 {
         let total = self.total_operations();
         if total == 0 {
@@ -174,7 +177,7 @@ impl MensuraEffectus {
 
     /// Get the latency histogram.
     #[inline]
-    pub fn latency_histogram(&self) -> &Distributio {
+    pub const fn latency_histogram(&self) -> &Distributio {
         &self.latency
     }
 
@@ -226,7 +229,11 @@ impl EffectMetricsSummary {
     ///
     /// `u64 as f64` loses precision only past 2^52 operations, far beyond any
     /// realistic counter value — inherent to exporting a counter ratio as a float.
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "u64 counters as f64 ratios; lossy only past 2^52"
+    )]
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.total_operations == 0 {
             1.0
@@ -261,7 +268,7 @@ impl<'a> OperationScope<'a> {
     }
 
     /// Mark the operation as failed.
-    pub fn fail(&mut self) {
+    pub const fn fail(&mut self) {
         self.success = false;
     }
 
@@ -319,7 +326,7 @@ mod tests {
         assert_eq!(metrics.total_operations(), 1);
         assert_eq!(metrics.success_count(), 0);
         assert_eq!(metrics.failure_count(), 1);
-        assert_eq!(metrics.error_rate(), 1.0);
+        assert_eq!(metrics.error_rate().to_bits(), 1.0f64.to_bits());
     }
 
     #[test]
@@ -335,8 +342,8 @@ mod tests {
         assert!(metrics.latency_percentile_ns(50.0).is_some());
     }
 
-    /// M14 regression: record_success without a paired operation_start wrapped
-    /// the in-flight gauge to u64::MAX.
+    /// M14 regression: `record_success` without a paired `operation_start` wrapped
+    /// the in-flight gauge to `u64::MAX`.
     #[test]
     fn gauge_saturates_at_zero() {
         let metrics = MensuraEffectus::new(1, "Unpaired");
@@ -360,6 +367,6 @@ mod tests {
         assert_eq!(summary.total_operations, 2);
         assert_eq!(summary.successes, 1);
         assert_eq!(summary.failures, 1);
-        assert_eq!(summary.success_rate(), 0.5);
+        assert_eq!(summary.success_rate().to_bits(), 0.5f64.to_bits());
     }
 }

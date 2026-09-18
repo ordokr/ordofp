@@ -143,12 +143,14 @@ where
 impl<R> Variatio<R> {
     /// Get the type tag of the current case.
     #[inline]
-    pub fn tag(&self) -> TypeId {
+    #[must_use]
+    pub const fn tag(&self) -> TypeId {
         self.tag
     }
 
     /// Check if this variant holds a specific case.
     #[inline]
+    #[must_use]
     pub fn is<Label: 'static>(&self) -> bool {
         self.tag == TypeId::of::<Label>()
     }
@@ -157,6 +159,7 @@ impl<R> Variatio<R> {
     ///
     /// Returns `Some(value)` if the variant holds this case, `None` otherwise.
     #[inline]
+    #[must_use]
     pub fn try_get<Label: 'static, Value: 'static>(&self) -> Option<&Value> {
         if self.is::<Label>() {
             self.value.downcast_ref()
@@ -169,7 +172,8 @@ impl<R> Variatio<R> {
     ///
     /// Returns a `MatchBuilder` that can be used to handle each case.
     #[inline]
-    pub fn match_on(self) -> MatchBuilder<R, Nihil> {
+    #[must_use]
+    pub const fn match_on(self) -> MatchBuilder<R, Nihil> {
         MatchBuilder {
             variant: self,
             _handled: PhantomData,
@@ -222,7 +226,7 @@ impl<R> Variatio<R> {
                 .expect("unreachable: HabetCasum bound guarantees the value type for this label");
             CaseResult::Matched(f(value))
         } else {
-            CaseResult::Unmatched(Variatio {
+            CaseResult::Unmatched(Self {
                 tag: self.tag,
                 value: self.value,
                 _row: PhantomData,
@@ -277,7 +281,8 @@ pub enum CaseResult<R, T> {
 impl<R, T> CaseResult<R, T> {
     /// Handle another case.
     #[inline]
-    pub fn on<Label, Value, F, Index>(self, f: F) -> CaseResult<R, T>
+    #[must_use]
+    pub fn on<Label, Value, F, Index>(self, f: F) -> Self
     where
         Label: 'static,
         Value: 'static,
@@ -285,8 +290,8 @@ impl<R, T> CaseResult<R, T> {
         R: HabetCasum<Label, Value, Index>,
     {
         match self {
-            CaseResult::Matched(t) => CaseResult::Matched(t),
-            CaseResult::Unmatched(v) => v.on::<Label, Value, F, T, Index>(f),
+            Self::Matched(t) => Self::Matched(t),
+            Self::Unmatched(v) => v.on::<Label, Value, F, T, Index>(f),
         }
     }
 
@@ -294,8 +299,8 @@ impl<R, T> CaseResult<R, T> {
     #[inline]
     pub fn otherwise(self, default: T) -> T {
         match self {
-            CaseResult::Matched(t) => t,
-            CaseResult::Unmatched(_) => default,
+            Self::Matched(t) => t,
+            Self::Unmatched(_) => default,
         }
     }
 
@@ -303,8 +308,8 @@ impl<R, T> CaseResult<R, T> {
     #[inline]
     pub fn otherwise_with<F: FnOnce() -> T>(self, f: F) -> T {
         match self {
-            CaseResult::Matched(t) => t,
-            CaseResult::Unmatched(_) => f(),
+            Self::Matched(t) => t,
+            Self::Unmatched(_) => f(),
         }
     }
 
@@ -314,8 +319,8 @@ impl<R, T> CaseResult<R, T> {
     #[inline]
     pub fn exhaust(self) -> T {
         match self {
-            CaseResult::Matched(t) => t,
-            CaseResult::Unmatched(_) => crate::cold_panic!("non-exhaustive match on Variatio"),
+            Self::Matched(t) => t,
+            Self::Unmatched(_) => crate::cold_panic!("non-exhaustive match on Variatio"),
         }
     }
 }

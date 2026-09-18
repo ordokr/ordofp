@@ -75,7 +75,7 @@ pub struct StatusAsync<S, A> {
 
 impl<S, A> Clone for StatusAsync<S, A> {
     fn clone(&self) -> Self {
-        StatusAsync {
+        Self {
             run_fn: Arc::clone(&self.run_fn),
             _phantom: PhantomData,
         }
@@ -122,7 +122,7 @@ where
         F: Fn(S) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = (S, A)> + Send + 'static,
     {
-        StatusAsync {
+        Self {
             run_fn: Arc::new(move |s| Box::pin(f(s))),
             _phantom: PhantomData,
         }
@@ -206,7 +206,7 @@ where
     where
         A: Clone + Send + Sync + 'static,
     {
-        StatusAsync::new(move |s: S| {
+        Self::new(move |s: S| {
             let v = value.clone();
             async move { (s, v) }
         })
@@ -241,6 +241,7 @@ where
     /// assert_eq!(result, 42);
     /// ```
     #[inline]
+    #[must_use]
     pub fn get() -> StatusAsync<S, S>
     where
         S: Clone,
@@ -497,6 +498,7 @@ where
 
     /// Sequence this computation before another, discarding the first result.
     #[inline]
+    #[must_use]
     pub fn then<B>(self, next: StatusAsync<S, B>) -> StatusAsync<S, B>
     where
         B: Send + 'static,
@@ -506,13 +508,14 @@ where
 
     /// Sequence this computation before another, keeping only the first result.
     #[inline]
-    pub fn skip<B>(self, next: StatusAsync<S, B>) -> StatusAsync<S, A>
+    #[must_use]
+    pub fn skip<B>(self, next: StatusAsync<S, B>) -> Self
     where
         B: Send + 'static,
         A: Clone + Send + Sync + 'static,
     {
         self.flat_map(move |a| {
-            let a_clone = a.clone();
+            let a_clone = a;
             next.clone().fmap(move |_| a_clone.clone())
         })
     }
@@ -562,7 +565,7 @@ where
         let shared_fut: FutureSlot<A> = Arc::new(std::sync::Mutex::new(Some(Box::pin(fut))));
         let result_cache: Arc<OnceLock<A>> = Arc::new(OnceLock::new());
 
-        StatusAsync {
+        Self {
             run_fn: Arc::new(move |s: S| {
                 let shared_fut = Arc::clone(&shared_fut);
                 let result_cache = Arc::clone(&result_cache);
@@ -639,7 +642,7 @@ mod tests {
     #[test]
     fn test_status_async_clone() {
         let state: StatusAsync<i32, i32> = StatusAsync::<i32, i32>::get();
-        let _cloned = state.clone();
+        let _cloned = state;
     }
 
     #[test]

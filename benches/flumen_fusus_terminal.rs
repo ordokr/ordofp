@@ -1,3 +1,5 @@
+//! Benchmarks fused-flumen terminal operations.
+
 #[cfg(all(feature = "async", feature = "fusion"))]
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 #[cfg(all(feature = "async", feature = "fusion"))]
@@ -14,9 +16,9 @@ mod terminal_benches {
         unsafe fn clone(_: *const ()) -> RawWaker {
             RawWaker::new(core::ptr::null(), &VTABLE)
         }
-        unsafe fn wake(_: *const ()) {}
-        unsafe fn wake_by_ref(_: *const ()) {}
-        unsafe fn drop(_: *const ()) {}
+        const unsafe fn wake(_: *const ()) {}
+        const unsafe fn wake_by_ref(_: *const ()) {}
+        const unsafe fn drop(_: *const ()) {}
         static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
         unsafe { Waker::from_raw(RawWaker::new(core::ptr::null(), &VTABLE)) }
     }
@@ -39,7 +41,8 @@ mod terminal_benches {
         let mut group = c.benchmark_group("FlumenFusus/All");
 
         for &n in SIZES {
-            let data: Vec<i32> = (0..n as i32).collect();
+            let data: Vec<i32> =
+                (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
 
             // Worst case: predicate always true, must drain entire stream
             group.bench_with_input(BenchmarkId::new("AllTrue", n), &n, |b, _| {
@@ -65,7 +68,8 @@ mod terminal_benches {
         let mut group = c.benchmark_group("FlumenFusus/Last");
 
         for &n in SIZES {
-            let data: Vec<i32> = (0..n as i32).collect();
+            let data: Vec<i32> =
+                (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
 
             // last always drains the entire stream (no early exit possible)
             group.bench_with_input(BenchmarkId::new("DrainAll", n), &n, |b, _| {
@@ -82,7 +86,8 @@ mod terminal_benches {
     pub fn bench_nth(c: &mut Criterion) {
         let mut group = c.benchmark_group("FlumenFusus/Nth");
         let n = 10_000usize;
-        let data: Vec<i32> = (0..n as i32).collect();
+        let data: Vec<i32> =
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
 
         // nth at index 0: exits after first element
         group.bench_function("Index0", |b| {
@@ -122,7 +127,8 @@ mod terminal_benches {
     pub fn bench_position(c: &mut Criterion) {
         let mut group = c.benchmark_group("FlumenFusus/Position");
         let n = 10_000usize;
-        let data: Vec<i32> = (0..n as i32).collect();
+        let data: Vec<i32> =
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
 
         // position at start: exits immediately
         group.bench_function("FoundFirst", |b| {
@@ -137,7 +143,7 @@ mod terminal_benches {
         // position at middle
         group.bench_function("FoundMid", |b| {
             b.iter(|| {
-                let mid = (n / 2) as i32;
+                let mid = i32::try_from(n / 2).expect("benchmark input size fits in i32");
                 let fut = Flumen::from_iterator(data.clone())
                     .fuse()
                     .position(move |x| *x == mid);

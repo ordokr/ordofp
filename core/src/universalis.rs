@@ -111,6 +111,7 @@ pub trait Universalis {
     /// the representation type `Repr`, then applying a `mapper` function
     /// on `Repr` and finally transforming it back to a value of type `Self`.
     #[inline]
+    #[must_use]
     fn map_repr<Mapper>(self, mapper: Mapper) -> Self
     where
         Self: Sized,
@@ -124,6 +125,7 @@ pub trait Universalis {
     /// then applying a `mapper` function on `Inter` and finally transforming
     /// it back to a value of type `Self`.
     #[inline]
+    #[must_use]
     fn map_inter<Inter, Mapper>(self, mapper: Mapper) -> Self
     where
         Self: Sized,
@@ -208,7 +210,7 @@ mod tests {
             self.0
         }
         fn from(repr: f64) -> Self {
-            Meters(repr)
+            Self(repr)
         }
     }
 
@@ -218,7 +220,7 @@ mod tests {
             self.0
         }
         fn from(repr: f64) -> Self {
-            Feet(repr)
+            Self(repr)
         }
     }
 
@@ -237,7 +239,7 @@ mod tests {
         let repr: f64 = 1.75;
         let value = <Meters as Universalis>::from(repr);
         let recovered: f64 = Universalis::into(value);
-        assert_eq!(recovered, repr);
+        assert_eq!(recovered.to_bits(), repr.to_bits());
     }
 
     #[test]

@@ -125,25 +125,28 @@ impl GpuWgpu {
 
     /// Get the wgpu device.
     #[inline]
+    #[must_use]
     pub fn device(&self) -> &Device {
         &self.device
     }
 
     /// Get the wgpu queue.
     #[inline]
+    #[must_use]
     pub fn queue(&self) -> &Queue {
         &self.queue
     }
 
     /// Get the minimum length threshold.
     #[inline]
-    pub fn min_len(&self) -> usize {
+    #[must_use]
+    pub const fn min_len(&self) -> usize {
         self.min_len
     }
 
     /// Get the kernel cache (for internal use).
     #[inline]
-    pub(crate) fn kernel_cache(&self) -> &Arc<Mutex<KernelCache>> {
+    pub(crate) const fn kernel_cache(&self) -> &Arc<Mutex<KernelCache>> {
         &self.kernel_cache
     }
 }

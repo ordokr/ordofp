@@ -7,6 +7,15 @@ edition = "2024"
 [package.metadata]
 cargo-fuzz = true
 
+# Outside the workspace (own lockfile) so the workspace table cannot be
+# inherited; the enforced gate is restated here explicitly.
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
 [dependencies]
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }

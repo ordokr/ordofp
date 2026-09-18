@@ -121,7 +121,7 @@ impl<F: HKT, A: 'static> Yoneda<F, A> {
     where
         Run: for<'a> FnOnce(&'a dyn Fn(A) -> A) -> F::Target<A> + Send + 'static,
     {
-        Yoneda {
+        Self {
             run: Box::new(run),
             _phantom: core::marker::PhantomData,
         }
@@ -131,6 +131,7 @@ impl<F: HKT, A: 'static> Yoneda<F, A> {
     ///
     /// This applies all accumulated transformations.
     #[inline]
+    #[must_use]
     pub fn lower(self) -> F::Target<A> {
         (self.run)(&|a| a)
     }
@@ -220,7 +221,7 @@ impl<F: HKT, A: 'static> Coyoneda<F, A> {
     where
         F::Target<A>: Send + 'static,
     {
-        Coyoneda {
+        Self {
             pivot: CoyonedaPivot {
                 value: Box::new(fa),
                 _phantom: core::marker::PhantomData,
@@ -251,6 +252,7 @@ impl<F: HKT, A: 'static> Coyoneda<F, A> {
 
     /// Check if the Coyoneda contains a specific type.
     #[inline]
+    #[must_use]
     pub fn is_type<T: 'static>(&self) -> bool {
         self.pivot.value.is::<T>()
     }
@@ -298,7 +300,7 @@ impl<G: HKT, H: HKT, A: 'static> ExtensioKanDextra<G, H, A> {
     where
         Run: FnOnce(Box<dyn FnOnce(A) -> H::Target<A>>) -> G::Target<A> + Send + 'static,
     {
-        ExtensioKanDextra {
+        Self {
             run: Box::new(run),
             _phantom: core::marker::PhantomData,
         }
@@ -380,7 +382,7 @@ impl<G: HKT, H: HKT, A: 'static> ExtensioKanSinistra<G, H, A> {
         G::Target<B>: Send + 'static,
         H::Target<B>: 'static,
     {
-        ExtensioKanSinistra {
+        Self {
             existential: LanExistential {
                 gb: Box::new(gb),
                 transform: Box::new(move |any| {
@@ -451,7 +453,7 @@ impl<G: HKT, A: 'static> Codensitas<G, A> {
     where
         Run: FnOnce(Box<dyn FnOnce(A) -> G::Target<A>>) -> G::Target<A> + Send + 'static,
     {
-        Codensitas {
+        Self {
             run: Box::new(run),
             _phantom: core::marker::PhantomData,
         }
@@ -463,7 +465,7 @@ impl<G: HKT, A: 'static> Codensitas<G, A> {
     where
         A: Send + 'static,
     {
-        Codensitas::new(move |k| k(a))
+        Self::new(move |k| k(a))
     }
 
     // Deliberately no `map`; see the Yoneda note above.
@@ -525,6 +527,7 @@ impl<M> CodensitasT<M> {
 
     /// Lower (convert back to base monad).
     #[inline]
+    #[must_use]
     pub fn lower(self) -> M
     where
         M: Clone + Send + 'static,
@@ -590,7 +593,7 @@ impl<G: HKT, A: 'static> Densitas<G, A> {
     where
         G::Target<B>: Send + 'static,
     {
-        Densitas {
+        Self {
             inner: DensitasInner {
                 gb: Box::new(gb),
                 extract: Box::new(move |any| {
@@ -606,6 +609,7 @@ impl<G: HKT, A: 'static> Densitas<G, A> {
 
     /// Extract the value from the Density (comonad extract).
     #[inline]
+    #[must_use]
     pub fn extractum(self) -> A {
         (self.inner.extract)(self.inner.gb)
     }
@@ -686,7 +690,7 @@ impl<F: HKT, G: HKT, A: 'static> ConvolutioDiei<F, G, A> {
         F::Target<B>: Send + 'static,
         G::Target<C>: Send + 'static,
     {
-        ConvolutioDiei {
+        Self {
             inner: DayInner {
                 fb: Box::new(fb),
                 gc: Box::new(gc),

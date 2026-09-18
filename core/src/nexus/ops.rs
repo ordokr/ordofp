@@ -30,16 +30,16 @@ use super::row::{EffectRow, Pure};
 /// let comp: Eff<Pure, i32> = pure(42);
 /// assert_eq!(comp.run_pure(), 42);
 /// ```
-#[inline(always)]
-pub fn pure<A>(value: A) -> Eff<Pure, A> {
+#[inline]
+pub const fn pure<A>(value: A) -> Eff<Pure, A> {
     Eff::pure(value)
 }
 
 /// Lift a value into any effect row.
 ///
 /// Unlike `pure`, this works for any effect row, not just `Pure`.
-#[inline(always)]
-pub fn lift<R: EffectRow, A>(value: A) -> Eff<R, A> {
+#[inline]
+pub const fn lift<R: EffectRow, A>(value: A) -> Eff<R, A> {
     Eff::from_value(value)
 }
 
@@ -166,6 +166,7 @@ pub fn tuple<R: EffectRow + 'static, A: 'static, B: 'static>(
 /// assert_eq!(comp.run_pure(), vec![1, 2, 3]);
 /// ```
 #[inline]
+#[must_use]
 pub fn sequence_vec<R: EffectRow + 'static, A: 'static>(
     effs: alloc::vec::Vec<Eff<R, A>>,
 ) -> Eff<R, alloc::vec::Vec<A>> {

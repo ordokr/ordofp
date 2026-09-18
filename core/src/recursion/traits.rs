@@ -122,6 +122,6 @@ impl<F: FunctorHKT> Recursiva for Fix<F> {
 impl<F: FunctorHKT> Corecursiva for Fix<F> {
     #[inline]
     fn embed(layer: F::Target<Self>) -> Self {
-        Fix(Box::new(layer))
+        Self(Box::new(layer))
     }
 }

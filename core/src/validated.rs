@@ -51,7 +51,7 @@ mod error_buf_serde {
     /// Serialize an `ErrorBuf` as a flat sequence of errors.
     ///
     /// Used by `#[serde(with = "error_buf_serde")]` on `ErrorBuf` fields.
-    pub(crate) fn serialize<S, E>(buf: &ErrorBuf<E>, serializer: S) -> Result<S::Ok, S::Error>
+    pub(super) fn serialize<S, E>(buf: &ErrorBuf<E>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
         E: serde::Serialize,
@@ -62,7 +62,7 @@ mod error_buf_serde {
     /// Deserialize an `ErrorBuf` from a flat sequence of errors.
     ///
     /// Used by `#[serde(with = "error_buf_serde")]` on `ErrorBuf` fields.
-    pub(crate) fn deserialize<'de, D, E>(deserializer: D) -> Result<ErrorBuf<E>, D::Error>
+    pub(super) fn deserialize<'de, D, E>(deserializer: D) -> Result<ErrorBuf<E>, D::Error>
     where
         D: serde::Deserializer<'de>,
         E: serde::Deserialize<'de>,
@@ -74,44 +74,44 @@ mod error_buf_serde {
 
 impl<E, A> Probatum<E, A> {
     /// Construct a valid value.
-    pub fn valid(a: A) -> Self {
-        Probatum::Valid(a)
+    pub const fn valid(a: A) -> Self {
+        Self::Valid(a)
     }
 
     /// Construct a single error.
     pub fn invalid(err: E) -> Self {
-        Probatum::Invalid(core::iter::once(err).collect())
+        Self::Invalid(core::iter::once(err).collect())
     }
 
     /// Construct from many errors.
     pub fn invalid_many<I: IntoIterator<Item = E>>(iter: I) -> Self {
         let buf: ErrorBuf<E> = iter.into_iter().collect();
-        Probatum::Invalid(buf)
+        Self::Invalid(buf)
     }
 
     /// Returns true if this is `Valid`.
-    pub fn is_valid(&self) -> bool {
-        matches!(self, Probatum::Valid(_))
+    pub const fn is_valid(&self) -> bool {
+        matches!(self, Self::Valid(_))
     }
 
     /// Returns true if this is `Invalid`.
-    pub fn is_invalid(&self) -> bool {
+    pub const fn is_invalid(&self) -> bool {
         !self.is_valid()
     }
 
     /// Borrow the success value.
-    pub fn value(&self) -> Option<&A> {
+    pub const fn value(&self) -> Option<&A> {
         match self {
-            Probatum::Valid(a) => Some(a),
-            _ => None,
+            Self::Valid(a) => Some(a),
+            Self::Invalid(_) => None,
         }
     }
 
     /// Borrow the accumulated errors.
     pub fn errors(&self) -> Option<&[E]> {
         match self {
-            Probatum::Invalid(es) => Some(es.as_slice()),
-            _ => None,
+            Self::Invalid(es) => Some(es.as_slice()),
+            Self::Valid(_) => None,
         }
     }
 
@@ -123,8 +123,8 @@ impl<E, A> Probatum<E, A> {
     /// `Invalid`; every collected error is preserved, in order.
     pub fn into_result(self) -> Result<A, ErrorBuf<E>> {
         match self {
-            Probatum::Valid(a) => Ok(a),
-            Probatum::Invalid(es) => Err(es),
+            Self::Valid(a) => Ok(a),
+            Self::Invalid(es) => Err(es),
         }
     }
 
@@ -143,8 +143,8 @@ impl<E, A> Probatum<E, A> {
         F: FnMut(A) -> B,
     {
         match self {
-            Probatum::Valid(a) => Probatum::Valid(f(a)),
-            Probatum::Invalid(e) => Probatum::Invalid(e),
+            Self::Valid(a) => Probatum::Valid(f(a)),
+            Self::Invalid(e) => Probatum::Invalid(e),
         }
     }
 
@@ -163,8 +163,8 @@ impl<E, A> Probatum<E, A> {
         F: FnMut(E) -> E2,
     {
         match self {
-            Probatum::Valid(a) => Probatum::Valid(a),
-            Probatum::Invalid(es) => Probatum::Invalid(es.into_iter().map(f).collect()),
+            Self::Valid(a) => Probatum::Valid(a),
+            Self::Invalid(es) => Probatum::Invalid(es.into_iter().map(f).collect()),
         }
     }
 
@@ -174,12 +174,12 @@ impl<E, A> Probatum<E, A> {
         F: FnMut(A, B) -> C,
     {
         match (self, vb) {
-            (Probatum::Valid(a), Probatum::Valid(b)) => Probatum::Valid(f(a, b)),
-            (Probatum::Invalid(mut e1), Probatum::Invalid(e2)) => {
+            (Self::Valid(a), Probatum::Valid(b)) => Probatum::Valid(f(a, b)),
+            (Self::Invalid(mut e1), Probatum::Invalid(e2)) => {
                 e1.extend(e2);
                 Probatum::Invalid(e1)
             }
-            (Probatum::Invalid(e), _) | (_, Probatum::Invalid(e)) => Probatum::Invalid(e),
+            (Self::Invalid(e), _) | (_, Probatum::Invalid(e)) => Probatum::Invalid(e),
         }
     }
 
@@ -212,7 +212,7 @@ impl<E, A> Probatum<E, A> {
     }
 
     /// Lift two Probatum values with a combining function.
-    pub fn lift2<B, C, F>(f: F, va: Probatum<E, A>, vb: Probatum<E, B>) -> Probatum<E, C>
+    pub fn lift2<B, C, F>(f: F, va: Self, vb: Probatum<E, B>) -> Probatum<E, C>
     where
         F: FnMut(A, B) -> C,
     {
@@ -230,12 +230,10 @@ impl<E, A> Probatum<E, A> {
         F: FnMut(A, B, C) -> D,
     {
         match (self, vb, vc) {
-            (Probatum::Valid(a), Probatum::Valid(b), Probatum::Valid(c)) => {
-                Probatum::Valid(f(a, b, c))
-            }
+            (Self::Valid(a), Probatum::Valid(b), Probatum::Valid(c)) => Probatum::Valid(f(a, b, c)),
             (va, vb, vc) => {
                 let mut errors: ErrorBuf<E> = ErrorBuf::new();
-                if let Probatum::Invalid(es) = va {
+                if let Self::Invalid(es) = va {
                     errors.extend(es);
                 }
                 if let Probatum::Invalid(es) = vb {
@@ -252,7 +250,7 @@ impl<E, A> Probatum<E, A> {
     /// Lift three Probatum values without consuming `self`.
     pub fn lift3<B, C, D, F>(
         mut f: F,
-        va: Probatum<E, A>,
+        va: Self,
         vb: Probatum<E, B>,
         vc: Probatum<E, C>,
     ) -> Probatum<E, D>
@@ -263,7 +261,7 @@ impl<E, A> Probatum<E, A> {
     }
 
     /// Alias for `lift2` (cats/zio-style naming).
-    pub fn map2_alias<B, C, F>(va: Probatum<E, A>, vb: Probatum<E, B>, f: F) -> Probatum<E, C>
+    pub fn map2_alias<B, C, F>(va: Self, vb: Probatum<E, B>, f: F) -> Probatum<E, C>
     where
         F: FnMut(A, B) -> C,
     {
@@ -272,7 +270,7 @@ impl<E, A> Probatum<E, A> {
 
     /// Alias for `lift3`.
     pub fn map3_alias<B, C, D, F>(
-        va: Probatum<E, A>,
+        va: Self,
         vb: Probatum<E, B>,
         vc: Probatum<E, C>,
         f: F,
@@ -285,10 +283,10 @@ impl<E, A> Probatum<E, A> {
 
     /// Convert from an Option using a provided error when None.
     pub fn from_option(opt: Option<A>, err: E) -> Self {
-        match opt {
-            Some(a) => Probatum::Valid(a),
-            None => Probatum::Invalid(core::iter::once(err).collect()),
-        }
+        opt.map_or_else(
+            || Self::Invalid(core::iter::once(err).collect()),
+            |a| Self::Valid(a),
+        )
     }
 
     /// Sequence an iterator of Probatum values.
@@ -387,8 +385,8 @@ impl<E, A> Functor for Probatum<E, A> {
         F: FnMut(Self::Inner) -> B,
     {
         match self {
-            Probatum::Valid(a) => Probatum::Valid(f(a)),
-            Probatum::Invalid(e) => Probatum::Invalid(e),
+            Self::Valid(a) => Probatum::Valid(f(a)),
+            Self::Invalid(e) => Probatum::Invalid(e),
         }
     }
 }
@@ -399,12 +397,12 @@ impl<E, A> Apply for Probatum<E, A> {
         F: FnMut(A) -> B,
     {
         match (ff, self) {
-            (Probatum::Valid(mut f), Probatum::Valid(a)) => Probatum::Valid(f(a)),
-            (Probatum::Invalid(mut e1), Probatum::Invalid(e2)) => {
+            (Probatum::Valid(mut f), Self::Valid(a)) => Probatum::Valid(f(a)),
+            (Probatum::Invalid(mut e1), Self::Invalid(e2)) => {
                 e1.extend(e2);
                 Probatum::Invalid(e1)
             }
-            (Probatum::Invalid(e), _) | (_, Probatum::Invalid(e)) => Probatum::Invalid(e),
+            (Probatum::Invalid(e), _) | (_, Self::Invalid(e)) => Probatum::Invalid(e),
         }
     }
 }
@@ -412,7 +410,7 @@ impl<E, A> Apply for Probatum<E, A> {
 impl<E, A> Applicatio for Probatum<E, A> {
     #[inline]
     fn pure(a: A) -> Self {
-        Probatum::Valid(a)
+        Self::Valid(a)
     }
 
     #[inline]
@@ -434,7 +432,7 @@ mod tests {
 
     impl Compositio for Errs {
         fn combine(&self, other: &Self) -> Self {
-            Errs(match (self.0, other.0) {
+            Self(match (self.0, other.0) {
                 (a, b) if a == b => a,
                 (a, b) => {
                     if a.len() >= b.len() {

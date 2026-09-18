@@ -33,12 +33,14 @@ use ordofp::traversable::Traversable;
 /// **Identity Law** for Vec: `traverse(Some) == Some`
 ///
 /// Traversing with pure (Some) should return Some of the same structure.
+#[must_use]
 pub fn vec_traverse_identity<A: Clone + Eq>(fa: Vec<A>) -> bool {
     let traversed = fa.traverse_option(|a| Some(a.clone()));
     traversed == Some(fa)
 }
 
 /// **Sequence consistency**: `sequence(map(Some, xs)) == Some(xs)`
+#[must_use]
 pub fn vec_sequence_option_identity<A: Clone + Eq>(fa: Vec<A>) -> bool {
     let mapped: Vec<Option<A>> = fa.iter().map(|a| Some(a.clone())).collect();
     let sequenced: Option<Vec<A>> = ordofp::traversable::sequence_option(mapped);
@@ -46,6 +48,7 @@ pub fn vec_sequence_option_identity<A: Clone + Eq>(fa: Vec<A>) -> bool {
 }
 
 /// **Traverse with Result identity**: `traverse(Ok) == Ok`
+#[must_use]
 pub fn vec_traverse_result_identity<A: Clone + Eq>(fa: Vec<A>) -> bool {
     let traversed: Result<Vec<A>, ()> = fa.traverse_result(|a| Ok::<_, ()>(a.clone()));
     traversed == Ok(fa)
@@ -71,6 +74,7 @@ pub fn vec_sequence_result_consistency<A: Clone + Eq, E: Clone + Eq>(
 }
 
 /// **Empty traversal**: traverse over empty returns empty in effect
+#[must_use]
 pub fn vec_traverse_empty_option() -> bool {
     let empty: Vec<i32> = Vec::new();
     let result = empty.traverse_option(|_| None::<i32>);
@@ -78,7 +82,8 @@ pub fn vec_traverse_empty_option() -> bool {
 }
 
 /// **Short-circuit on None**: traverse returns None if any element fails
-pub fn vec_traverse_option_short_circuit<A: Clone + Eq>(fa: Vec<A>, fail_at: usize) -> bool {
+#[must_use]
+pub fn vec_traverse_option_short_circuit<A: Clone + Eq>(fa: &Vec<A>, fail_at: usize) -> bool {
     if fa.is_empty() {
         return true; // nothing to fail on
     }
@@ -102,6 +107,7 @@ pub fn vec_traverse_option_short_circuit<A: Clone + Eq>(fa: Vec<A>, fail_at: usi
 }
 
 /// Returns an [`IsEq`] for the Vec identity law.
+#[must_use]
 pub fn vec_traverse_identity_eq<A: Clone>(fa: Vec<A>) -> IsEq<Option<Vec<A>>> {
     let traversed = fa.traverse_option(|a| Some(a.clone()));
     IsEq::equal_under_law(traversed, Some(fa))
@@ -132,10 +138,10 @@ pub fn option_traverse_none_input<B: Eq>() -> bool {
 pub fn option_sequence_option_consistency<A: Clone + Eq>(fa: Option<Option<A>>) -> bool {
     // Reference implementation of sequence :: Option<Option<A>> -> Option<Option<A>>
     // (outer = effect, inner = structure).
-    let sequenced: Option<Option<A>> = match fa.clone() {
-        None => Some(None),             // empty structure: pure(None)
-        Some(inner) => inner.map(Some), // commute the effect outward
-    };
+    // Empty structure: pure(None); otherwise commute the effect outward.
+    let sequenced: Option<Option<A>> = fa
+        .clone()
+        .map_or_else(|| Some(None), |inner| inner.map(Some));
     // Library path: sequence == traverse(identity).
     let traversed: Option<Option<A>> =
         ordofp::traversable::Traversable::traverse_option_owned(fa, core::convert::identity);
@@ -151,7 +157,7 @@ pub fn option_traverse_identity_eq<A: Clone>(fa: Option<A>) -> IsEq<Option<Optio
 // ==================== Result Laws ====================
 
 /// **Identity Law** for Result: `traverse(Some, Ok(x)) == Some(Ok(x))`
-pub fn result_traverse_identity<A: Clone + Eq, E: Clone + Eq>(fa: Result<A, E>) -> bool {
+pub fn result_traverse_identity<A: Clone + Eq, E: Clone + Eq>(fa: &Result<A, E>) -> bool {
     let traversed = fa.traverse_option(|a| Some(a.clone()));
     match (&traversed, &fa) {
         (Some(Ok(a)), Ok(b)) => a == b,
@@ -185,7 +191,7 @@ pub fn result_traverse_identity_eq<A: Clone, E: Clone>(
 // ==================== Functor-Traversable Consistency ====================
 
 /// **Traverse/map consistency**: `traverse(Some . f) == Some . map(f)`
-pub fn vec_traverse_map_consistency<A: Clone, B: Clone + Eq, F>(fa: Vec<A>, f: F) -> bool
+pub fn vec_traverse_map_consistency<A: Clone, B: Clone + Eq, F>(fa: &Vec<A>, f: F) -> bool
 where
     F: Fn(&A) -> B + Clone,
 {
@@ -196,7 +202,7 @@ where
 }
 
 /// **Option traverse/map consistency**
-pub fn option_traverse_map_consistency<A: Clone, B: Clone + Eq, F>(fa: Option<A>, f: F) -> bool
+pub fn option_traverse_map_consistency<A: Clone, B: Clone + Eq, F>(fa: &Option<A>, f: F) -> bool
 where
     F: Fn(&A) -> B + Clone,
 {
@@ -250,8 +256,12 @@ mod tests {
 
     #[test]
     fn test_vec_traverse_map_consistency() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Vec<i8>) -> bool {
-            vec_traverse_map_consistency(fa, |x| x.wrapping_mul(2))
+            vec_traverse_map_consistency(&fa, |x| x.wrapping_mul(2))
         }
         quickcheck(test as fn(Vec<i8>) -> bool);
     }
@@ -260,15 +270,19 @@ mod tests {
     fn test_vec_traverse_option_short_circuit() {
         // Property: failing at any (clamped) position makes traverse None —
         // duplicates included.
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Vec<i32>, fail_at: usize) -> bool {
-            vec_traverse_option_short_circuit(fa, fail_at)
+            vec_traverse_option_short_circuit(&fa, fail_at)
         }
         quickcheck(test as fn(Vec<i32>, usize) -> bool);
 
         // Deterministic spot checks, including duplicate values.
-        assert!(vec_traverse_option_short_circuit(vec![1, 1, 1], 2));
-        assert!(vec_traverse_option_short_circuit(vec![5], 0));
-        assert!(vec_traverse_option_short_circuit(Vec::<i32>::new(), 3)); // vacuous
+        assert!(vec_traverse_option_short_circuit(&vec![1, 1, 1], 2));
+        assert!(vec_traverse_option_short_circuit(&vec![5], 0));
+        assert!(vec_traverse_option_short_circuit(&Vec::<i32>::new(), 3)); // vacuous
     }
 
     // ==================== Option Tests ====================
@@ -284,7 +298,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::option_option)] // sequencing Option<Option<_>> is the law's shape
+    #[allow(
+        clippy::option_option,
+        reason = "sequencing Option<Option<_>> is the law's shape"
+    )]
     fn test_option_sequence_option_consistency() {
         fn test(fa: Option<Option<i32>>) -> bool {
             option_sequence_option_consistency(fa)
@@ -295,7 +312,7 @@ mod tests {
     #[test]
     fn test_option_traverse_map_consistency() {
         fn test(fa: Option<i8>) -> bool {
-            option_traverse_map_consistency(fa, |x| x.wrapping_mul(2))
+            option_traverse_map_consistency(&fa, |x| x.wrapping_mul(2))
         }
         quickcheck(test as fn(Option<i8>) -> bool);
     }
@@ -304,8 +321,12 @@ mod tests {
 
     #[test]
     fn test_result_traverse_identity() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Result<i32, String>) -> bool {
-            result_traverse_identity(fa)
+            result_traverse_identity(&fa)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
@@ -356,8 +377,10 @@ mod tests {
     #[test]
     fn manual_result_tests() {
         // Identity law
-        assert!(result_traverse_identity(Ok::<i32, String>(42)));
-        assert!(result_traverse_identity(Err::<i32, String>("error".into())));
+        assert!(result_traverse_identity(&Ok::<i32, String>(42)));
+        assert!(result_traverse_identity(&Err::<i32, String>(
+            "error".into()
+        )));
 
         // Err passthrough
         let err: Result<i32, &str> = Err("error");

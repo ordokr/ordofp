@@ -8,6 +8,7 @@ description = "Property-based laws testing for OrdoFP type classes including Fun
 license = "Apache-2.0"
 documentation = "https://docs.rs/ordofp_laws"
 repository = "https://github.com/ordokr/ordofp"
+readme = "../README.md"
 keywords = ["functional", "laws", "testing", "typeclasses", "quickcheck"]
 categories = ["development-tools::testing"]
 

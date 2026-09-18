@@ -143,8 +143,7 @@ impl<A, E> Apply for Result<A, E> {
     {
         match (self, f) {
             (Ok(a), Ok(mut func)) => Ok(func(a)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -169,25 +168,25 @@ impl<A, E> Monad for Result<A, E> {
 // Implementations for Vec (requires alloc)
 
 #[cfg(feature = "alloc")]
-impl<A> Functor for Vec<A> {
-    type Inner = A;
+impl<Elem> Functor for Vec<Elem> {
+    type Inner = Elem;
     type Target<T> = Vec<T>;
 
     #[inline]
     fn map<B, F>(self, f: F) -> Vec<B>
     where
-        F: FnMut(A) -> B,
+        F: FnMut(Elem) -> B,
     {
         self.into_iter().map(f).collect()
     }
 }
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Apply for Vec<A> {
+impl<T: Clone> Apply for Vec<T> {
     #[inline]
     fn apply<B, F>(self, f: Vec<F>) -> Vec<B>
     where
-        F: FnMut(A) -> B,
+        F: FnMut(T) -> B,
     {
         // Cartesian product: apply each function to each value
         let mut result = Vec::with_capacity(self.len() * f.len());
@@ -201,7 +200,7 @@ impl<A: Clone> Apply for Vec<A> {
 }
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Applicative for Vec<A> {
+impl<Elem: Clone> Applicative for Vec<Elem> {
     #[inline]
     fn pure_target<T>(t: T) -> Vec<T> {
         alloc::vec![t]
@@ -209,11 +208,11 @@ impl<A: Clone> Applicative for Vec<A> {
 }
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Monad for Vec<A> {
+impl<T: Clone> Monad for Vec<T> {
     #[inline]
     fn flat_map<B, F>(self, f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Vec<B>,
+        F: FnMut(T) -> Vec<B>,
     {
         self.into_iter().flat_map(f).collect()
     }

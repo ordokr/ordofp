@@ -375,16 +375,18 @@ pub struct WriterBatch<W> {
 impl<W> WriterBatch<W> {
     /// Create a new empty batch.
     #[inline]
-    pub fn new() -> Self {
-        WriterBatch {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             entries: alloc::vec::Vec::new(),
         }
     }
 
     /// Create a new batch with a pre-allocated capacity.
     #[inline]
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
-        WriterBatch {
+        Self {
             entries: alloc::vec::Vec::with_capacity(cap),
         }
     }
@@ -397,19 +399,22 @@ impl<W> WriterBatch<W> {
 
     /// Get all entries.
     #[inline]
+    #[must_use]
     pub fn entries(self) -> alloc::vec::Vec<W> {
         self.entries
     }
 
     /// Number of entries.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Check if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 }
@@ -435,15 +440,17 @@ impl<R1: EffectRow, R2: EffectRow> FusionProof<R1, R2> {
     /// # Safety
     ///
     /// Only create when effects actually commute.
+    #[must_use]
     pub const unsafe fn new() -> Self {
-        FusionProof {
+        Self {
             _marker: PhantomData,
         }
     }
 }
 
 /// Prove fusion is safe for pure effects.
-pub fn prove_pure_fusion() -> FusionProof<Pure, Pure> {
+#[must_use]
+pub const fn prove_pure_fusion() -> FusionProof<Pure, Pure> {
     // SAFETY: `Pure` effects carry no observable side effects and impose no
     // ordering constraints on each other, so fusing two `Pure` effect rows is
     // always sound. The `FusionProof` invariant ("only create when effects
@@ -463,8 +470,8 @@ pub struct FusionPipeline<A> {
 impl<A> FusionPipeline<A> {
     /// Create a new pipeline.
     #[inline]
-    pub fn new(value: A) -> Self {
-        FusionPipeline { value }
+    pub const fn new(value: A) -> Self {
+        Self { value }
     }
 
     /// Apply a transformation.
@@ -484,7 +491,7 @@ impl<A> FusionPipeline<A> {
 
 /// Create a fusion pipeline.
 #[inline]
-pub fn pipeline<A>(value: A) -> FusionPipeline<A> {
+pub const fn pipeline<A>(value: A) -> FusionPipeline<A> {
     FusionPipeline::new(value)
 }
 

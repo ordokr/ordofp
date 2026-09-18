@@ -8,6 +8,7 @@
 use ordofp::async_core::Futurus;
 use ordofp::async_core::{ApplicatioAsync, FunctorAsync, MonadAsync};
 use ordofp::async_core::{ApplicatioAsyncMut, FunctorAsyncMut, MonadAsyncMut};
+use std::future::{Future, ready};
 
 // ============================================================================
 // Simple executor for testing
@@ -52,7 +53,7 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
 
     // Create a no-op waker
     fn noop_raw_waker() -> RawWaker {
-        fn noop(_: *const ()) {}
+        const fn noop(_: *const ()) {}
         fn clone_waker(_: *const ()) -> RawWaker {
             noop_raw_waker()
         }
@@ -905,7 +906,8 @@ fn test_lector_async_local() {
         // A reader that expects i32
         let reader: LectorAsync<i32, i32> = LectorAsync::new(|x: i32| async move { x * 2 });
         // Adapt it to accept String
-        let adapted = reader.local(|s: String| s.len() as i32);
+        let adapted = reader
+            .local(|s: String| i32::try_from(s.len()).expect("test string length fits in i32"));
         adapted.run("hello".to_string()).await
     });
     // "hello".len() = 5, 5 * 2 = 10
@@ -1600,8 +1602,8 @@ fn test_mdo_async_mixed_operations() {
 
 #[test]
 fn test_mdo_async_chained_awaits() {
-    async fn fetch_value(x: i32) -> i32 {
-        x + 1
+    fn fetch_value(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
 
     let result = block_on(async {
@@ -1628,8 +1630,8 @@ fn test_pipe_async_single_value() {
 
 #[test]
 fn test_pipe_async_one_function() {
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
 
     let result = block_on(async { pipe_async!(21, double).await });
@@ -1638,14 +1640,14 @@ fn test_pipe_async_one_function() {
 
 #[test]
 fn test_pipe_async_multiple_functions() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     let result = block_on(async { pipe_async!(10, add_one, double, subtract_three).await });
@@ -1655,19 +1657,19 @@ fn test_pipe_async_multiple_functions() {
 
 #[test]
 fn test_pipe_async_type_transformation() {
-    async fn to_string(x: i32) -> String {
-        x.to_string()
+    fn to_string(x: i32) -> impl Future<Output = String> {
+        ready(x.to_string())
     }
-    async fn append_exclaim(s: String) -> String {
-        format!("{s}!")
+    fn append_exclaim(s: String) -> impl Future<Output = String> {
+        ready(s + "!")
     }
-    async fn get_length(s: String) -> usize {
-        s.len()
+    fn to_bytes(s: String) -> impl Future<Output = Vec<u8>> {
+        ready(s.into_bytes())
     }
 
-    let result = block_on(async { pipe_async!(42, to_string, append_exclaim, get_length).await });
-    // "42" -> "42!" -> 3
-    assert_eq!(result, 3);
+    let result = block_on(async { pipe_async!(42, to_string, append_exclaim, to_bytes).await });
+    // "42" -> "42!" -> [52, 50, 33]
+    assert_eq!(result, vec![52, 50, 33]);
 }
 
 // ----------------------------------------------------------------------------
@@ -1676,8 +1678,8 @@ fn test_pipe_async_type_transformation() {
 
 #[test]
 fn test_compose_async_single_function() {
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
 
     let composed = compose_async!(double);
@@ -1687,14 +1689,14 @@ fn test_compose_async_single_function() {
 
 #[test]
 fn test_compose_async_multiple_functions() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     // compose_async!(f, g, h)(x) = f(g(h(x)))
@@ -1710,8 +1712,8 @@ fn test_compose_async_multiple_functions() {
 
 #[test]
 fn test_chain_async_single_function() {
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
 
     let chained = chain_async!(double);
@@ -1721,14 +1723,14 @@ fn test_chain_async_single_function() {
 
 #[test]
 fn test_chain_async_multiple_functions() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     // chain_async!(f, g, h)(x) = h(g(f(x))) - left to right order
@@ -1740,14 +1742,14 @@ fn test_chain_async_multiple_functions() {
 
 #[test]
 fn test_chain_async_type_transformation() {
-    async fn parse(s: &str) -> i32 {
-        s.parse().expect("s should be a valid integer string")
+    fn parse(s: &str) -> impl Future<Output = i32> {
+        ready(s.parse().expect("s should be a valid integer string"))
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn to_string(x: i32) -> String {
-        x.to_string()
+    fn to_string(x: i32) -> impl Future<Output = String> {
+        ready(x.to_string())
     }
 
     let process = chain_async!(parse, double, to_string);

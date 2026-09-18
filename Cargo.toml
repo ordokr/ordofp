@@ -14,6 +14,9 @@ categories = ["data-structures", "rust-patterns"]
 # Keep machine-local perf tooling and repo docs out of the published tarball.
 exclude = ["/docs", "/scripts", "/tests", "/benches", "/.cargo", "/.github", "/.jules"]
 
+[lints]
+workspace = true
+
 # docs.rs builds default features only by default, which would hide every
 # gated module (async, par, nexus, …) — build docs with everything on.
 [package.metadata.docs.rs]
@@ -30,44 +33,24 @@ resolver = "3"
 
 [workspace.lints.rust]
 missing_docs = "warn"
-unreachable_pub = "warn"
+# `unreachable_pub` is mutually unsatisfiable with clippy-pedantic's
+# `redundant_pub_crate` (requested lint surface): inside a non-`pub` module
+# `pub(crate)`/`pub(super)`/restricted visibilities trip `redundant_pub_crate`
+# while `pub` trips `unreachable_pub` — verified empirically, no spelling
+# satisfies both for crate-internal cross-module items. Pedantic wins by
+# policy, so items use `pub` and the module path carries the restriction.
+unreachable_pub = "allow"
 
 [workspace.lints.clippy]
+# Requested lint surface: pedantic + perf + nursery + cargo, zero-tolerance.
+# No per-lint allows — every finding is fixed at the root cause with current
+# nightly idioms. (`perf` overlaps `all`, but is stated explicitly so the
+# enforced gate is greppable from this table.)
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
-# Accepted-by-policy pedantic lints: noise for this codebase.
-must_use_candidate = "allow"
-return_self_not_must_use = "allow"
-doc_markdown = "allow"
-module_name_repetitions = "allow"
-missing_panics_doc = "warn"
-missing_errors_doc = "warn"
-# Accepted-by-policy pedantic lints, round 2:
-# these contradict deliberate design choices rather than flag defects.
-inline_always = "allow"                       # pervasive perf annotation, benchmark-verified
-needless_pass_by_value = "allow"              # move-semantics FP API surface; changing sigs breaks API
-cast_possible_truncation = "allow"            # perf/metrics casts; invariants documented at site
-cast_precision_loss = "allow"
-cast_sign_loss = "allow"
-cast_possible_wrap = "allow"
-float_cmp = "allow"                           # law tests assert bit-exact float behavior
-float_cmp_const = "allow"
-items_after_statements = "allow"              # test-local helper types defined next to use
-match_same_arms = "allow"                     # exhaustive matches kept explicit per variant
-match_wildcard_for_single_variants = "allow"
-ref_option = "allow"                          # &Option<T> in trait sigs mirrors GAT wrapper shapes
-many_single_char_names = "allow"              # HList/tuple impls: a..h bindings are the domain idiom
-similar_names = "allow"
-too_many_lines = "allow"                      # quote!-template derive fns and fused combinators
-# (style) type-level tests assert associated consts — the "constant" is the
-# compile-time computation under test in a dependent/row-types library.
-assertions_on_constants = "allow"
-# Generalizing the HashSet/HashMap typeclass impls over custom hashers would
-# ripple extra type params through the public trait signatures.
-implicit_hasher = "allow"
-# `A` is this codebase's canonical element-type variable (Functor<A>, Monad<A>,
-# …); it positionally collides with std declarations like Vec<T, A: Allocator>.
-mismatching_type_param_order = "allow"
+perf = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 
 # Shared third-party dependencies, unified here and inherited by members via
 # `<crate>.workspace = true`. Members may add features / `optional = true`;

@@ -60,13 +60,13 @@ where
     F: FnOnce() -> A + std::panic::UnwindSafe,
 {
     std::panic::catch_unwind(computation).map_err(|e| {
-        if let Some(s) = e.downcast_ref::<&str>() {
-            String::from(*s)
-        } else if let Some(s) = e.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            String::from("Unknown panic")
-        }
+        e.downcast_ref::<&str>().map_or_else(
+            || {
+                e.downcast_ref::<String>()
+                    .map_or_else(|| String::from("Unknown panic"), core::clone::Clone::clone)
+            },
+            |s| String::from(*s),
+        )
     })
 }
 
@@ -422,12 +422,13 @@ pub struct SimpleError {
 impl SimpleError {
     /// Create a new simple error.
     pub fn new(message: impl Into<String>) -> Self {
-        SimpleError {
+        Self {
             message: message.into(),
         }
     }
 
     /// Get the error message.
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }
@@ -452,20 +453,22 @@ pub struct MultiError<E> {
 
 impl<E> MultiError<E> {
     /// Create an empty multi-error.
-    pub fn new() -> Self {
-        MultiError { errors: Vec::new() }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { errors: Vec::new() }
     }
 
     /// Create from a single error.
     pub fn single(error: E) -> Self {
-        MultiError {
+        Self {
             errors: alloc::vec![error],
         }
     }
 
     /// Create from multiple errors.
-    pub fn many(errors: Vec<E>) -> Self {
-        MultiError { errors }
+    #[must_use]
+    pub const fn many(errors: Vec<E>) -> Self {
+        Self { errors }
     }
 
     /// Add an error.
@@ -474,16 +477,19 @@ impl<E> MultiError<E> {
     }
 
     /// Check if there are any errors.
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.errors.is_empty()
     }
 
     /// Get the number of errors.
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.errors.len()
     }
 
     /// Get all errors.
+    #[must_use]
     pub fn errors(&self) -> &[E] {
         &self.errors
     }

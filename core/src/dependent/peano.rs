@@ -50,8 +50,9 @@ pub struct Succ<N>(PhantomData<N>);
 
 impl<N> Succ<N> {
     /// Create a new successor type.
+    #[must_use]
     pub const fn new() -> Self {
-        Succ(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -96,6 +97,7 @@ pub trait Naturalis {
 
     /// Get the value at runtime.
     #[inline]
+    #[must_use]
     fn value() -> usize {
         Self::VALUE
     }
@@ -119,7 +121,7 @@ impl<N: Naturalis> Naturalis for Succ<N> {
 /// *Non Nihil* means "not nothing" - a non-zero number.
 pub trait NonNihil: Naturalis {}
 
-impl<N> NonNihil for Succ<N> where Succ<N>: Naturalis {}
+impl<N> NonNihil for Succ<N> where Self: Naturalis {}
 
 // =============================================================================
 // Type-Level Arithmetic
@@ -159,7 +161,7 @@ pub trait Multiplicatio<M>: Naturalis {
 }
 
 impl<M: Naturalis> Multiplicatio<M> for Zero {
-    type Productum = Zero;
+    type Productum = Self;
 }
 
 impl<N, M> Multiplicatio<M> for Succ<N>
@@ -227,7 +229,7 @@ impl<N: Naturalis + Maior<M>, M: Naturalis> Maior<Succ<M>> for Succ<N> {}
 /// *Aequus* means "equal, level".
 pub trait Aequus<M>: Naturalis {}
 
-impl Aequus<Zero> for Zero {}
+impl Aequus<Self> for Zero {}
 
 impl<N: Naturalis + Aequus<M>, M: Naturalis> Aequus<Succ<M>> for Succ<N> {}
 
@@ -272,7 +274,7 @@ impl<N: Naturalis> Subtractio<Zero> for N {
 
 // 0 - m = 0 (saturating)
 impl<M: Naturalis> Subtractio<Succ<M>> for Zero {
-    type Differentia = Zero;
+    type Differentia = Self;
 }
 
 // (n+1) - (m+1) = n - m
@@ -298,7 +300,7 @@ pub trait Minimus<M>: Naturalis {
 }
 
 impl<M: Naturalis> Minimus<M> for Zero {
-    type Min = Zero;
+    type Min = Self;
 }
 
 impl<N: Naturalis> Minimus<Zero> for Succ<N> {
@@ -328,7 +330,7 @@ impl<M: Naturalis> Maximus<M> for Zero {
 }
 
 impl<N: Naturalis> Maximus<Zero> for Succ<N> {
-    type Max = Succ<N>;
+    type Max = Self;
 }
 
 impl<N, M> Maximus<Succ<M>> for Succ<N>
@@ -366,11 +368,11 @@ pub type Pred<N> = <N as Praecessor>::Prior;
 // std::ops implementations for value-level convenience
 // =============================================================================
 
-impl Add<Zero> for Zero {
-    type Output = Zero;
+impl Add<Self> for Zero {
+    type Output = Self;
     #[inline]
-    fn add(self, _: Zero) -> Zero {
-        Zero
+    fn add(self, _: Self) -> Self {
+        Self
     }
 }
 
@@ -400,7 +402,10 @@ where
 #[cfg(test)]
 // Witness fns like `is_less_than<N: Minor<M>, M>()` use their type params only
 // as bounds — instantiating them is the compile-time proof.
-#[allow(clippy::extra_unused_type_parameters)]
+#[allow(
+    clippy::extra_unused_type_parameters,
+    reason = "witness fns use type params only as proof bounds"
+)]
 mod tests {
     use super::*;
 
@@ -428,46 +433,43 @@ mod tests {
 
     #[test]
     fn test_additio() {
-        // 0 + 3 = 3
         type ZeroPlusThree = Sum<Zero, N3>;
-        assert_eq!(<ZeroPlusThree as Naturalis>::VALUE, 3);
-
-        // 2 + 3 = 5
         type TwoPlusThree = Sum<N2, N3>;
-        assert_eq!(<TwoPlusThree as Naturalis>::VALUE, 5);
-
-        // 3 + 0 = 3
         type ThreePlusZero = Sum<N3, Zero>;
+
+        // 0 + 3 = 3
+        assert_eq!(<ZeroPlusThree as Naturalis>::VALUE, 3);
+        // 2 + 3 = 5
+        assert_eq!(<TwoPlusThree as Naturalis>::VALUE, 5);
+        // 3 + 0 = 3
         assert_eq!(<ThreePlusZero as Naturalis>::VALUE, 3);
     }
 
     #[test]
     fn test_multiplicatio() {
-        // 0 * 5 = 0
         type ZeroTimesFive = Prod<Zero, N5>;
-        assert_eq!(<ZeroTimesFive as Naturalis>::VALUE, 0);
-
-        // 2 * 3 = 6
         type TwoTimesThree = Prod<N2, N3>;
-        assert_eq!(<TwoTimesThree as Naturalis>::VALUE, 6);
-
-        // 3 * 2 = 6
         type ThreeTimesTwo = Prod<N3, N2>;
+
+        // 0 * 5 = 0
+        assert_eq!(<ZeroTimesFive as Naturalis>::VALUE, 0);
+        // 2 * 3 = 6
+        assert_eq!(<TwoTimesThree as Naturalis>::VALUE, 6);
+        // 3 * 2 = 6
         assert_eq!(<ThreeTimesTwo as Naturalis>::VALUE, 6);
     }
 
     #[test]
     fn test_subtractio() {
-        // 5 - 3 = 2
         type FiveMinusThree = Diff<N5, N3>;
-        assert_eq!(<FiveMinusThree as Naturalis>::VALUE, 2);
-
-        // 3 - 5 = 0 (saturating)
         type ThreeMinusFive = Diff<N3, N5>;
-        assert_eq!(<ThreeMinusFive as Naturalis>::VALUE, 0);
-
-        // 5 - 0 = 5
         type FiveMinusZero = Diff<N5, Zero>;
+
+        // 5 - 3 = 2
+        assert_eq!(<FiveMinusThree as Naturalis>::VALUE, 2);
+        // 3 - 5 = 0 (saturating)
+        assert_eq!(<ThreeMinusFive as Naturalis>::VALUE, 0);
+        // 5 - 0 = 5
         assert_eq!(<FiveMinusZero as Naturalis>::VALUE, 5);
     }
 
@@ -510,29 +512,27 @@ mod tests {
 
     #[test]
     fn test_min_max() {
-        // min(3, 5) = 3
         type MinThreeFive = Min<N3, N5>;
-        assert_eq!(<MinThreeFive as Naturalis>::VALUE, 3);
-
-        // max(3, 5) = 5
         type MaxThreeFive = Max<N3, N5>;
-        assert_eq!(<MaxThreeFive as Naturalis>::VALUE, 5);
-
-        // min(0, 5) = 0
         type MinZeroFive = Min<Zero, N5>;
-        assert_eq!(<MinZeroFive as Naturalis>::VALUE, 0);
-
-        // max(0, 5) = 5
         type MaxZeroFive = Max<Zero, N5>;
+
+        // min(3, 5) = 3
+        assert_eq!(<MinThreeFive as Naturalis>::VALUE, 3);
+        // max(3, 5) = 5
+        assert_eq!(<MaxThreeFive as Naturalis>::VALUE, 5);
+        // min(0, 5) = 0
+        assert_eq!(<MinZeroFive as Naturalis>::VALUE, 0);
+        // max(0, 5) = 5
         assert_eq!(<MaxZeroFive as Naturalis>::VALUE, 5);
     }
 
     #[test]
     fn test_praecessor() {
         type PredFive = Pred<N5>;
-        assert_eq!(<PredFive as Naturalis>::VALUE, 4);
-
         type PredOne = Pred<N1>;
+
+        assert_eq!(<PredFive as Naturalis>::VALUE, 4);
         assert_eq!(<PredOne as Naturalis>::VALUE, 0);
     }
 

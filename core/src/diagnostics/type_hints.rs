@@ -42,7 +42,7 @@ pub struct InlayHint {
 impl InlayHint {
     /// Create a new type annotation hint.
     pub fn type_annotation(position: usize, type_label: impl Into<String>) -> Self {
-        InlayHint {
+        Self {
             kind: InlayHintKind::TypeAnnotation,
             position,
             label: format!(": {}", type_label.into()),
@@ -53,7 +53,7 @@ impl InlayHint {
 
     /// Create a new parameter hint.
     pub fn parameter(position: usize, param_name: impl Into<String>) -> Self {
-        InlayHint {
+        Self {
             kind: InlayHintKind::ParameterName,
             position,
             label: format!("{}: ", param_name.into()),
@@ -64,7 +64,7 @@ impl InlayHint {
 
     /// Create an effect row hint.
     pub fn effect_row(position: usize, effects: impl Into<String>) -> Self {
-        InlayHint {
+        Self {
             kind: InlayHintKind::EffectRow,
             position,
             label: format!("/* {} */", effects.into()),
@@ -75,7 +75,7 @@ impl InlayHint {
 
     /// Create a chaining hint.
     pub fn chaining(position: usize, return_type: impl Into<String>) -> Self {
-        InlayHint {
+        Self {
             kind: InlayHintKind::Chaining,
             position,
             label: return_type.into(),
@@ -85,7 +85,8 @@ impl InlayHint {
     }
 
     /// Set padding.
-    pub fn with_padding(mut self, left: bool, right: bool) -> Self {
+    #[must_use]
+    pub const fn with_padding(mut self, left: bool, right: bool) -> Self {
         self.padding_left = left;
         self.padding_right = right;
         self
@@ -109,8 +110,9 @@ pub struct InferredEffects {
 
 impl InferredEffects {
     /// Create a new inferred effects display.
-    pub fn new() -> Self {
-        InferredEffects {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             effects: Vec::new(),
             is_complete: true,
             unknown: Vec::new(),
@@ -118,18 +120,21 @@ impl InferredEffects {
     }
 
     /// Add an inferred effect.
+    #[must_use]
     pub fn with_effect(mut self, effect: impl Into<String>) -> Self {
         self.effects.push(effect.into());
         self
     }
 
     /// Mark as incomplete.
-    pub fn incomplete(mut self) -> Self {
+    #[must_use]
+    pub const fn incomplete(mut self) -> Self {
         self.is_complete = false;
         self
     }
 
     /// Add an unknown effect.
+    #[must_use]
     pub fn with_unknown(mut self, unknown: impl Into<String>) -> Self {
         self.unknown.push(unknown.into());
         self.is_complete = false;
@@ -137,6 +142,7 @@ impl InferredEffects {
     }
 
     /// Format for display.
+    #[must_use]
     pub fn display(&self) -> String {
         if self.effects.is_empty() && self.unknown.is_empty() {
             return "Pure".to_string();
@@ -153,6 +159,7 @@ impl InferredEffects {
     }
 
     /// Format as an inlay hint.
+    #[must_use]
     pub fn as_hint(&self, position: usize) -> InlayHint {
         InlayHint::effect_row(position, self.display())
     }
@@ -180,8 +187,9 @@ pub struct TypeSimplifier {
 
 impl TypeSimplifier {
     /// Create a new simplifier with defaults.
-    pub fn new() -> Self {
-        TypeSimplifier {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             max_depth: 3,
             use_vernacular: true,
             abbreviate: true,
@@ -189,18 +197,21 @@ impl TypeSimplifier {
     }
 
     /// Set maximum depth.
-    pub fn with_max_depth(mut self, depth: usize) -> Self {
+    #[must_use]
+    pub const fn with_max_depth(mut self, depth: usize) -> Self {
         self.max_depth = depth;
         self
     }
 
     /// Enable/disable vernacular names.
-    pub fn with_vernacular(mut self, enabled: bool) -> Self {
+    #[must_use]
+    pub const fn with_vernacular(mut self, enabled: bool) -> Self {
         self.use_vernacular = enabled;
         self
     }
 
     /// Simplify a type string.
+    #[must_use]
     pub fn simplify(&self, type_str: &str) -> String {
         let mut result = type_str.to_string();
 
@@ -258,6 +269,7 @@ impl TypeSimplifier {
     }
 
     /// Simplify an effect row type.
+    #[must_use]
     pub fn simplify_effect_row(&self, row_type: &str) -> String {
         let simplified = self.simplify(row_type);
 
@@ -305,7 +317,7 @@ pub struct HoverInfo {
 impl HoverInfo {
     /// Create new hover info.
     pub fn new(signature: impl Into<String>) -> Self {
-        HoverInfo {
+        Self {
             signature: signature.into(),
             doc_summary: None,
             effects: None,
@@ -314,24 +326,28 @@ impl HoverInfo {
     }
 
     /// Add documentation summary.
+    #[must_use]
     pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
         self.doc_summary = Some(doc.into());
         self
     }
 
     /// Add effect information.
+    #[must_use]
     pub fn with_effects(mut self, effects: InferredEffects) -> Self {
         self.effects = Some(effects);
         self
     }
 
     /// Add a detail.
+    #[must_use]
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.details.push(detail.into());
         self
     }
 
     /// Format for display.
+    #[must_use]
     pub fn format(&self) -> String {
         let capacity = 1
             + usize::from(self.effects.is_some())

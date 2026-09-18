@@ -115,7 +115,8 @@ fn test_fn_arrows_dexter_left_passthrough() {
 #[test]
 fn test_fn_arrows_confluo_left() {
     let f: BoxedFn<i32, i32> = Box::new(|x| x * 2);
-    let g: BoxedFn<&str, i32> = Box::new(|s| s.len() as i32);
+    let g: BoxedFn<&str, i32> =
+        Box::new(|s| i32::try_from(s.len()).expect("test string length fits in i32"));
     let fanin = confluo(f, g);
 
     assert_eq!(fanin(Aut::sinister(21)), 42);
@@ -124,7 +125,8 @@ fn test_fn_arrows_confluo_left() {
 #[test]
 fn test_fn_arrows_confluo_right() {
     let f: BoxedFn<i32, i32> = Box::new(|x| x * 2);
-    let g: BoxedFn<&str, i32> = Box::new(|s| s.len() as i32);
+    let g: BoxedFn<&str, i32> =
+        Box::new(|s| i32::try_from(s.len()).expect("test string length fits in i32"));
     let fanin = confluo(f, g);
 
     assert_eq!(fanin(Aut::dexter("hello")), 5);
@@ -436,8 +438,7 @@ fn test_choice_pattern_even_odd() {
     let even = router(4);
     let processed = left_process(even);
     let final_result = match processed {
-        Aut::Sinister(x) => x,
-        Aut::Dexter(x) => x,
+        Aut::Sinister(x) | Aut::Dexter(x) => x,
     };
     assert_eq!(final_result, 8); // 4 * 2
 
@@ -445,8 +446,7 @@ fn test_choice_pattern_even_odd() {
     let odd = router(5);
     let processed = right_process(odd);
     let final_result = match processed {
-        Aut::Sinister(x) => x,
-        Aut::Dexter(x) => x,
+        Aut::Sinister(x) | Aut::Dexter(x) => x,
     };
     assert_eq!(final_result, 15); // 5 * 3
 }
@@ -459,7 +459,8 @@ fn test_fanin_pattern() {
 
     // Parse numbers or count characters
     let parse: BoxedFn<String, i32> = Box::new(|s| s.parse().unwrap_or(0));
-    let count: BoxedFn<String, i32> = Box::new(|s| s.len() as i32);
+    let count: BoxedFn<String, i32> =
+        Box::new(|s| i32::try_from(s.len()).expect("test string length fits in i32"));
 
     let processor = confluo(parse, count);
 

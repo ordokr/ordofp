@@ -9,9 +9,9 @@ fn noop_waker() -> Waker {
     unsafe fn clone(_: *const ()) -> RawWaker {
         RawWaker::new(core::ptr::null(), &VTABLE)
     }
-    unsafe fn wake(_: *const ()) {}
-    unsafe fn wake_by_ref(_: *const ()) {}
-    unsafe fn drop(_: *const ()) {}
+    const unsafe fn wake(_: *const ()) {}
+    const unsafe fn wake_by_ref(_: *const ()) {}
+    const unsafe fn drop(_: *const ()) {}
     static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
     // SAFETY: All four vtable functions satisfy the `RawWakerVTable` contract:
     // `clone` returns a valid `RawWaker`, `wake`/`wake_by_ref`/`drop` are no-ops.

@@ -110,13 +110,13 @@ pub struct Identitas<A>(pub A);
 impl<A> Identitas<A> {
     /// Create a new Identitas.
     #[inline]
-    pub fn new(value: A) -> Self {
-        Identitas(value)
+    pub const fn new(value: A) -> Self {
+        Self(value)
     }
 
     /// Get the inner value.
     #[inline]
-    pub fn value(&self) -> &A {
+    pub const fn value(&self) -> &A {
         &self.0
     }
 
@@ -169,8 +169,8 @@ where
 {
     /// Create a new Thesaurus.
     #[inline]
-    pub fn new(position: S, peek_fn: F) -> Self {
-        Thesaurus { position, peek_fn }
+    pub const fn new(position: S, peek_fn: F) -> Self {
+        Self { position, peek_fn }
     }
 
     /// Peek at a specific position.
@@ -181,14 +181,15 @@ where
 
     /// Get the current position.
     #[inline]
-    pub fn pos(&self) -> &S {
+    pub const fn pos(&self) -> &S {
         &self.position
     }
 
     /// Move to a new position.
     #[inline]
+    #[must_use]
     pub fn seek(self, new_pos: S) -> Self {
-        Thesaurus {
+        Self {
             position: new_pos,
             peek_fn: self.peek_fn,
         }
@@ -196,11 +197,12 @@ where
 
     /// Modify the position.
     #[inline]
+    #[must_use]
     pub fn seeks<G>(self, f: G) -> Self
     where
         G: FnOnce(S) -> S,
     {
-        Thesaurus {
+        Self {
             position: f(self.position),
             peek_fn: self.peek_fn,
         }
@@ -224,19 +226,19 @@ pub struct Contextus<E, A> {
 impl<E, A> Contextus<E, A> {
     /// Create a new Contextus.
     #[inline]
-    pub fn new(env: E, value: A) -> Self {
-        Contextus { env, value }
+    pub const fn new(env: E, value: A) -> Self {
+        Self { env, value }
     }
 
     /// Get the environment.
     #[inline]
-    pub fn ask(&self) -> &E {
+    pub const fn ask(&self) -> &E {
         &self.env
     }
 
     /// Get the value.
     #[inline]
-    pub fn val(&self) -> &A {
+    pub const fn val(&self) -> &A {
         &self.value
     }
 }
@@ -285,8 +287,8 @@ where
 {
     /// Create a new Vestigium.
     #[inline]
-    pub fn new(run: F) -> Self {
-        Vestigium {
+    pub const fn new(run: F) -> Self {
+        Self {
             run,
             _marker: core::marker::PhantomData,
         }

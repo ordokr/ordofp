@@ -50,7 +50,7 @@ macro_rules! newtype_wrapper {
         impl<T> $name<T> {
             #[doc = concat!("Create a new ", stringify!($name), " wrapper.")]
             #[inline]
-            pub fn new(value: T) -> Self {
+            pub const fn new(value: T) -> Self {
                 $name(value)
             }
 
@@ -65,7 +65,7 @@ macro_rules! newtype_wrapper {
         impl<T: Ord> $name<T> {
             #[doc = concat!("Create a new ", stringify!($name), " wrapper.")]
             #[inline]
-            pub fn new(value: T) -> Self {
+            pub const fn new(value: T) -> Self {
                 $name(value)
             }
 
@@ -127,6 +127,7 @@ newtype_wrapper!(Max, T: Ord);
 impl<T: Ord> Max<T> {
     /// Combine two Max values, returning the larger.
     #[inline]
+    #[must_use]
     pub fn max_of(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Less => other,
@@ -153,6 +154,7 @@ newtype_wrapper!(Min, T: Ord);
 impl<T: Ord> Min<T> {
     /// Combine two Min values, returning the smaller.
     #[inline]
+    #[must_use]
     pub fn min_of(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Less => self,
@@ -185,8 +187,9 @@ newtype_wrapper!(Omnis);
 impl<T: BitAnd<Output = T>> Omnis<T> {
     /// Combine two Omnis values using bitwise AND.
     #[inline]
+    #[must_use]
     pub fn and_with(self, other: Self) -> Self {
-        Omnis(self.0.bitand(other.0))
+        Self(self.0.bitand(other.0))
     }
 }
 
@@ -214,8 +217,9 @@ newtype_wrapper!(Aliquid);
 impl<T: BitOr<Output = T>> Aliquid<T> {
     /// Combine two Aliquid values using bitwise OR.
     #[inline]
+    #[must_use]
     pub fn or_with(self, other: Self) -> Self {
-        Aliquid(self.0.bitor(other.0))
+        Self(self.0.bitor(other.0))
     }
 }
 
@@ -272,7 +276,7 @@ impl<T> Reflexio<T> {
     /// Create a new Reflexio wrapper.
     #[inline]
     pub fn new(f: fn(T) -> T) -> Self {
-        Reflexio { run: f }
+        Self { run: f }
     }
 
     /// Apply the endomorphism to a value.

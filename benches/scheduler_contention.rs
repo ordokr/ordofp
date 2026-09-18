@@ -53,10 +53,11 @@ fn bench_single_thread_push_pop(c: &mut Criterion) {
 }
 
 fn bench_contention(c: &mut Criterion) {
-    let mut group = c.benchmark_group("scheduler_contention");
     // Fixed total task budget per iteration; keeps wall-time roughly
     // stable across stealer counts so ops/sec is directly comparable.
     const TASKS_PER_ITER: usize = 10_000;
+
+    let mut group = c.benchmark_group("scheduler_contention");
 
     for &stealers in &[1usize, 2, 4, 8] {
         group.throughput(criterion::Throughput::Elements(TASKS_PER_ITER as u64));

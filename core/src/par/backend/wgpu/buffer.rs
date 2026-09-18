@@ -12,11 +12,10 @@ use super::error::{GpuError, GpuResult};
 
 /// Create a CPU-readable download buffer.
 ///
-/// Infallible today, but keeps the `GpuResult` signature shared by the other
-/// buffer helpers — callers already route the error branch to scalar fallback.
-#[allow(clippy::unnecessary_wraps)]
+/// Infallible: `wgpu` buffer creation cannot fail, so the buffer returns
+/// directly.
 #[inline]
-pub(crate) fn create_download_buffer(device: &Device, size_bytes: usize) -> Buffer {
+pub(super) fn create_download_buffer(device: &Device, size_bytes: usize) -> Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: size_bytes as u64,
@@ -26,7 +25,7 @@ pub(crate) fn create_download_buffer(device: &Device, size_bytes: usize) -> Buff
 }
 
 /// Copy buffer data from GPU to CPU.
-pub(crate) fn download_buffer(
+pub(super) fn download_buffer(
     device: &Device,
     queue: &Queue,
     source: &Buffer,

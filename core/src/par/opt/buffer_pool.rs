@@ -25,7 +25,8 @@ pub struct BufferLifetime {
 }
 
 /// Check if two buffer lifetimes overlap.
-pub fn lifetimes_overlap(a: &BufferLifetime, b: &BufferLifetime) -> bool {
+#[must_use]
+pub const fn lifetimes_overlap(a: &BufferLifetime, b: &BufferLifetime) -> bool {
     // Two lifetimes overlap if: a.start < b.end && b.start < a.end
     a.start < b.end && b.start < a.end
 }
@@ -89,6 +90,7 @@ pub struct BufferPool {
 impl BufferPool {
     /// Create new buffer pool.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             graph: InterferenceGraph::new(),
@@ -174,6 +176,7 @@ impl BufferPool {
 
     /// Get color for buffer (which pool it belongs to).
     #[inline]
+    #[must_use]
     pub fn get_color(&self, buffer_id: usize) -> Option<usize> {
         self.colors.get(&buffer_id).copied()
     }

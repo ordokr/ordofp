@@ -1,3 +1,5 @@
+//! Example 05: combining application configuration with monoids.
+
 use ordofp::monoid::{Unitas, combine_all};
 use ordofp::semigroup::Compositio;
 use std::collections::HashSet;
@@ -21,7 +23,7 @@ impl Compositio for AppConfig {
         let mut features = self.features.clone();
         features.extend(other.features.clone());
 
-        AppConfig {
+        Self {
             api_endpoint: endpoint,
             retries: self.retries + other.retries, // Additive for this example
             features,
@@ -32,7 +34,7 @@ impl Compositio for AppConfig {
 // We implement Unitas to define how to merge configs
 impl Unitas for AppConfig {
     fn empty() -> Self {
-        AppConfig {
+        Self {
             api_endpoint: String::new(),
             retries: 0,
             features: HashSet::new(),

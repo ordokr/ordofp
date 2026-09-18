@@ -12,6 +12,7 @@ use ordofp::async_core::{Flumen, Futurus, TraversableAsync};
 use ordofp::transformers::async_transforms::{
     EitherTAsync, LectorAsync, OptionTAsync, ScriptorAsync, StatusAsync,
 };
+use std::future::{Future, ready};
 
 // ============================================================================
 // Futurus Tests under smol
@@ -127,7 +128,7 @@ fn test_lector_async_ask() {
             timeout_ms: 5000,
         };
 
-        let reader = LectorAsync::<Config, String>::ask().fmap(|c| c.base_url.clone());
+        let reader = LectorAsync::<Config, String>::ask().fmap(|c| c.base_url);
 
         let result = reader.run(config).await;
         assert_eq!(result, "https://api.example.com");
@@ -392,8 +393,8 @@ use ordofp::{chain_async, compose_async, mdo_async, pipe_async};
 #[test]
 fn test_mdo_async_with_await() {
     smol::block_on(async {
-        async fn fetch_value(x: i32) -> i32 {
-            x * 2
+        fn fetch_value(x: i32) -> impl Future<Output = i32> {
+            ready(x * 2)
         }
 
         let result = mdo_async! {
@@ -411,14 +412,14 @@ fn test_mdo_async_with_await() {
 #[test]
 fn test_pipe_async_smol() {
     smol::block_on(async {
-        async fn add_one(x: i32) -> i32 {
-            x + 1
+        fn add_one(x: i32) -> impl Future<Output = i32> {
+            ready(x + 1)
         }
-        async fn double(x: i32) -> i32 {
-            x * 2
+        fn double(x: i32) -> impl Future<Output = i32> {
+            ready(x * 2)
         }
-        async fn subtract_three(x: i32) -> i32 {
-            x - 3
+        fn subtract_three(x: i32) -> impl Future<Output = i32> {
+            ready(x - 3)
         }
 
         let result = pipe_async!(10, add_one, double, subtract_three).await;
@@ -430,14 +431,14 @@ fn test_pipe_async_smol() {
 #[test]
 fn test_compose_async_smol() {
     smol::block_on(async {
-        async fn add_one(x: i32) -> i32 {
-            x + 1
+        fn add_one(x: i32) -> impl Future<Output = i32> {
+            ready(x + 1)
         }
-        async fn double(x: i32) -> i32 {
-            x * 2
+        fn double(x: i32) -> impl Future<Output = i32> {
+            ready(x * 2)
         }
-        async fn subtract_three(x: i32) -> i32 {
-            x - 3
+        fn subtract_three(x: i32) -> impl Future<Output = i32> {
+            ready(x - 3)
         }
 
         // compose_async!(f, g, h)(x) = f(g(h(x)))
@@ -451,14 +452,14 @@ fn test_compose_async_smol() {
 #[test]
 fn test_chain_async_smol() {
     smol::block_on(async {
-        async fn add_one(x: i32) -> i32 {
-            x + 1
+        fn add_one(x: i32) -> impl Future<Output = i32> {
+            ready(x + 1)
         }
-        async fn double(x: i32) -> i32 {
-            x * 2
+        fn double(x: i32) -> impl Future<Output = i32> {
+            ready(x * 2)
         }
-        async fn subtract_three(x: i32) -> i32 {
-            x - 3
+        fn subtract_three(x: i32) -> impl Future<Output = i32> {
+            ready(x - 3)
         }
 
         // chain_async!(f, g, h)(x) = h(g(f(x))) - left to right

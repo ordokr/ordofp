@@ -30,7 +30,7 @@ fn noop_raw_waker() -> RawWaker {
     fn clone(_: *const ()) -> RawWaker {
         noop_raw_waker()
     }
-    fn noop(_: *const ()) {}
+    const fn noop(_: *const ()) {}
     RawWaker::new(
         core::ptr::null(),
         &RawWakerVTable::new(clone, noop, noop, noop),
@@ -53,7 +53,7 @@ fn block_on_ready<F: Future + ?Sized>(mut fut: Pin<Box<F>>) -> F::Output {
 // Test fixtures
 // =============================================================================
 
-fn node_id(n: u64) -> NodusIdentitas {
+const fn node_id(n: u64) -> NodusIdentitas {
     NodusIdentitas::new(n, n)
 }
 

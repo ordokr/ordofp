@@ -34,14 +34,14 @@ pub struct OrdSet<A> {
 
 struct Node<A> {
     value: A,
-    left: Option<Arc<Node<A>>>,
-    right: Option<Arc<Node<A>>>,
+    left: Option<Arc<Self>>,
+    right: Option<Arc<Self>>,
     height: u8,
 }
 
 impl<A: Clone> Clone for Node<A> {
     fn clone(&self) -> Self {
-        Node {
+        Self {
             value: self.value.clone(),
             left: self.left.clone(),
             right: self.right.clone(),
@@ -51,8 +51,8 @@ impl<A: Clone> Clone for Node<A> {
 }
 
 impl<A> Node<A> {
-    fn new(value: A) -> Self {
-        Node {
+    const fn new(value: A) -> Self {
+        Self {
             value,
             left: None,
             right: None,
@@ -61,16 +61,16 @@ impl<A> Node<A> {
     }
 }
 
-fn height<A>(node: &Option<Arc<Node<A>>>) -> u8 {
-    node.as_ref().map_or(0, |n| n.height)
+fn height<A>(node: Option<&Arc<Node<A>>>) -> u8 {
+    node.map_or(0, |n| n.height)
 }
 
 fn balance_factor<A>(node: &Node<A>) -> i8 {
-    height(&node.right) as i8 - height(&node.left) as i8
+    height(node.right.as_ref()).cast_signed() - height(node.left.as_ref()).cast_signed()
 }
 
 fn update_height<A>(node: &mut Node<A>) {
-    node.height = 1 + core::cmp::max(height(&node.left), height(&node.right));
+    node.height = 1 + core::cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
 }
 
 fn build_balanced_from_sorted_iter<A, I>(iter: &mut I, len: usize) -> (Option<Arc<Node<A>>>, u8)
@@ -128,12 +128,14 @@ impl<A> Default for OrdSetStructor<A> {
 impl<A> OrdSetStructor<A> {
     /// Creates an empty `OrdSetStructor` with no pre-allocated capacity.
     #[inline]
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self { items: Vec::new() }
     }
 
     /// Creates an empty `OrdSetStructor` with at least the given capacity pre-allocated.
     #[inline]
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
@@ -159,6 +161,7 @@ impl<A> OrdSetStructor<A> {
 impl<A: Ord> OrdSetStructor<A> {
     /// Sorts and deduplicates all staged elements, returning the final `OrdSet`.
     #[inline]
+    #[must_use]
     pub fn finish(mut self) -> OrdSet<A> {
         self.items.sort();
 
@@ -180,6 +183,7 @@ impl<A: Ord> OrdSetStructor<A> {
     /// Uses Rayon for parallel sorting when the entry count is large.
     #[cfg(feature = "rayon")]
     #[inline]
+    #[must_use]
     pub fn finish_par(mut self) -> OrdSet<A>
     where
         A: Send,
@@ -209,7 +213,7 @@ impl<A: Ord> OrdSetStructor<A> {
 
 impl<A> Clone for OrdSet<A> {
     fn clone(&self) -> Self {
-        OrdSet {
+        Self {
             root: self.root.clone(),
             len: self.len,
         }
@@ -242,25 +246,29 @@ impl<A: Eq> Eq for OrdSet<A> {}
 impl<A> OrdSet<A> {
     /// Create an empty set.
     #[inline]
-    pub fn new() -> Self {
-        OrdSet { root: None, len: 0 }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { root: None, len: 0 }
     }
 
     /// Check if the set is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     /// Get the number of elements.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.len
     }
 
     /// Returns a builder ([`OrdSetStructor`]) for incrementally constructing an `OrdSet`.
     #[inline]
-    pub fn structor() -> OrdSetStructor<A> {
+    #[must_use]
+    pub const fn structor() -> OrdSetStructor<A> {
         OrdSetStructor::new()
     }
 }
@@ -271,9 +279,10 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// # Complexity
     /// O(log n)
     #[inline]
+    #[must_use]
     pub fn insert(&self, value: A) -> Self {
         let (new_root, inserted) = insert_node(self.root.clone(), value);
-        OrdSet {
+        Self {
             root: Some(new_root),
             len: if inserted { self.len + 1 } else { self.len },
         }
@@ -287,13 +296,14 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// # Complexity
     /// O(log n)
     #[inline]
+    #[must_use]
     pub fn remove<Q>(&self, value: &Q) -> Self
     where
         A: Borrow<Q>,
         Q: Ord + ?Sized,
     {
         let (new_root, removed) = remove_node(self.root.clone(), value);
-        OrdSet {
+        Self {
             root: new_root,
             len: if removed {
                 self.len.saturating_sub(1)
@@ -305,14 +315,16 @@ impl<A: Ord + Clone> OrdSet<A> {
 
     /// Get minimum element.
     #[inline]
+    #[must_use]
     pub fn min(&self) -> Option<&A> {
-        min_node(&self.root)
+        min_node(self.root.as_ref())
     }
 
     /// Get maximum element.
     #[inline]
+    #[must_use]
     pub fn max(&self) -> Option<&A> {
-        max_node(&self.root)
+        max_node(self.root.as_ref())
     }
 
     /// Union of two sets (parallel version, requires `rayon` feature).
@@ -321,6 +333,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// in-order merge has not paid off in benchmarks. The signature keeps the
     /// `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn union_par(&self, other: &Self) -> Self
     where
         A: Send + Sync,
@@ -332,6 +345,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     ///
     /// This implementation merges the two in-order iterators and then bulk-builds
     /// a balanced tree, avoiding repeated `insert` calls.
+    #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut a = self.iter();
         let mut b = other.iter();
@@ -383,6 +397,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// in-order merge has not paid off in benchmarks. The signature keeps the
     /// `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn intersection_par(&self, other: &Self) -> Self
     where
         A: Send + Sync,
@@ -393,6 +408,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// Intersection of two sets.
     ///
     /// Merges the two in-order iterators (like a merge-join) and bulk-builds.
+    #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         let mut a = self.iter();
         let mut b = other.iter();
@@ -423,6 +439,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// in-order merge has not paid off in benchmarks. The signature keeps the
     /// `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn difference_par(&self, other: &Self) -> Self
     where
         A: Send + Sync,
@@ -433,6 +450,7 @@ impl<A: Ord + Clone> OrdSet<A> {
     /// Difference of two sets (self - other).
     ///
     /// Merges the two in-order iterators and bulk-builds.
+    #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         let mut a = self.iter();
         let mut b = other.iter();
@@ -485,7 +503,7 @@ impl<A: Ord> OrdSet<A> {
         A: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        contains_node(&self.root, value)
+        contains_node(self.root.as_ref(), value)
     }
 }
 
@@ -511,19 +529,16 @@ impl<A> OrdSet<A> {
 // AVL Tree Operations
 // ============================================================================
 
-fn contains_node<A, Q>(node: &Option<Arc<Node<A>>>, value: &Q) -> bool
+fn contains_node<A, Q>(node: Option<&Arc<Node<A>>>, value: &Q) -> bool
 where
     A: Borrow<Q>,
     Q: Ord + ?Sized,
 {
-    match node {
-        None => false,
-        Some(n) => match value.cmp(n.value.borrow()) {
-            Ordering::Less => contains_node(&n.left, value),
-            Ordering::Equal => true,
-            Ordering::Greater => contains_node(&n.right, value),
-        },
-    }
+    node.is_some_and(|n| match value.cmp(n.value.borrow()) {
+        Ordering::Less => contains_node(n.left.as_ref(), value),
+        Ordering::Equal => true,
+        Ordering::Greater => contains_node(n.right.as_ref(), value),
+    })
 }
 
 fn insert_node<A: Ord + Clone>(node: Option<Arc<Node<A>>>, value: A) -> (Arc<Node<A>>, bool) {
@@ -567,9 +582,9 @@ where
     A: Clone + Borrow<Q>,
     Q: Ord + ?Sized,
 {
-    match node {
-        None => (None, false),
-        Some(n) => match value.cmp(n.value.borrow()) {
+    node.map_or_else(
+        || (None, false),
+        |n| match value.cmp(n.value.borrow()) {
             Ordering::Less => {
                 let (new_left, removed) = remove_node(n.left.clone(), value);
                 let mut new = Node {
@@ -586,7 +601,7 @@ where
                 (Some(l), None) => (Some(l.clone()), true),
                 (None, Some(r)) => (Some(r.clone()), true),
                 (Some(_), Some(r)) => {
-                    let succ = min_node(&Some(r.clone())).unwrap().clone();
+                    let succ = min_node(Some(r)).unwrap().clone();
                     // `succ: A`, `A: Borrow<Q>` → `succ.borrow(): &Q` keeps the
                     // descent type uniform (Borrow guarantees Ord consistency).
                     let (new_right, _) = remove_node(n.right.clone(), succ.borrow());
@@ -612,27 +627,21 @@ where
                 (Some(balance(new)), removed)
             }
         },
-    }
+    )
 }
 
-fn min_node<A>(node: &Option<Arc<Node<A>>>) -> Option<&A> {
+fn min_node<A>(node: Option<&Arc<Node<A>>>) -> Option<&A> {
     fn go<A>(n: &Node<A>) -> &A {
-        match &n.left {
-            Some(left) => go(left),
-            None => &n.value,
-        }
+        n.left.as_ref().map_or(&n.value, |left| go(left))
     }
-    node.as_ref().map(|n| go(n))
+    node.map(|n| go(n))
 }
 
-fn max_node<A>(node: &Option<Arc<Node<A>>>) -> Option<&A> {
+fn max_node<A>(node: Option<&Arc<Node<A>>>) -> Option<&A> {
     fn go<A>(n: &Node<A>) -> &A {
-        match &n.right {
-            Some(right) => go(right),
-            None => &n.value,
-        }
+        n.right.as_ref().map_or(&n.value, |right| go(right))
     }
-    node.as_ref().map(|n| go(n))
+    node.map(|n| go(n))
 }
 
 fn balance<A: Clone>(mut node: Node<A>) -> Arc<Node<A>> {
@@ -669,8 +678,8 @@ fn rotate_left<A: Clone>(mut node: Node<A>) -> Arc<Node<A>> {
     let right = node.right.take().expect("rotate_left: no right child");
     let right_left = right.left.clone();
     let right_right = right.right.clone();
-    let left_height = height(&node.left);
-    let right_left_height = height(&right_left);
+    let left_height = height(node.left.as_ref());
+    let right_left_height = height(right_left.as_ref());
 
     let new_left = Node {
         value: node.value,
@@ -694,8 +703,8 @@ fn rotate_right<A: Clone>(mut node: Node<A>) -> Arc<Node<A>> {
     let left = node.left.take().expect("rotate_right: no left child");
     let left_left = left.left.clone();
     let left_right = left.right.clone();
-    let right_height = height(&node.right);
-    let left_right_height = height(&left_right);
+    let right_height = height(node.right.as_ref());
+    let left_right_height = height(left_right.as_ref());
 
     let new_right = Node {
         value: node.value,
@@ -748,7 +757,7 @@ impl<'a, A> Iterator for OrdSetIter<'a, A> {
 
 impl<A: Ord> FromIterator<A> for OrdSet<A> {
     fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-        let mut s = OrdSet::structor();
+        let mut s = Self::structor();
         s.extend(iter);
         s.finish()
     }
@@ -786,7 +795,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let items = Vec::<A>::deserialize(d)?;
-        Ok(items.into_iter().fold(OrdSet::new(), |s, v| s.insert(v)))
+        Ok(items.into_iter().fold(Self::new(), |s, v| s.insert(v)))
     }
 }
 

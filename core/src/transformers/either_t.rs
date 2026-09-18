@@ -111,8 +111,8 @@ impl<M> EitherT<M> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn new(inner: M) -> Self {
-        EitherT { inner }
+    pub const fn new(inner: M) -> Self {
+        Self { inner }
     }
 
     /// Runs the transformer, extracting the inner computation.
@@ -138,7 +138,7 @@ impl<M> EitherT<M> {
 
     /// Returns a reference to the inner computation.
     #[inline]
-    pub fn inner_ref(&self) -> &M {
+    pub const fn inner_ref(&self) -> &M {
         &self.inner
     }
 }
@@ -164,8 +164,8 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn right(value: A) -> Self {
-        EitherT::new(Some(Ok(value)))
+    pub const fn right(value: A) -> Self {
+        Self::new(Some(Ok(value)))
     }
 
     /// Creates an `EitherT` containing an error value over `Option`.
@@ -184,8 +184,8 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn left(error: E) -> Self {
-        EitherT::new(Some(Err(error)))
+    pub const fn left(error: E) -> Self {
+        Self::new(Some(Err(error)))
     }
 
     /// Creates an `EitherT` representing an absent computation (None).
@@ -204,8 +204,8 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn absent() -> Self {
-        EitherT::new(None)
+    pub const fn absent() -> Self {
+        Self::new(None)
     }
 
     /// Lifts an `Option` value into `EitherT`, treating `Some` as success.
@@ -230,7 +230,7 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
     /// ```
     #[inline]
     pub fn lift_m(option: Option<A>) -> Self {
-        EitherT::new(option.map(Ok))
+        Self::new(option.map(Ok))
     }
 
     /// Maps a function over the success value.
@@ -397,11 +397,12 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn handle_error<F>(self, f: F) -> Self
     where
         F: FnOnce(E) -> Self,
     {
-        EitherT::new(match self.inner {
+        Self::new(match self.inner {
             Some(Ok(a)) => Some(Ok(a)),
             Some(Err(e)) => f(e).inner,
             None => None,
@@ -421,19 +422,19 @@ impl<A, E> EitherT<Option<Result<A, E>>> {
 
     /// Checks if the computation is a success.
     #[inline]
-    pub fn is_right(&self) -> bool {
+    pub const fn is_right(&self) -> bool {
         matches!(&self.inner, Some(Ok(_)))
     }
 
     /// Checks if the computation is an error.
     #[inline]
-    pub fn is_left(&self) -> bool {
+    pub const fn is_left(&self) -> bool {
         matches!(&self.inner, Some(Err(_)))
     }
 
     /// Checks if the computation is absent.
     #[inline]
-    pub fn is_absent(&self) -> bool {
+    pub const fn is_absent(&self) -> bool {
         self.inner.is_none()
     }
 }
@@ -443,7 +444,7 @@ impl<A, E> MonadTransformer for EitherT<Option<Result<A, E>>> {
 
     #[inline]
     fn lift(base: Option<A>) -> Self {
-        EitherT::lift_m(base)
+        Self::lift_m(base)
     }
 }
 
@@ -454,20 +455,20 @@ impl<A, E> MonadTransformer for EitherT<Option<Result<A, E>>> {
 impl<A, E1, E2> EitherT<Result<Result<A, E1>, E2>> {
     /// Creates an `EitherT` containing a success value over `Result`.
     #[inline]
-    pub fn right_result(value: A) -> Self {
-        EitherT::new(Ok(Ok(value)))
+    pub const fn right_result(value: A) -> Self {
+        Self::new(Ok(Ok(value)))
     }
 
     /// Creates an `EitherT` containing an inner error over `Result`.
     #[inline]
-    pub fn left_result(error: E1) -> Self {
-        EitherT::new(Ok(Err(error)))
+    pub const fn left_result(error: E1) -> Self {
+        Self::new(Ok(Err(error)))
     }
 
     /// Creates an `EitherT` containing an outer error over `Result`.
     #[inline]
-    pub fn outer_err(error: E2) -> Self {
-        EitherT::new(Err(error))
+    pub const fn outer_err(error: E2) -> Self {
+        Self::new(Err(error))
     }
 
     /// Maps a function over the success value.
@@ -505,19 +506,20 @@ impl<A, E> EitherT<Vec<Result<A, E>>> {
     /// Creates an `EitherT` containing a success value over `Vec`.
     #[inline]
     pub fn right_vec(value: A) -> Self {
-        EitherT::new(alloc::vec![Ok(value)])
+        Self::new(alloc::vec![Ok(value)])
     }
 
     /// Creates an `EitherT` containing an error value over `Vec`.
     #[inline]
     pub fn left_vec(error: E) -> Self {
-        EitherT::new(alloc::vec![Err(error)])
+        Self::new(alloc::vec![Err(error)])
     }
 
     /// Creates an `EitherT` from multiple results.
     #[inline]
-    pub fn from_vec(values: Vec<Result<A, E>>) -> Self {
-        EitherT::new(values)
+    #[must_use]
+    pub const fn from_vec(values: Vec<Result<A, E>>) -> Self {
+        Self::new(values)
     }
 
     /// Maps a function over all success values.
@@ -604,7 +606,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::type_complexity)] // spelled-out nested transformer type is the point
+    #[allow(
+        clippy::type_complexity,
+        reason = "spelled-out nested transformer type is the point"
+    )]
     fn test_either_t_apply() {
         let val: EitherT<Option<Result<i32, &str>>> = EitherT::right(21);
         let func: EitherT<Option<Result<fn(i32) -> i32, &str>>> = EitherT::right(|x: i32| x * 2);

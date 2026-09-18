@@ -80,7 +80,7 @@ fn test_liber_map_purus() {
 
     match mapped {
         Liber::Purus(x) => assert_eq!(x, 84),
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -91,7 +91,7 @@ fn test_liber_flat_map_purus() {
 
     match chained {
         Liber::Purus(x) => assert_eq!(x, 43),
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -105,7 +105,7 @@ fn test_liber_chain_operations() {
 
     match result {
         Liber::Purus(x) => assert_eq!(x, 20), // ((10 + 5) * 2) - 10 = 20
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -132,7 +132,7 @@ fn test_liber_monad_right_identity() {
 
     match result {
         Liber::Purus(r) => assert_eq!(r, 42),
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -163,7 +163,7 @@ fn test_liber_join() {
 
     match joined {
         Liber::Purus(x) => assert_eq!(x, 42),
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -172,7 +172,7 @@ fn test_purus_liber_helper() {
     let free: Liber<OptionFWitness, i32> = purus_liber(42);
     match free {
         Liber::Purus(x) => assert_eq!(x, 42),
-        _ => panic!("Expected Purus"),
+        Liber::Suspensus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -194,7 +194,7 @@ fn test_liberior_map_purus() {
 
     match mapped {
         Liberior::Purus(x) => assert_eq!(x, 84),
-        _ => panic!("Expected Purus"),
+        Liberior::Impurus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -205,7 +205,7 @@ fn test_liberior_flat_map_purus() {
 
     match chained {
         Liberior::Purus(x) => assert_eq!(x, 43),
-        _ => panic!("Expected Purus"),
+        Liberior::Impurus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -219,7 +219,7 @@ fn test_liberior_chain_operations() {
 
     match result {
         Liberior::Purus(x) => assert_eq!(x, 20), // ((10 + 5) * 2) - 10 = 20
-        _ => panic!("Expected Purus"),
+        Liberior::Impurus(_) => panic!("Expected Purus"),
     }
 }
 
@@ -244,7 +244,7 @@ fn test_liberior_monad_right_identity() {
 
     match result {
         Liberior::Purus(x) => assert_eq!(x, 42),
-        _ => panic!("Expected Purus"),
+        Liberior::Impurus(_) => panic!("Expected Purus"),
     }
 }
 

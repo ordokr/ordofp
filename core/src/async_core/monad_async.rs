@@ -190,11 +190,11 @@ impl<A: Send, E: Send> MonadAsync for Result<A, E> {
 // Implementation for Vec
 // ============================================================================
 
-impl<A: Send> MonadAsync for Vec<A> {
+impl<T: Send> MonadAsync for Vec<T> {
     #[inline]
     async fn flat_map_async<B, F, Fut>(self, mut f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Fut + Send,
+        F: FnMut(T) -> Fut + Send,
         Fut: Future<Output = Vec<B>> + Send,
         B: Send,
     {
@@ -217,11 +217,11 @@ pub trait MonadAsyncMut: ApplicatioAsync {
         B: Send;
 }
 
-impl<A: Send> MonadAsyncMut for Vec<A> {
+impl<T: Send> MonadAsyncMut for Vec<T> {
     #[inline]
     async fn flat_map_async_mut<B, F, Fut>(self, mut f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Fut + Send,
+        F: FnMut(T) -> Fut + Send,
         Fut: Future<Output = Vec<B>> + Send,
         B: Send,
     {

@@ -92,13 +92,14 @@ where
     ///
     /// Takes a pre-boxed `Arc<dyn Nodus>` and wraps it as a dyn pipeline.
     #[doc(hidden)]
-    #[inline(always)]
+    #[inline]
     pub fn __from_node(node: Arc<dyn Nodus<Item = T>>) -> Self {
         Self { node }
     }
 
     /// Create a parallel stream from a vector.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn from_vec(vec: Vec<T>) -> Self {
         Self {
             node: Arc::new(NodusInit { data: vec }),
@@ -106,31 +107,34 @@ where
     }
 
     /// Create a parallel stream from a slice (clones the data).
-    #[inline(always)]
+    #[inline]
     pub fn from_slice(slice: &[T]) -> Self {
         Self::from_vec(slice.to_vec())
     }
 
     /// Create an empty parallel stream.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn empty() -> Self {
         Self::from_vec(Vec::new())
     }
 
     /// Create a parallel stream with a single element.
-    #[inline(always)]
+    #[inline]
     pub fn singleton(value: T) -> Self {
         Self::from_vec(vec![value])
     }
 
     /// Get the length of the stream.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
         self.node.len()
     }
 
     /// Check if the stream is empty.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -146,7 +150,7 @@ where
     /// let doubled = stream.map(|x| x * 2);
     /// assert_eq!(doubled.collect_vec(&CpuScalar), vec![2, 4, 6]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn map<U, F>(self, f: F) -> FlumenParallelum<U>
     where
         U: Clone + Send + Sync + 'static,
@@ -171,12 +175,13 @@ where
     /// let evens = stream.filter(|x| x % 2 == 0);
     /// assert_eq!(evens.collect_vec(&CpuScalar), vec![2, 4]);
     /// ```
-    #[inline(always)]
-    pub fn filter<F>(self, predicate: F) -> FlumenParallelum<T>
+    #[inline]
+    #[must_use]
+    pub fn filter<F>(self, predicate: F) -> Self
     where
         F: Fn(&T) -> bool + Send + Sync + 'static,
     {
-        FlumenParallelum {
+        Self {
             node: Arc::new(NodusFilter {
                 prev: self.node,
                 predicate: Arc::new(predicate),
@@ -195,7 +200,7 @@ where
     /// let parsed = stream.filter_map(|s| s.parse::<i32>().ok());
     /// assert_eq!(parsed.collect_vec(&CpuScalar), vec![1, 3]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn filter_map<U, F>(self, f: F) -> FlumenParallelum<U>
     where
         U: Clone + Send + Sync + 'static,
@@ -222,7 +227,7 @@ where
     /// let running_sum = stream.scan(0, |acc, x| acc + x);
     /// assert_eq!(running_sum.collect_vec(&CpuScalar), vec![1, 3, 6]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn scan<B, F>(self, init: B, f: F) -> FlumenParallelum<B>
     where
         B: Clone + Send + Sync + 'static,
@@ -238,9 +243,10 @@ where
     }
 
     /// Take the first `n` elements.
-    #[inline(always)]
-    pub fn take(self, n: usize) -> FlumenParallelum<T> {
-        FlumenParallelum {
+    #[inline]
+    #[must_use]
+    pub fn take(self, n: usize) -> Self {
+        Self {
             node: Arc::new(NodusTake {
                 prev: self.node,
                 count: n,
@@ -249,9 +255,10 @@ where
     }
 
     /// Skip the first `n` elements.
-    #[inline(always)]
-    pub fn skip(self, n: usize) -> FlumenParallelum<T> {
-        FlumenParallelum {
+    #[inline]
+    #[must_use]
+    pub fn skip(self, n: usize) -> Self {
+        Self {
             node: Arc::new(NodusSkip {
                 prev: self.node,
                 count: n,
@@ -273,7 +280,8 @@ where
     ///     vec![(0, "a"), (1, "b"), (2, "c")]
     /// );
     /// ```
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn enumerate(self) -> FlumenParallelum<(usize, T)> {
         FlumenParallelum {
             node: Arc::new(NodusEnumerate { prev: self.node }),
@@ -283,12 +291,13 @@ where
     /// Inspect each element without modifying it.
     ///
     /// Useful for debugging.
-    #[inline(always)]
-    pub fn inspect<F>(self, f: F) -> FlumenParallelum<T>
+    #[inline]
+    #[must_use]
+    pub fn inspect<F>(self, f: F) -> Self
     where
         F: Fn(&T) + Send + Sync + 'static,
     {
-        FlumenParallelum {
+        Self {
             node: Arc::new(NodusInspect {
                 prev: self.node,
                 f: Arc::new(f),
@@ -297,9 +306,10 @@ where
     }
 
     /// Chain two streams together.
-    #[inline(always)]
-    pub fn chain(self, other: FlumenParallelum<T>) -> FlumenParallelum<T> {
-        FlumenParallelum {
+    #[inline]
+    #[must_use]
+    pub fn chain(self, other: Self) -> Self {
+        Self {
             node: Arc::new(NodusChain {
                 first: self.node,
                 second: other.node,
@@ -308,7 +318,8 @@ where
     }
 
     /// Zip two streams together.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn zip<U>(self, other: FlumenParallelum<U>) -> FlumenParallelum<(T, U)>
     where
         U: Clone + Send + Sync + 'static,
@@ -322,7 +333,7 @@ where
     }
 
     /// Collect the stream into a vector using the given backend.
-    #[inline(always)]
+    #[inline]
     pub fn collect_vec<Bk>(&self, backend: &Bk) -> Vec<T>
     where
         Bk: backend::Backend,
@@ -331,7 +342,7 @@ where
     }
 
     /// Reduce the stream to a single value using the given backend.
-    #[inline(always)]
+    #[inline]
     pub fn reduce<Bk, F>(&self, backend: &Bk, f: F) -> Option<T>
     where
         Bk: backend::Backend,
@@ -347,7 +358,7 @@ where
     /// * `backend` - The execution backend
     /// * `wgsl_op` - The WGSL binary operation (e.g. "+", "*", "min", "max")
     /// * `fallback` - Rust fallback function for CPU execution
-    #[inline(always)]
+    #[inline]
     pub fn reduce_gpu<Bk, F>(&self, backend: &Bk, wgsl_op: &str, fallback: F) -> Option<T>
     where
         Bk: backend::Backend,
@@ -357,7 +368,7 @@ where
     }
 
     /// Fold the stream with an initial value using the given backend.
-    #[inline(always)]
+    #[inline]
     pub fn fold<Bk, B, F>(&self, backend: &Bk, init: B, f: F) -> B
     where
         Bk: backend::Backend,
@@ -368,7 +379,7 @@ where
     }
 
     /// Execute a side-effect for each element using the given backend.
-    #[inline(always)]
+    #[inline]
     pub fn for_each<Bk, F>(&self, backend: &Bk, f: F)
     where
         Bk: backend::Backend,
@@ -378,7 +389,7 @@ where
     }
 
     /// Check if any element satisfies the predicate.
-    #[inline(always)]
+    #[inline]
     pub fn any<Bk, F>(&self, backend: &Bk, predicate: F) -> bool
     where
         Bk: backend::Backend,
@@ -388,7 +399,7 @@ where
     }
 
     /// Check if all elements satisfy the predicate.
-    #[inline(always)]
+    #[inline]
     pub fn all<Bk, F>(&self, backend: &Bk, predicate: F) -> bool
     where
         Bk: backend::Backend,
@@ -398,7 +409,7 @@ where
     }
 
     /// Find the first element satisfying the predicate.
-    #[inline(always)]
+    #[inline]
     pub fn find<Bk, F>(&self, backend: &Bk, predicate: F) -> Option<T>
     where
         Bk: backend::Backend,
@@ -408,7 +419,7 @@ where
     }
 
     /// Count the number of elements.
-    #[inline(always)]
+    #[inline]
     pub fn count<Bk>(&self, backend: &Bk) -> usize
     where
         Bk: backend::Backend,
@@ -417,7 +428,7 @@ where
     }
 
     /// Sum the elements (requires the element type to support addition).
-    #[inline(always)]
+    #[inline]
     pub fn sum<Bk>(&self, backend: &Bk) -> T
     where
         Bk: backend::Backend,
@@ -427,7 +438,7 @@ where
     }
 
     /// Product of the elements (requires the element type to support multiplication).
-    #[inline(always)]
+    #[inline]
     pub fn product<Bk>(&self, backend: &Bk) -> T
     where
         Bk: backend::Backend,
@@ -443,6 +454,7 @@ where
     /// out of the node without any cloning. Otherwise it falls back to a normal
     /// `collect_scalar`.
     #[inline]
+    #[must_use]
     pub fn into_vec_scalar(mut self) -> Vec<T> {
         if let Some(inner) = Arc::get_mut(&mut self.node)
             && let Some(v) = inner.try_drain_vec()
@@ -462,24 +474,28 @@ impl FlumenParallelum<f32> {
     /// `.fold(&CpuSimd, 0.0, |a, x| a + x)` but uses vectorised
     /// reduction instead of scalar iteration.
     #[inline]
+    #[must_use]
     pub fn simd_sum(&self, backend: &backend::CpuSimd) -> f32 {
         backend.sum_stream_f32(&*self.node)
     }
 
     /// SIMD-accelerated element-wise minimum.
     #[inline]
+    #[must_use]
     pub fn simd_min(&self, backend: &backend::CpuSimd) -> Option<f32> {
         backend.min_stream_f32(&*self.node)
     }
 
     /// SIMD-accelerated element-wise maximum.
     #[inline]
+    #[must_use]
     pub fn simd_max(&self, backend: &backend::CpuSimd) -> Option<f32> {
         backend.max_stream_f32(&*self.node)
     }
 
     /// Scale every element by `factor` using SIMD.
     #[inline]
+    #[must_use]
     pub fn simd_scale(&self, backend: &backend::CpuSimd, factor: f32) -> alloc::vec::Vec<f32> {
         backend.scale_stream_f32(&*self.node, factor)
     }
@@ -503,7 +519,8 @@ impl<T: backend::wgpu::GpuScalar> FlumenParallelum<T> {
     /// let stream = ParFlumen::from_vec_gpu(vec![1.0f32, 2.0, 3.0]);
     /// assert_eq!(stream.len(), 3);
     /// ```
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn from_vec_gpu(vec: Vec<T>) -> Self {
         Self {
             node: Arc::new(gpu::NodusInitGpu { data: vec }),
@@ -531,12 +548,13 @@ impl<T: backend::wgpu::GpuScalar> FlumenParallelum<T> {
     /// let doubled = stream.map_gpu("x * 2.0", |x| x * 2.0);
     /// assert_eq!(doubled.collect_vec(&CpuScalar), vec![2.0, 4.0, 6.0]);
     /// ```
-    #[inline(always)]
-    pub fn map_gpu<F>(self, wgsl_expr: &str, fallback: F) -> FlumenParallelum<T>
+    #[inline]
+    #[must_use]
+    pub fn map_gpu<F>(self, wgsl_expr: &str, fallback: F) -> Self
     where
         F: Fn(T) -> T + Send + Sync + 'static,
     {
-        FlumenParallelum {
+        Self {
             node: Arc::new(gpu::NodusGpuMap {
                 prev: self.node,
                 wgsl_expr: alloc::string::String::from(wgsl_expr),
@@ -546,11 +564,13 @@ impl<T: backend::wgpu::GpuScalar> FlumenParallelum<T> {
     }
 
     /// Check if this pipeline can be executed on GPU.
+    #[must_use]
     pub fn is_gpu_capable(&self) -> bool {
         self.node.try_gpu_map_chain().is_some()
     }
 
     /// Get the GPU map chain for this pipeline (if available).
+    #[must_use]
     pub fn gpu_chain(&self) -> Option<GpuMapChain> {
         self.node.try_gpu_map_chain()
     }
@@ -574,6 +594,7 @@ impl<T: backend::wgpu::GpuScalar> FlumenParallelum<T> {
     ///     .map_gpu("x * 2.0", |x| x * 2.0)
     ///     .collect_gpu(&backend);
     /// ```
+    #[must_use]
     pub fn collect_gpu(&self, backend: &backend::wgpu::GpuWgpu) -> Vec<T> {
         // `Backend::collect` must be in scope for method resolution. Import it
         // *locally* so the trait `use` is compiled only with this `gpu-wgpu`-gated
@@ -648,12 +669,12 @@ pub trait Nodus: Send + Sync {
         out
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         false
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, _index: usize) -> Self::Item {
         crate::cold_panic!("Nodus::get called on a non-indexed node")
     }
@@ -826,7 +847,7 @@ mod tests {
         );
     }
 
-    /// Fused parallel reduce + for_each on `NodusFilter` (`filter().reduce()` /
+    /// Fused parallel reduce + `for_each` on `NodusFilter` (`filter().reduce()` /
     /// `filter().for_each()`, no map). `CpuRayon { min_len: 1 }` forces the
     /// fused path (`NodusFilter::reduce_rayon`/`for_each_rayon`); results must
     /// match the scalar backend.
@@ -851,7 +872,7 @@ mod tests {
         assert_eq!(acc.load(Ordering::Relaxed), expected);
     }
 
-    /// Fused parallel reduce + for_each on `NodusFilterMap`
+    /// Fused parallel reduce + `for_each` on `NodusFilterMap`
     /// (`filter_map().reduce()` / `filter_map().for_each()`). Forced parallel
     /// path must match the scalar backend.
     #[cfg(feature = "rayon")]
@@ -878,7 +899,7 @@ mod tests {
         assert_eq!(acc.load(Ordering::Relaxed), expected);
     }
 
-    /// Fused parallel reduce + for_each on `NodusChain` (`a.chain(b)`).
+    /// Fused parallel reduce + `for_each` on `NodusChain` (`a.chain(b)`).
     /// Each half is reduced in parallel via `rayon::join` and combined (reduce
     /// is associative), with no concatenated Vec. Uses non-indexed (filtered)
     /// halves to exercise the fused path, plus an empty-half edge case.
@@ -978,7 +999,7 @@ mod tests {
     /// that overrides them, on BOTH the indexed branch and the non-indexed-
     /// upstream fallback `else` branch (e.g. `filter().filter()` makes the
     /// outer node's `prev` non-indexed, forcing the `collect_rayon`-then-
-    /// reduce/for_each fallback). All forced-parallel results must equal scalar.
+    /// `reduce/for_each` fallback). All forced-parallel results must equal scalar.
     #[cfg(feature = "rayon")]
     #[test]
     fn test_par_fused_terminals_all_paths_match_scalar() {

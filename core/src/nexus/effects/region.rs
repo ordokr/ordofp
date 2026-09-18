@@ -105,11 +105,11 @@ impl Chunk {
         // zero-sized layouts above, satisfying the precondition of the global allocator.
         // The returned pointer is checked for null via `NonNull::new` before use.
         let ptr = unsafe { alloc(layout) };
-        NonNull::new(ptr).map(|ptr| Chunk { ptr, layout })
+        NonNull::new(ptr).map(|ptr| Self { ptr, layout })
     }
 
     /// Get the end of this chunk.
-    fn end(&self) -> *mut u8 {
+    const fn end(&self) -> *mut u8 {
         // SAFETY: `self.ptr` points to an allocation of exactly `self.layout.size()` bytes,
         // so adding `layout.size()` advances the pointer one-past-the-end, which is valid
         // for pointer arithmetic per the Rust reference (the result need not be dereferenced).
@@ -437,7 +437,7 @@ impl<'r> Region<'r> {
     }
 
     /// Update allocation statistics.
-    #[inline(always)]
+    #[inline]
     fn update_stats(&self, bytes: usize) {
         let mut stats = self.stats.get();
         stats.allocations += 1;
@@ -446,17 +446,17 @@ impl<'r> Region<'r> {
     }
 
     /// Get allocation statistics.
-    pub fn stats(&self) -> RegionStats {
+    pub const fn stats(&self) -> RegionStats {
         self.stats.get()
     }
 
     /// Get the number of allocations.
-    pub fn allocation_count(&self) -> usize {
+    pub const fn allocation_count(&self) -> usize {
         self.stats.get().allocations
     }
 
     /// Get the total bytes allocated.
-    pub fn bytes_allocated(&self) -> usize {
+    pub const fn bytes_allocated(&self) -> usize {
         self.stats.get().bytes_allocated
     }
 
@@ -486,8 +486,8 @@ impl<'r> Region<'r> {
 }
 
 /// Align a value up to the given alignment.
-#[inline(always)]
-fn align_up(val: usize, align: usize) -> usize {
+#[inline]
+const fn align_up(val: usize, align: usize) -> usize {
     (val + align - 1) & !(align - 1)
 }
 
@@ -706,7 +706,7 @@ impl<'r, T> RegionVec<'r, T> {
 
     /// Pop a value from the vector.
     #[inline]
-    pub fn pop(&mut self) -> Option<T> {
+    pub const fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
         } else {
@@ -724,25 +724,29 @@ impl<'r, T> RegionVec<'r, T> {
 
     /// Get the length.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.len
     }
 
     /// Check if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     /// Get the capacity.
     #[inline]
-    pub fn capacity(&self) -> usize {
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
         self.capacity
     }
 
     /// Get a slice of the elements.
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
+    #[must_use]
+    pub const fn as_slice(&self) -> &[T] {
         // SAFETY: `self.ptr` is a non-null, properly aligned pointer into a live
         // region allocation of at least `self.capacity` elements of type `T`.
         // `self.len <= self.capacity` is maintained as an invariant, so the
@@ -754,7 +758,7 @@ impl<'r, T> RegionVec<'r, T> {
 
     /// Get a mutable slice of the elements.
     #[inline]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    pub const fn as_mut_slice(&mut self) -> &mut [T] {
         // SAFETY: Same allocation and initialization invariants as `as_slice`.
         // The exclusive `&mut self` borrow guarantees no other reference to the
         // elements can exist simultaneously, satisfying the aliasing requirement
@@ -812,8 +816,9 @@ pub struct ScopedAllocator {
 
 impl ScopedAllocator {
     /// Create a new scoped allocator.
-    pub fn new() -> Self {
-        ScopedAllocator {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             allocation_count: Cell::new(0),
         }
     }
@@ -833,7 +838,7 @@ impl ScopedAllocator {
     }
 
     /// Get total allocation count across all scopes.
-    pub fn total_allocations(&self) -> usize {
+    pub const fn total_allocations(&self) -> usize {
         self.allocation_count.get()
     }
 }
@@ -886,7 +891,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::large_stack_arrays)] // >chunk-size value is what the regression exercises
+    #[allow(
+        clippy::large_stack_arrays,
+        reason = ">chunk-size value is what the regression exercises"
+    )]
     fn test_region_grow_respects_alignment() {
         // Regression: the grow path must account for alignment. Chunks are
         // only 16-aligned, so an align-128 value sized just over
@@ -929,7 +937,7 @@ mod tests {
             let arr = region.alloc_slice(&[1u8, 2, 3]);
 
             assert_eq!(*i, 42);
-            assert_eq!(*f, 2.5);
+            assert_eq!(f.to_bits(), 2.5f64.to_bits());
             assert_eq!(s, "test");
             assert_eq!(arr, &[1, 2, 3]);
         });
@@ -1021,7 +1029,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::large_stack_arrays)] // >chunk-size slice is what the test exercises
+    #[allow(
+        clippy::large_stack_arrays,
+        reason = ">chunk-size slice is what the test exercises"
+    )]
     fn test_large_allocation() {
         with_region(|region| {
             // Allocate more than a chunk size
@@ -1091,10 +1102,15 @@ mod tests {
         // Simulating parsing or tree construction
         struct Node<'r> {
             value: i32,
-            children: &'r [&'r Node<'r>],
+            children: &'r [&'r Self],
         }
 
         let sum = with_region(|region| {
+            // Calculate sum of all values
+            fn sum_tree(node: &Node) -> i32 {
+                node.value + node.children.iter().map(|c| sum_tree(c)).sum::<i32>()
+            }
+
             // Build a simple tree
             let leaf1 = region.alloc(Node {
                 value: 1,
@@ -1114,11 +1130,6 @@ mod tests {
                 value: 10,
                 children,
             });
-
-            // Calculate sum of all values
-            fn sum_tree(node: &Node) -> i32 {
-                node.value + node.children.iter().map(|c| sum_tree(c)).sum::<i32>()
-            }
 
             sum_tree(parent)
         });

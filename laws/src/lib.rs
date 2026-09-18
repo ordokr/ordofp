@@ -1,8 +1,6 @@
 #![doc(html_playground_url = "https://play.rust-lang.org/")]
-// Law-check functions take their inputs by value by design: they are
-// quickcheck-style value properties whose arguments are consumed test data,
-// and the by-value signatures keep call sites free of reference noise.
-#![allow(clippy::needless_pass_by_value)]
+// Law-check functions borrow large inputs and take small ones by value,
+// following standard borrowing conventions.
 //! # `OrdoFP` Laws
 //!
 //! This library contains property-based laws for testing implementations of

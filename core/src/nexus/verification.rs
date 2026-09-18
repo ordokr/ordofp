@@ -144,8 +144,9 @@ pub struct VerificationResult {
 
 impl VerificationResult {
     /// Create a new empty result.
-    pub fn new(handler: &'static str) -> Self {
-        VerificationResult {
+    #[must_use]
+    pub const fn new(handler: &'static str) -> Self {
+        Self {
             handler,
             laws_checked: 0,
             violations: alloc::vec::Vec::new(),
@@ -153,7 +154,7 @@ impl VerificationResult {
     }
 
     /// Record a successful check.
-    pub fn check_passed(&mut self) {
+    pub const fn check_passed(&mut self) {
         self.laws_checked += 1;
     }
 
@@ -168,7 +169,8 @@ impl VerificationResult {
     }
 
     /// Whether all checks passed.
-    pub fn is_ok(&self) -> bool {
+    #[must_use]
+    pub const fn is_ok(&self) -> bool {
         self.violations.is_empty()
     }
 
@@ -184,11 +186,7 @@ impl VerificationResult {
     /// [`check_failed`](Self::check_failed); any later violations are
     /// dropped by this conversion.
     pub fn to_result(self) -> Result<(), LawViolation> {
-        if let Some(v) = self.violations.into_iter().next() {
-            Err(v)
-        } else {
-            Ok(())
-        }
+        self.violations.into_iter().next().map_or(Ok(()), Err)
     }
 }
 
@@ -209,6 +207,7 @@ use crate::nexus::effects::state::StatefulComputation;
 /// are documented in `nexus::laws` and property-tested there, but are **not
 /// yet checked by this runtime verifier**.
 #[cfg(debug_assertions)]
+#[must_use]
 pub fn verify_state_handler<S: Clone + PartialEq + Default + 'static>() -> VerificationResult {
     let mut result = VerificationResult::new("State");
 
@@ -256,6 +255,7 @@ use crate::nexus::effects::reader::ReaderComputation;
 /// Checks:
 /// - Ask-Ask law: `ask.and_then(|e| ask.map(|_| e)) = ask`
 #[cfg(debug_assertions)]
+#[must_use]
 pub fn verify_reader_handler<E: Clone + PartialEq + Default + 'static>() -> VerificationResult {
     let mut result = VerificationResult::new("Reader");
 
@@ -301,6 +301,7 @@ use crate::nexus::effects::error::ErrorComputation;
 /// - Catch-Throw law: `catch(throw(e), h) = h(e)`
 /// - Throw-Bind law: `throw(e).and_then(f) = throw(e)`
 #[cfg(debug_assertions)]
+#[must_use]
 pub fn verify_error_handler<E: Clone + PartialEq + Default, A: Clone + PartialEq + Default>()
 -> VerificationResult {
     let mut result = VerificationResult::new("Error");
@@ -349,6 +350,7 @@ use crate::nexus::effects::writer::{Monoid, WriterComputation};
 /// - Tell-Empty law: `tell(empty) = pure(())`
 /// - Listen-Pure law: `listen(pure(x)) = pure((x, empty))`
 #[cfg(debug_assertions)]
+#[must_use]
 pub fn verify_writer_handler<W: Monoid + PartialEq + 'static>() -> VerificationResult {
     let mut result = VerificationResult::new("Writer");
 
@@ -383,6 +385,7 @@ pub fn verify_writer_handler<W>() -> VerificationResult {
 ///
 /// This is a convenience function for quick verification in tests.
 #[cfg(debug_assertions)]
+#[must_use]
 pub fn verify_all_handlers() -> alloc::vec::Vec<VerificationResult> {
     alloc::vec![
         verify_state_handler::<i32>(),

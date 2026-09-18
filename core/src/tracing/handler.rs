@@ -18,7 +18,10 @@ use super::{CollectorVestigium, EventusKind, EventusVestigium, Gradus, SpatiumId
 // Flat config struct: each bool is an independent feature toggle, not a state
 // machine in disguise, so the bools-to-enum refactor the lint suggests would
 // only add indirection.
-#[allow(clippy::struct_excessive_bools)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent feature toggles, not a state machine"
+)]
 #[derive(Debug, Clone)]
 pub struct ConfigVestigium {
     /// Whether to trace operation starts.
@@ -43,8 +46,9 @@ pub struct ConfigVestigium {
 
 impl ConfigVestigium {
     /// Create a minimal configuration (only errors).
-    pub fn minimal() -> Self {
-        ConfigVestigium {
+    #[must_use]
+    pub const fn minimal() -> Self {
+        Self {
             trace_starts: false,
             trace_ends: false,
             trace_errors: true,
@@ -55,8 +59,9 @@ impl ConfigVestigium {
     }
 
     /// Create a standard configuration.
-    pub fn standard() -> Self {
-        ConfigVestigium {
+    #[must_use]
+    pub const fn standard() -> Self {
+        Self {
             trace_starts: true,
             trace_ends: true,
             trace_errors: true,
@@ -67,8 +72,9 @@ impl ConfigVestigium {
     }
 
     /// Create a verbose configuration.
-    pub fn verbose() -> Self {
-        ConfigVestigium {
+    #[must_use]
+    pub const fn verbose() -> Self {
+        Self {
             trace_starts: true,
             trace_ends: true,
             trace_errors: true,
@@ -79,8 +85,9 @@ impl ConfigVestigium {
     }
 
     /// Create a full trace configuration.
-    pub fn full() -> Self {
-        ConfigVestigium {
+    #[must_use]
+    pub const fn full() -> Self {
+        Self {
             trace_starts: true,
             trace_ends: true,
             trace_errors: true,
@@ -141,7 +148,7 @@ impl<E, H> TractatorVestigians<E, H> {
         effect_id: u64,
         effect_name: &'static str,
     ) -> Self {
-        TractatorVestigians {
+        Self {
             inner,
             collector,
             trace_id: VestigiumId::generate(),
@@ -156,46 +163,49 @@ impl<E, H> TractatorVestigians<E, H> {
 
     /// Set the configuration.
     #[inline]
-    pub fn with_config(mut self, config: ConfigVestigium) -> Self {
+    #[must_use]
+    pub const fn with_config(mut self, config: ConfigVestigium) -> Self {
         self.config = config;
         self
     }
 
     /// Set the trace ID.
     #[inline]
-    pub fn with_trace_id(mut self, trace_id: VestigiumId) -> Self {
+    #[must_use]
+    pub const fn with_trace_id(mut self, trace_id: VestigiumId) -> Self {
         self.trace_id = trace_id;
         self
     }
 
     /// Set the parent span ID.
     #[inline]
-    pub fn with_parent_span(mut self, parent: SpatiumId) -> Self {
+    #[must_use]
+    pub const fn with_parent_span(mut self, parent: SpatiumId) -> Self {
         self.parent_span_id = Some(parent);
         self
     }
 
     /// Get the inner handler.
     #[inline]
-    pub fn inner(&self) -> &H {
+    pub const fn inner(&self) -> &H {
         &self.inner
     }
 
     /// Get the inner handler mutably.
     #[inline]
-    pub fn inner_mut(&mut self) -> &mut H {
+    pub const fn inner_mut(&mut self) -> &mut H {
         &mut self.inner
     }
 
     /// Get the trace ID.
     #[inline]
-    pub fn trace_id(&self) -> VestigiumId {
+    pub const fn trace_id(&self) -> VestigiumId {
         self.trace_id
     }
 
     /// Get the current span ID.
     #[inline]
-    pub fn span_id(&self) -> SpatiumId {
+    pub const fn span_id(&self) -> SpatiumId {
         self.span_id
     }
 
@@ -282,7 +292,7 @@ impl<E, H> TractatorVestigians<E, H> {
 
 impl<E, H: Clone> Clone for TractatorVestigians<E, H> {
     fn clone(&self) -> Self {
-        TractatorVestigians {
+        Self {
             inner: self.inner.clone(),
             collector: self.collector.clone(),
             trace_id: self.trace_id,
@@ -337,10 +347,8 @@ pub struct SpatiumGuard<'a> {
 
 impl<'a> SpatiumGuard<'a> {
     /// Create a new span guard.
-    // The params bundle is deliberately taken by value: it is built inline at
-    // call sites and fully unpacked here.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(params: SpatiumParams<'a>) -> Self {
+    #[must_use]
+    pub fn new(params: &SpatiumParams<'a>) -> Self {
         let SpatiumParams {
             collector,
             trace_id,
@@ -350,7 +358,7 @@ impl<'a> SpatiumGuard<'a> {
             effect_name,
             operation,
             start_time_ns,
-        } = params;
+        } = *params;
 
         // Record start event
         let mut event = EventusVestigium::new(trace_id, span_id, effect_id, effect_name, operation)

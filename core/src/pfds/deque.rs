@@ -67,11 +67,11 @@ impl<'de, A: serde::Deserialize<'de>> serde::Deserialize<'de> for Deque<A> {
             // Accepted for round-trip compatibility, never trusted: the whole
             // type relies on len == front.len() + back.len().
             #[serde(default)]
-            #[allow(dead_code)]
+            #[allow(dead_code, reason = "wire field accepted for compat, never trusted")]
             len: usize,
         }
         let w = Wire::deserialize(d)?;
-        Ok(Deque {
+        Ok(Self {
             len: w.front.len() + w.back.len(),
             front: w.front,
             back: w.back,
@@ -82,7 +82,7 @@ impl<'de, A: serde::Deserialize<'de>> serde::Deserialize<'de> for Deque<A> {
 #[cfg(feature = "alloc")]
 impl<A> Default for Deque<A> {
     fn default() -> Self {
-        Deque::new()
+        Self::new()
     }
 }
 
@@ -115,8 +115,9 @@ impl<A> Deque<A> {
     /// assert!(d.is_empty());
     /// ```
     #[inline]
-    pub fn new() -> Self {
-        Deque {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             front: Vec::new(),
             back: Vec::new(),
             len: 0,
@@ -125,13 +126,15 @@ impl<A> Deque<A> {
 
     /// Check if the deque is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     /// Get the number of elements in the deque.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.len
     }
 
@@ -146,9 +149,10 @@ impl<A> Deque<A> {
     /// assert_eq!(d.peek_front(), Some(&2));
     /// ```
     #[inline]
+    #[must_use]
     pub fn push_front(mut self, value: A) -> Self {
         self.front.push(value);
-        Deque {
+        Self {
             front: self.front,
             back: self.back,
             len: self.len + 1,
@@ -166,9 +170,10 @@ impl<A> Deque<A> {
     /// assert_eq!(d.peek_back(), Some(&2));
     /// ```
     #[inline]
+    #[must_use]
     pub fn push_back(mut self, value: A) -> Self {
         self.back.push(value);
-        Deque {
+        Self {
             front: self.front,
             back: self.back,
             len: self.len + 1,
@@ -193,6 +198,7 @@ impl<A> Deque<A> {
     /// (a non-empty deque must have a non-empty front after rebalancing),
     /// which indicates a bug in this crate.
     #[inline]
+    #[must_use]
     pub fn pop_front(mut self) -> Option<(A, Self)>
     where
         A: Clone,
@@ -209,7 +215,7 @@ impl<A> Deque<A> {
         let value = self.front.pop().unwrap();
         Some((
             value,
-            Deque {
+            Self {
                 front: self.front,
                 back: self.back,
                 len: self.len - 1,
@@ -235,6 +241,7 @@ impl<A> Deque<A> {
     /// (a non-empty deque must have a non-empty back after rebalancing),
     /// which indicates a bug in this crate.
     #[inline]
+    #[must_use]
     pub fn pop_back(mut self) -> Option<(A, Self)>
     where
         A: Clone,
@@ -251,7 +258,7 @@ impl<A> Deque<A> {
         let value = self.back.pop().unwrap();
         Some((
             value,
-            Deque {
+            Self {
                 front: self.front,
                 back: self.back,
                 len: self.len - 1,
@@ -261,6 +268,7 @@ impl<A> Deque<A> {
 
     /// Peek at the front value without removing it.
     #[inline]
+    #[must_use]
     pub fn peek_front(&self) -> Option<&A> {
         if self.is_empty() {
             None
@@ -273,6 +281,7 @@ impl<A> Deque<A> {
 
     /// Peek at the back value without removing it.
     #[inline]
+    #[must_use]
     pub fn peek_back(&self) -> Option<&A> {
         if self.is_empty() {
             None
@@ -340,6 +349,7 @@ impl<A> Deque<A> {
 
     /// Filter elements that satisfy the predicate.
     #[inline]
+    #[must_use]
     pub fn filter<F>(&self, pred: F) -> Self
     where
         A: Clone,
@@ -348,11 +358,12 @@ impl<A> Deque<A> {
         let front: Vec<A> = self.front.iter().filter(|x| pred(x)).cloned().collect();
         let back: Vec<A> = self.back.iter().filter(|x| pred(x)).cloned().collect();
         let len = front.len() + back.len();
-        Deque { front, back, len }
+        Self { front, back, len }
     }
 
     /// Convert to a Vec (front to back order).
     #[inline]
+    #[must_use]
     pub fn to_vec(&self) -> Vec<A>
     where
         A: Clone,
@@ -364,8 +375,9 @@ impl<A> Deque<A> {
 
     /// Reverse the deque.
     #[inline]
+    #[must_use]
     pub fn reverse(self) -> Self {
-        Deque {
+        Self {
             front: self.back,
             back: self.front,
             len: self.len,
@@ -374,6 +386,7 @@ impl<A> Deque<A> {
 
     /// Concatenate two deques.
     #[inline]
+    #[must_use]
     pub fn concat(&self, other: &Self) -> Self
     where
         A: Clone,
@@ -395,7 +408,7 @@ impl<A> Deque<A> {
 impl<A: Clone> From<Vec<A>> for Deque<A> {
     fn from(vec: Vec<A>) -> Self {
         let len = vec.len();
-        Deque {
+        Self {
             front: Vec::new(),
             back: vec,
             len,
@@ -408,7 +421,7 @@ impl<A: Clone> FromIterator<A> for Deque<A> {
     fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
         let back: Vec<A> = iter.into_iter().collect();
         let len = back.len();
-        Deque {
+        Self {
             front: Vec::new(),
             back,
             len,
@@ -703,7 +716,7 @@ mod tests {
 mod serde_invariant_tests {
     use super::*;
 
-    /// S2 regression: forged `len` made pop_front hit `.unwrap()` on an
+    /// S2 regression: forged `len` made `pop_front` hit `.unwrap()` on an
     /// empty Vec (deque.rs:180). len is now recomputed, never trusted.
     #[test]
     fn forged_len_is_recomputed() {

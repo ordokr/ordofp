@@ -29,13 +29,13 @@ impl<T> IsEq<T> {
     /// Create a new equality assertion.
     ///
     /// The two values are expected to be equal according to some law.
-    pub fn new(lhs: T, rhs: T) -> Self {
-        IsEq { lhs, rhs }
+    pub const fn new(lhs: T, rhs: T) -> Self {
+        Self { lhs, rhs }
     }
 
     /// Alias for `new` - creates an equality check from two values
     /// that should be equal under a particular law.
-    pub fn equal_under_law(lhs: T, rhs: T) -> Self {
+    pub const fn equal_under_law(lhs: T, rhs: T) -> Self {
         Self::new(lhs, rhs)
     }
 }

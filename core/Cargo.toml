@@ -8,6 +8,7 @@ description = "OrdoFP core provides developers with HList, Disiunctio, NominataU
 license = "Apache-2.0"
 documentation = "https://docs.rs/ordofp_core"
 repository = "https://github.com/ordokr/ordofp"
+readme = "../README.md"
 keywords = ["functional", "hlist", "typeclasses", "optics", "effects"]
 categories = ["data-structures", "rust-patterns"]
 

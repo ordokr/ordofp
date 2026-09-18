@@ -149,8 +149,9 @@ impl<R1: EffectRow, R2: EffectRow> RowsCommute<R1, R2> {
     ///
     /// This should only be constructed when the rows actually commute.
     #[inline]
+    #[must_use]
     pub const unsafe fn new() -> Self {
-        RowsCommute {
+        Self {
             _marker: PhantomData,
         }
     }
@@ -190,7 +191,11 @@ impl<R2: EffectRow> RowCommutes<R2> for Pure {
 /// assert_eq!(b, 2);
 /// ```
 #[inline]
-pub fn swap_if_commutes<R1, R2, A, B>(_proof: RowsCommute<R1, R2>, first: A, second: B) -> (B, A)
+pub const fn swap_if_commutes<R1, R2, A, B>(
+    _proof: RowsCommute<R1, R2>,
+    first: A,
+    second: B,
+) -> (B, A)
 where
     R1: EffectRow,
     R2: EffectRow,

@@ -35,22 +35,22 @@ pub enum FastIO<A> {
 impl<A: 'static> FastIO<A> {
     /// Create a pure value.
     #[inline]
-    pub fn pure(value: A) -> Self {
-        FastIO::Pure(value)
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Perform an IO action.
     #[inline]
     pub fn perform<F: FnOnce() -> A + 'static>(f: F) -> Self {
-        FastIO::Perform(Box::new(f))
+        Self::Perform(Box::new(f))
     }
 
     /// Run the IO computation.
     #[inline]
     pub fn run(self) -> A {
         match self {
-            FastIO::Pure(a) => a,
-            FastIO::Perform(f) => f(),
+            Self::Pure(a) => a,
+            Self::Perform(f) => f(),
         }
     }
 
@@ -58,8 +58,8 @@ impl<A: 'static> FastIO<A> {
     #[inline]
     pub fn map<B: 'static, F: FnOnce(A) -> B + 'static>(self, f: F) -> FastIO<B> {
         match self {
-            FastIO::Pure(a) => FastIO::Pure(f(a)),
-            FastIO::Perform(action) => FastIO::Perform(Box::new(move || f(action()))),
+            Self::Pure(a) => FastIO::Pure(f(a)),
+            Self::Perform(action) => FastIO::Perform(Box::new(move || f(action()))),
         }
     }
 
@@ -82,7 +82,7 @@ pub trait IoOp {
     type Output;
     /// Execute the IO operation, consuming `self` and returning the result.
     ///
-    /// Implementations are expected to be `#[inline(always)]` so the compiler
+    /// Implementations are expected to be `#[inline]` so the compiler
     /// can monomorphize and eliminate the trait dispatch entirely, making
     /// zero-allocation chains as fast as hand-written sequential code.
     fn run_io(self) -> Self::Output;
@@ -93,7 +93,7 @@ pub struct PureIO<A>(pub A);
 
 impl<A> IoOp for PureIO<A> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_io(self) -> A {
         self.0
     }
@@ -104,7 +104,7 @@ pub struct PerformIO<F>(pub F);
 
 impl<A, F: FnOnce() -> A> IoOp for PerformIO<F> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_io(self) -> A {
         (self.0)()
     }
@@ -115,7 +115,7 @@ pub struct MapIO<Op, F>(pub Op, pub F);
 
 impl<Op: IoOp, B, F: FnOnce(Op::Output) -> B> IoOp for MapIO<Op, F> {
     type Output = B;
-    #[inline(always)]
+    #[inline]
     fn run_io(self) -> B {
         (self.1)(self.0.run_io())
     }
@@ -126,7 +126,7 @@ pub struct AndThenIO<Op1, F>(pub Op1, pub F);
 
 impl<Op1: IoOp, Op2: IoOp, F: FnOnce(Op1::Output) -> Op2> IoOp for AndThenIO<Op1, F> {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_io(self) -> Op2::Output {
         (self.1)(self.0.run_io()).run_io()
     }
@@ -137,7 +137,7 @@ pub struct ThenIO<Op1, Op2>(pub Op1, pub Op2);
 
 impl<Op1: IoOp, Op2: IoOp> IoOp for ThenIO<Op1, Op2> {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_io(self) -> Op2::Output {
         let _ = self.0.run_io();
         self.1.run_io()
@@ -147,19 +147,19 @@ impl<Op1: IoOp, Op2: IoOp> IoOp for ThenIO<Op1, Op2> {
 /// Extension trait for chaining IO operations.
 pub trait IoOpExt: IoOp + Sized {
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     fn map_io<B, F: FnOnce(Self::Output) -> B>(self, f: F) -> MapIO<Self, F> {
         MapIO(self, f)
     }
 
     /// Chain with another operation.
-    #[inline(always)]
+    #[inline]
     fn and_then_io<Op2: IoOp, F: FnOnce(Self::Output) -> Op2>(self, f: F) -> AndThenIO<Self, F> {
         AndThenIO(self, f)
     }
 
     /// Sequence, discarding first result.
-    #[inline(always)]
+    #[inline]
     fn then_io<Op2: IoOp>(self, next: Op2) -> ThenIO<Self, Op2> {
         ThenIO(self, next)
     }
@@ -172,14 +172,14 @@ impl<Op: IoOp> IoOpExt for Op {}
 // =============================================================================
 
 /// Create a pure IO operation.
-#[inline(always)]
-pub fn pure_io<A>(a: A) -> PureIO<A> {
+#[inline]
+pub const fn pure_io<A>(a: A) -> PureIO<A> {
     PureIO(a)
 }
 
 /// Create a perform IO operation.
-#[inline(always)]
-pub fn perform_io<A, F: FnOnce() -> A>(f: F) -> PerformIO<F> {
+#[inline]
+pub const fn perform_io<A, F: FnOnce() -> A>(f: F) -> PerformIO<F> {
     PerformIO(f)
 }
 

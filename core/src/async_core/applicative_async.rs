@@ -192,8 +192,7 @@ impl<A: Send, E: Send> ApplicatioAsync for Result<A, E> {
     {
         match (self, other) {
             (Ok(a), Ok(b)) => Ok(f(a, b).await),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -202,7 +201,7 @@ impl<A: Send, E: Send> ApplicatioAsync for Result<A, E> {
 // Implementation for Vec
 // ============================================================================
 
-impl<A: Send> ApplicatioAsync for Vec<A> {
+impl<Elem: Send> ApplicatioAsync for Vec<Elem> {
     #[inline]
     // `ready` skips the async state machine for this trivially-immediate impl.
     fn pure_async<T: Send>(value: T) -> impl Future<Output = Vec<T>> {
@@ -212,7 +211,7 @@ impl<A: Send> ApplicatioAsync for Vec<A> {
     #[inline]
     async fn map2_async<B, C, F, Fut>(self, other: Vec<B>, mut f: F) -> Vec<C>
     where
-        F: FnMut(A, B) -> Fut + Send,
+        F: FnMut(Elem, B) -> Fut + Send,
         Fut: Future<Output = C> + Send,
         B: Send,
         C: Send,
@@ -243,11 +242,11 @@ pub trait ApplicatioAsyncMut: FunctorAsync {
         Self::Inner: Clone + Sync;
 }
 
-impl<A: Send + Clone + Sync> ApplicatioAsyncMut for Vec<A> {
+impl<T: Send + Clone + Sync> ApplicatioAsyncMut for Vec<T> {
     #[inline]
     async fn map2_async_mut<B, C, F, Fut>(self, other: Vec<B>, mut f: F) -> Vec<C>
     where
-        F: FnMut(A, B) -> Fut + Send,
+        F: FnMut(T, B) -> Fut + Send,
         Fut: Future<Output = C> + Send,
         B: Send + Clone + Sync,
         C: Send,

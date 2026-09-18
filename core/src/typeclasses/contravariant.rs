@@ -58,7 +58,7 @@ use core::marker::PhantomData;
 /// let is_positive = Praedicatum2::new(|x: &i32| *x > 0);
 ///
 /// // Contramap to work with string lengths
-/// let is_non_empty = is_positive.contramap_ref(|s: &String| s.len() as i32);
+/// let is_non_empty = is_positive.contramap_ref(|s: &String| i32::try_from(s.len()).expect("test string length fits in i32"));
 ///
 /// assert!(is_non_empty.run(&"hello".to_string()));
 /// assert!(!is_non_empty.run(&String::new()));
@@ -139,8 +139,8 @@ where
 {
     /// Creates a new Praedicatum from a predicate function.
     #[inline]
-    pub fn new(predicate: F) -> Self {
-        Praedicatum {
+    pub const fn new(predicate: F) -> Self {
+        Self {
             predicate,
             _marker: PhantomData,
         }
@@ -171,7 +171,7 @@ impl<A: 'static> Praedicatum2<A> {
     where
         F: Fn(&A) -> bool + Send + Sync + 'static,
     {
-        Praedicatum2 {
+        Self {
             predicate: alloc::sync::Arc::new(predicate),
         }
     }
@@ -212,7 +212,7 @@ impl<A: 'static> Comparatio<A> {
     where
         F: Fn(&A, &A) -> core::cmp::Ordering + Send + Sync + 'static,
     {
-        Comparatio {
+        Self {
             compare: alloc::sync::Arc::new(compare),
         }
     }
@@ -244,9 +244,10 @@ impl<A: 'static> Comparatio<A> {
 
     /// Reverses the comparison order.
     #[inline]
+    #[must_use]
     pub fn reverse(self) -> Self {
         let cmp = self.compare;
-        Comparatio::new(move |a, b| cmp(b, a))
+        Self::new(move |a, b| cmp(b, a))
     }
 }
 
@@ -258,7 +259,9 @@ mod tests {
     #[test]
     fn test_phantom_data_contravariant() {
         let phantom: PhantomData<i32> = PhantomData;
-        let _contramapped: PhantomData<String> = phantom.contravertere(|s: String| s.len() as i32);
+        let _contramapped: PhantomData<String> = phantom.contravertere(|s: String| {
+            i32::try_from(s.len()).expect("test string length fits in i32")
+        });
     }
 
     #[test]
@@ -271,7 +274,9 @@ mod tests {
     #[test]
     fn test_praedicatum2_contramap() {
         let is_positive = Praedicatum2::new(|x: &i32| *x > 0);
-        let is_non_empty = is_positive.contramap_ref(|s: &String| s.len() as i32);
+        let is_non_empty = is_positive.contramap_ref(|s: &String| {
+            i32::try_from(s.len()).expect("test string length fits in i32")
+        });
 
         assert!(is_non_empty.run(&"hello".to_string()));
         assert!(!is_non_empty.run(&String::new()));

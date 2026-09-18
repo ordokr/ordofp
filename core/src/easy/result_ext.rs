@@ -34,9 +34,11 @@ pub trait ResultExt<T, E> {
     /// let result: Result<i32, &str> = Ok(42);
     /// let _ = result.tap(|x| println!("Value: {}", x));
     /// ```
+    #[must_use]
     fn tap<F: FnOnce(&T)>(self, f: F) -> Self;
 
     /// Execute a side-effect on the error value without consuming it.
+    #[must_use]
     fn tap_err<F: FnOnce(&E)>(self, f: F) -> Self;
 
     /// Convert Ok to Some, Err to None (alias for `ok()`).
@@ -121,9 +123,9 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     }
 
     #[inline]
-    fn flatten_result(self) -> Result<T, E>
+    fn flatten_result(self) -> Self
     where
-        T: Into<Result<T, E>>,
+        T: Into<Self>,
     {
         self.and_then(core::convert::Into::into)
     }
@@ -141,9 +143,11 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 /// Extension methods for Option types.
 pub trait OptionExt<T> {
     /// Execute a side-effect on the value without consuming it.
+    #[must_use]
     fn tap<F: FnOnce(&T)>(self, f: F) -> Self;
 
     /// Execute a side-effect if None.
+    #[must_use]
     fn tap_none<F: FnOnce()>(self, f: F) -> Self;
 
     /// Convert to Result with a default error.
@@ -162,6 +166,7 @@ pub trait OptionExt<T> {
     fn ok_or_else_err<E, F: FnOnce() -> E>(self, f: F) -> Result<T, E>;
 
     /// Filter the option with a predicate.
+    #[must_use]
     fn filter_with<P: FnOnce(&T) -> bool>(self, predicate: P) -> Self;
 
     /// Get value or compute default.

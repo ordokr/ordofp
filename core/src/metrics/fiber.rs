@@ -38,8 +38,9 @@ pub struct MensuraFibrae {
 
 impl MensuraFibrae {
     /// Create new fiber metrics.
+    #[must_use]
     pub fn new() -> Self {
-        MensuraFibrae {
+        Self {
             spawned: Numerator::new(),
             completed: Numerator::new(),
             failed: Numerator::new(),
@@ -155,7 +156,10 @@ impl MensuraFibrae {
     /// `u64 as f64` loses precision only past 2^52 fibers, far beyond any
     /// realistic counter value — inherent to exporting a counter ratio as a float.
     #[inline]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "u64 counters as f64 ratios; lossy only past 2^52"
+    )]
     pub fn success_rate(&self) -> f64 {
         let total_finished = self.completed_count() + self.failed_count() + self.cancelled_count();
         if total_finished == 0 {
@@ -235,7 +239,7 @@ pub struct MensuraArboris {
 impl MensuraArboris {
     /// Create new supervisor metrics.
     pub fn new(name: impl Into<String>) -> Self {
-        MensuraArboris {
+        Self {
             name: name.into(),
             restarts: Numerator::new(),
             intensity_violations: Numerator::new(),
@@ -300,7 +304,10 @@ impl MensuraArboris {
     /// `u64 as f64` loses precision only past 2^52 children, far beyond any
     /// realistic counter value — inherent to exporting a counter ratio as a float.
     #[inline]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "u64 counters as f64 ratios; lossy only past 2^52"
+    )]
     pub fn health_percentage(&self) -> f64 {
         let total = self.total_children();
         if total == 0 {
@@ -363,6 +370,6 @@ mod tests {
         metrics.record_restart();
 
         assert_eq!(metrics.restart_count(), 1);
-        assert_eq!(metrics.health_percentage(), 60.0);
+        assert_eq!(metrics.health_percentage().to_bits(), 60.0f64.to_bits());
     }
 }

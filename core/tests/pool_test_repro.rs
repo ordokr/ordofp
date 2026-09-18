@@ -33,7 +33,7 @@ impl<T> Pool<T> {
     }
 
     fn with_reset(factory: fn() -> T, reset: fn(&mut T)) -> Self {
-        Pool {
+        Self {
             available: RefCell::new(Vec::new()),
             factory,
             reset,
@@ -41,7 +41,7 @@ impl<T> Pool<T> {
         }
     }
 
-    fn with_max_size(mut self, max_size: usize) -> Self {
+    const fn with_max_size(mut self, max_size: usize) -> Self {
         self.max_size = max_size;
         self
     }
@@ -132,15 +132,12 @@ struct TypedPool<T, const N: usize> {
 
 impl<T, const N: usize> TypedPool<T, N> {
     fn new(factory: fn() -> T) -> Self {
-        assert!(N <= 64, "TypedPool size must be <= 64");
-
-        let mut storage: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
-
         // Guard: drop already-initialized elements if `factory` panics mid-loop.
         struct InitGuard<'a, T, const M: usize> {
             storage: &'a mut [MaybeUninit<T>; M],
             count: usize,
         }
+
         impl<T, const M: usize> Drop for InitGuard<'_, T, M> {
             fn drop(&mut self) {
                 for i in 0..self.count {
@@ -156,6 +153,10 @@ impl<T, const N: usize> TypedPool<T, N> {
             }
         }
 
+        assert!(N <= 64, "TypedPool size must be <= 64");
+
+        let mut storage: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
+
         let mut guard = InitGuard {
             storage: &mut storage,
             count: 0,
@@ -168,7 +169,7 @@ impl<T, const N: usize> TypedPool<T, N> {
 
         let mask = if N == 64 { !0 } else { (1u64 << N) - 1 };
 
-        TypedPool {
+        Self {
             storage: RefCell::new(storage),
             available: RefCell::new(mask),
             factory,

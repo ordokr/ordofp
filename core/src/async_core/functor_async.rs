@@ -188,14 +188,14 @@ impl<A: Send, E: Send> FunctorAsync for Result<A, E> {
 // Implementation for Vec
 // ============================================================================
 
-impl<A: Send> FunctorAsync for Vec<A> {
-    type Inner = A;
+impl<Elem: Send> FunctorAsync for Vec<Elem> {
+    type Inner = Elem;
     type Target<T: Send> = Vec<T>;
 
     #[inline]
     async fn fmap_async<B, F, Fut>(self, mut f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Fut + Send,
+        F: FnMut(Elem) -> Fut + Send,
         Fut: Future<Output = B> + Send,
         B: Send,
     {
@@ -226,14 +226,14 @@ pub trait FunctorAsyncMut: Sized {
         B: Send;
 }
 
-impl<A: Send> FunctorAsyncMut for Vec<A> {
-    type Inner = A;
+impl<Elem: Send> FunctorAsyncMut for Vec<Elem> {
+    type Inner = Elem;
     type Target<T: Send> = Vec<T>;
 
     #[inline]
     async fn fmap_async_mut<B, F, Fut>(self, mut f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Fut + Send,
+        F: FnMut(Elem) -> Fut + Send,
         Fut: Future<Output = B> + Send,
         B: Send,
     {

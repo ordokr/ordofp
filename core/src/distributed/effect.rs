@@ -136,17 +136,17 @@ pub enum ErrorDistributionis {
 impl fmt::Display for ErrorDistributionis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorDistributionis::Rete(msg) => write!(f, "Network error: {msg}"),
-            ErrorDistributionis::NodusNonInventus(id) => {
+            Self::Rete(msg) => write!(f, "Network error: {msg}"),
+            Self::NodusNonInventus(id) => {
                 write!(f, "Node not found: {id:?}")
             }
-            ErrorDistributionis::EffectusNonSuffultus(id) => {
+            Self::EffectusNonSuffultus(id) => {
                 write!(f, "Effect {id} not supported")
             }
-            ErrorDistributionis::Mora(d) => write!(f, "Timeout after {d:?}"),
-            ErrorDistributionis::Serializatio(e) => write!(f, "{e}"),
-            ErrorDistributionis::Tractator(msg) => write!(f, "Handler error: {msg}"),
-            ErrorDistributionis::NodusInaccessibilis(id) => {
+            Self::Mora(d) => write!(f, "Timeout after {d:?}"),
+            Self::Serializatio(e) => write!(f, "{e}"),
+            Self::Tractator(msg) => write!(f, "Handler error: {msg}"),
+            Self::NodusInaccessibilis(id) => {
                 write!(f, "Node unavailable: {id:?}")
             }
         }
@@ -175,7 +175,7 @@ impl<E: EffectusDistributus> ProcuratorRemotus<E> {
     /// Create a new remote proxy.
     #[inline]
     pub fn new(nodus: NodusIdentitas, connexio: Arc<dyn ConnexioRemota>) -> Self {
-        ProcuratorRemotus {
+        Self {
             nodus,
             connexio,
             _effectus: core::marker::PhantomData,
@@ -240,8 +240,9 @@ pub struct TractatorDirigens<E: EffectusDistributus> {
 impl<E: EffectusDistributus> TractatorDirigens<E> {
     /// Create a new routing handler.
     #[inline]
+    #[must_use]
     pub fn new(nodus_localis: NodusIdentitas) -> Self {
-        TractatorDirigens {
+        Self {
             local: None,
             remoti: Vec::with_capacity(8),
             nodus_localis,
@@ -250,6 +251,7 @@ impl<E: EffectusDistributus> TractatorDirigens<E> {
     }
 
     /// Set the local handler.
+    #[must_use]
     pub fn with_local(
         mut self,
         handler: impl TractatorDistributus<E, Output = Vec<u8>> + 'static,
@@ -259,18 +261,26 @@ impl<E: EffectusDistributus> TractatorDirigens<E> {
     }
 
     /// Add a remote handler.
+    #[must_use]
     pub fn with_remote(mut self, nodus: NodusIdentitas, proxy: ProcuratorRemotus<E>) -> Self {
         self.remoti.push((nodus, proxy));
         self
     }
 
     /// Set the distribution strategy.
-    pub fn with_strategy(mut self, strategia: StrategiaDistributionis) -> Self {
+    #[must_use]
+    pub const fn with_strategy(mut self, strategia: StrategiaDistributionis) -> Self {
         self.strategia = strategia;
         self
     }
 
     /// Select a node for handling the effect.
+    ///
+    /// # Panics
+    ///
+    /// Panics if there are no candidate nodes. The internal integer
+    /// conversions are infallible (a `usize` always fits in `u64`, and a
+    /// remainder is less than the candidate count).
     pub fn select_node(
         &mut self,
         operation: &E,
@@ -324,12 +334,11 @@ impl<E: EffectusDistributus> TractatorDirigens<E> {
                 .max_by_key(|n| affinity.score(n))
                 .map(|n| n.identitas),
             StrategiaDistributionis::Random => {
-                // Simple deterministic "random" for no_std. The cast below
-                // is bounded by the subsequent `% candidates.len()`, so any
-                // truncation of `ima` on 32-bit `usize` targets still
-                // yields a valid in-bounds index into `candidates`.
-                #[allow(clippy::cast_possible_truncation)]
-                let idx = (candidates[0].identitas.ima as usize) % candidates.len();
+                // Simple deterministic "random" for no_std. The modulo runs
+                // in u64 so narrowing the remainder to an index is exact.
+                let len = u64::try_from(candidates.len()).expect("usize fits in u64");
+                let idx = usize::try_from(candidates[0].identitas.ima % len)
+                    .expect("remainder is less than the candidate count");
                 Some(candidates[idx].identitas)
             }
             StrategiaDistributionis::LocalFirst => {
@@ -384,8 +393,9 @@ pub struct TabulaDirigendi {
 impl TabulaDirigendi {
     /// Create a new empty routing table.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        TabulaDirigendi {
+        Self {
             viae: Vec::with_capacity(16),
         }
     }
@@ -409,6 +419,7 @@ impl TabulaDirigendi {
     }
 
     /// Get nodes that can handle an effect.
+    #[must_use]
     pub fn get_handlers(&self, effectus_id: u64) -> Option<&[NodusIdentitas]> {
         self.viae
             .iter()
@@ -444,8 +455,9 @@ pub struct ComputatioDistributa {
 impl ComputatioDistributa {
     /// Create a new distributed computation.
     #[inline]
+    #[must_use]
     pub fn new(id: u64, nodus: NodusSerializabilis) -> Self {
-        ComputatioDistributa {
+        Self {
             id,
             nodus,
             effectus_requiriti: Vec::with_capacity(4),
@@ -456,25 +468,29 @@ impl ComputatioDistributa {
     }
 
     /// Add required effect.
+    #[must_use]
     pub fn require_effect(mut self, effectus_id: u64) -> Self {
         self.effectus_requiriti.push(effectus_id);
         self
     }
 
     /// Set affinity.
+    #[must_use]
     pub fn with_affinity(mut self, affinitas: AffinitasNodi) -> Self {
         self.affinitas = affinitas;
         self
     }
 
     /// Set priority.
-    pub fn with_priority(mut self, prioritas: u32) -> Self {
+    #[must_use]
+    pub const fn with_priority(mut self, prioritas: u32) -> Self {
         self.prioritas = prioritas;
         self
     }
 
     /// Set timeout.
-    pub fn with_timeout(mut self, timeout: core::time::Duration) -> Self {
+    #[must_use]
+    pub const fn with_timeout(mut self, timeout: core::time::Duration) -> Self {
         self.mora_maxima = Some(timeout);
         self
     }
@@ -533,7 +549,10 @@ mod tests {
     fn probatio_node(id: u64, status: StatusNodi) -> InformationesNodi {
         InformationesNodi {
             identitas: NodusIdentitas::new(0, id),
-            inscriptio: InscriptioNodi::new("localhost", 8080 + id as u16),
+            inscriptio: InscriptioNodi::new(
+                "localhost",
+                8080 + u16::try_from(id).expect("test node id fits in u16"),
+            ),
             munus: MunusNodi::Executor,
             status,
             facultates: FacultatesNodi::default(),

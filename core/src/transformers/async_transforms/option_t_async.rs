@@ -100,7 +100,7 @@ where
     where
         Fut: Future<Output = Option<A>> + Send + 'static,
     {
-        OptionTAsync {
+        Self {
             inner: Box::pin(fut),
         }
     }
@@ -131,7 +131,7 @@ where
     /// ```
     #[inline]
     pub fn some(value: A) -> Self {
-        OptionTAsync::new(async move { Some(value) })
+        Self::new(async move { Some(value) })
     }
 
     /// Create an empty `OptionTAsync`.
@@ -159,8 +159,9 @@ where
     /// assert_eq!(block_on(opt.run()), None);
     /// ```
     #[inline]
+    #[must_use]
     pub fn none() -> Self {
-        OptionTAsync::new(async { None })
+        Self::new(async { None })
     }
 
     /// Create a pure `OptionTAsync` (alias for `some`).
@@ -328,11 +329,12 @@ where
     /// assert_eq!(block_on(opt2.run()), None);
     /// ```
     #[inline]
-    pub fn filter<F>(self, predicate: F) -> OptionTAsync<A>
+    #[must_use]
+    pub fn filter<F>(self, predicate: F) -> Self
     where
         F: FnOnce(&A) -> bool + Send + 'static,
     {
-        OptionTAsync::new(async move {
+        Self::new(async move {
             match self.inner.await {
                 Some(a) if predicate(&a) => Some(a),
                 _ => None,
@@ -366,11 +368,12 @@ where
     /// assert_eq!(block_on(with_default.run()), Some(0));
     /// ```
     #[inline]
-    pub fn or_else<F>(self, default: F) -> OptionTAsync<A>
+    #[must_use]
+    pub fn or_else<F>(self, default: F) -> Self
     where
-        F: FnOnce() -> OptionTAsync<A> + Send + 'static,
+        F: FnOnce() -> Self + Send + 'static,
     {
-        OptionTAsync::new(async move {
+        Self::new(async move {
             match self.inner.await {
                 Some(a) => Some(a),
                 None => default().run().await,
@@ -459,6 +462,7 @@ where
 
     /// Sequence this computation before another, discarding the first result.
     #[inline]
+    #[must_use]
     pub fn then<B>(self, next: OptionTAsync<B>) -> OptionTAsync<B>
     where
         B: Send + 'static,
@@ -484,12 +488,9 @@ where
     where
         E: Send + 'static,
     {
-        super::EitherTAsync::new(async move {
-            match self.inner.await {
-                Some(a) => Ok(a),
-                None => Err(err),
-            }
-        })
+        super::EitherTAsync::new(
+            async move { self.inner.await.map_or_else(|| Err(err), |a| Ok(a)) },
+        )
     }
 
     /// Convert to Result, computing the error for None.
@@ -499,12 +500,9 @@ where
         E: Send + 'static,
         F: FnOnce() -> E + Send + 'static,
     {
-        super::EitherTAsync::new(async move {
-            match self.inner.await {
-                Some(a) => Ok(a),
-                None => Err(err()),
-            }
-        })
+        super::EitherTAsync::new(
+            async move { self.inner.await.map_or_else(|| Err(err()), |a| Ok(a)) },
+        )
     }
 }
 
@@ -512,7 +510,7 @@ where
 impl<A: Send + 'static> From<Option<A>> for OptionTAsync<A> {
     #[inline]
     fn from(opt: Option<A>) -> Self {
-        OptionTAsync::new(async move { opt })
+        Self::new(async move { opt })
     }
 }
 
@@ -527,7 +525,7 @@ where
     where
         Fut: Future<Output = Option<A>> + Send + 'static,
     {
-        OptionTAsync::new(fut)
+        Self::new(fut)
     }
 }
 

@@ -192,6 +192,7 @@ impl<const BITS: u128> EffectRow for Row<BITS> {
 /// // Idempotent: a row unioned with itself is itself.
 /// assert_eq!(row_union_bits::<StateRow, StateRow>(), StateRow::BITS);
 /// ```
+#[must_use]
 pub const fn row_union_bits<R1: EffectRow, R2: EffectRow>() -> u128 {
     R1::BITS | R2::BITS
 }
@@ -225,11 +226,13 @@ pub const fn row_union_bits<R1: EffectRow, R2: EffectRow>() -> u128 {
 /// // Any row intersected with Pure gives the empty row.
 /// assert_eq!(row_intersect_bits::<IoRow, Pure>(), 0);
 /// ```
+#[must_use]
 pub const fn row_intersect_bits<R1: EffectRow, R2: EffectRow>() -> u128 {
     R1::BITS & R2::BITS
 }
 
 /// Compute the difference of two effect row bitmasks.
+#[must_use]
 pub const fn row_diff_bits<R1: EffectRow, R2: EffectRow>() -> u128 {
     R1::BITS & !R2::BITS
 }
@@ -258,11 +261,13 @@ pub const fn row_diff_bits<R1: EffectRow, R2: EffectRow>() -> u128 {
 /// // Any row is a subset of itself.
 /// assert!(row_subset::<StateRow, StateRow>());
 /// ```
+#[must_use]
 pub const fn row_subset<R1: EffectRow, R2: EffectRow>() -> bool {
     (R1::BITS & !R2::BITS) == 0
 }
 
 /// Check if two rows are equal.
+#[must_use]
 pub const fn row_eq<R1: EffectRow, R2: EffectRow>() -> bool {
     R1::BITS == R2::BITS
 }
@@ -341,25 +346,25 @@ mod tests {
 
     #[test]
     fn test_pure_row() {
-        assert!(Pure::IS_PURE);
-        assert!(!Pure::HAS_IO);
-        assert!(!Pure::HAS_STATE);
-        assert_eq!(Pure::BITS, 0);
+        const _: () = assert!(Pure::IS_PURE);
+        const _: () = assert!(!Pure::HAS_IO);
+        const _: () = assert!(!Pure::HAS_STATE);
+        const _: () = assert!(Pure::BITS == 0);
     }
 
     #[test]
     fn test_io_row() {
-        assert!(!IoRow::IS_PURE);
-        assert!(IoRow::HAS_IO);
-        assert!(!IoRow::HAS_STATE);
-        assert_eq!(IoRow::BITS, IO_BIT);
+        const _: () = assert!(!IoRow::IS_PURE);
+        const _: () = assert!(IoRow::HAS_IO);
+        const _: () = assert!(!IoRow::HAS_STATE);
+        const _: () = assert!(IoRow::BITS == IO_BIT);
     }
 
     #[test]
     fn test_state_row() {
-        assert!(StateRow::IS_STATE_ONLY);
-        assert!(StateRow::HAS_STATE);
-        assert!(!StateRow::HAS_IO);
+        const _: () = assert!(StateRow::IS_STATE_ONLY);
+        const _: () = assert!(StateRow::HAS_STATE);
+        const _: () = assert!(!StateRow::HAS_IO);
     }
 
     #[test]
@@ -367,22 +372,22 @@ mod tests {
         // Test that union of IO and State has both bits set
         const COMBINED_BITS: u128 = row_union_bits::<IoRow, StateRow>();
         type Combined = Row<COMBINED_BITS>;
-        assert!(Combined::HAS_IO);
-        assert!(Combined::HAS_STATE);
-        assert!(!Combined::HAS_ERROR);
+        const _: () = assert!(Combined::HAS_IO);
+        const _: () = assert!(Combined::HAS_STATE);
+        const _: () = assert!(!Combined::HAS_ERROR);
     }
 
     #[test]
     fn test_row_subset() {
-        assert!(row_subset::<Pure, IoRow>());
-        assert!(row_subset::<IoRow, IoStateRow>());
-        assert!(!row_subset::<IoStateRow, IoRow>());
+        const _: () = assert!(row_subset::<Pure, IoRow>());
+        const _: () = assert!(row_subset::<IoRow, IoStateRow>());
+        const _: () = assert!(!row_subset::<IoStateRow, IoRow>());
     }
 
     #[test]
     fn test_row_eq() {
-        assert!(row_eq::<Pure, Pure>());
-        assert!(row_eq::<IoRow, IoRow>());
-        assert!(!row_eq::<IoRow, StateRow>());
+        const _: () = assert!(row_eq::<Pure, Pure>());
+        const _: () = assert!(row_eq::<IoRow, IoRow>());
+        const _: () = assert!(!row_eq::<IoRow, StateRow>());
     }
 }

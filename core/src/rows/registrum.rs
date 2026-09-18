@@ -64,8 +64,9 @@ impl Registrum<Nihil> {
     /// assert!(empty.is_empty());
     /// ```
     #[inline]
-    pub fn new() -> Self {
-        Registrum { fields: Nihil }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { fields: Nihil }
     }
 }
 
@@ -81,8 +82,8 @@ impl<R: HList> Registrum<R> {
     ///
     /// This is primarily for internal use or advanced scenarios.
     #[inline]
-    pub fn from_hlist(fields: R) -> Self {
-        Registrum { fields }
+    pub const fn from_hlist(fields: R) -> Self {
+        Self { fields }
     }
 
     /// Get the underlying `HList` of fields.
@@ -93,7 +94,7 @@ impl<R: HList> Registrum<R> {
 
     /// Get a reference to the underlying `HList`.
     #[inline]
-    pub fn as_hlist(&self) -> &R {
+    pub const fn as_hlist(&self) -> &R {
         &self.fields
     }
 
@@ -328,7 +329,7 @@ impl<R> RegistrumExt<R> for Registrum<R> {
     #[inline]
     fn with<F, T>(self, f: F) -> T
     where
-        F: FnOnce(Registrum<R>) -> T,
+        F: FnOnce(Self) -> T,
     {
         f(self)
     }
@@ -341,7 +342,7 @@ impl<R> RegistrumExt<R> for Registrum<R> {
 impl<R: HList> From<R> for Registrum<R> {
     #[inline]
     fn from(fields: R) -> Self {
-        Registrum { fields }
+        Self { fields }
     }
 }
 

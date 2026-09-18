@@ -26,8 +26,8 @@ unsafe impl<T: Send> Send for SpinMutex<T> {}
 unsafe impl<T: Send> Sync for SpinMutex<T> {}
 
 impl<T> SpinMutex<T> {
-    fn new(data: T) -> Self {
-        SpinMutex {
+    const fn new(data: T) -> Self {
+        Self {
             locked: AtomicBool::new(false),
             data: core::cell::UnsafeCell::new(data),
         }
@@ -122,8 +122,9 @@ pub struct CollectorNullus;
 impl CollectorNullus {
     /// Create a new null collector.
     #[inline]
-    pub fn new() -> Self {
-        CollectorNullus
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
 }
 
@@ -171,8 +172,9 @@ pub struct CollectorMemoriae {
 
 impl CollectorMemoriae {
     /// Create a new memory collector.
+    #[must_use]
     pub fn new(max_events: usize) -> Self {
-        CollectorMemoriae {
+        Self {
             events: SpinMutex::new(Vec::with_capacity(max_events.min(1024))),
             max_events,
             dropped: AtomicUsize::new(0),
@@ -250,7 +252,7 @@ pub struct CollectorFiltrans<C: CollectorVestigium> {
 impl<C: CollectorVestigium> CollectorFiltrans<C> {
     /// Create a new filtering collector.
     pub fn new(inner: C) -> Self {
-        CollectorFiltrans {
+        Self {
             inner,
             min_level: super::Gradus::Vestigium,
             include_effects: Vec::with_capacity(4),
@@ -260,13 +262,15 @@ impl<C: CollectorVestigium> CollectorFiltrans<C> {
 
     /// Set the minimum level.
     #[inline]
-    pub fn with_min_level(mut self, level: super::Gradus) -> Self {
+    #[must_use]
+    pub const fn with_min_level(mut self, level: super::Gradus) -> Self {
         self.min_level = level;
         self
     }
 
     /// Include only specific effects.
     #[inline]
+    #[must_use]
     pub fn include_effects(mut self, effects: Vec<u64>) -> Self {
         self.include_effects = effects;
         self
@@ -274,6 +278,7 @@ impl<C: CollectorVestigium> CollectorFiltrans<C> {
 
     /// Exclude specific effects.
     #[inline]
+    #[must_use]
     pub fn exclude_effects(mut self, effects: Vec<u64>) -> Self {
         self.exclude_effects = effects;
         self
@@ -341,14 +346,16 @@ pub struct CollectorCompositus {
 
 impl CollectorCompositus {
     /// Create a new composite collector.
+    #[must_use]
     pub fn new() -> Self {
-        CollectorCompositus {
+        Self {
             collectors: Vec::with_capacity(4),
         }
     }
 
     /// Append a collector (builder-style).
     #[inline]
+    #[must_use]
     pub fn with_collector<C: CollectorVestigium + 'static>(mut self, collector: C) -> Self {
         self.collectors.push(Arc::new(collector));
         self
@@ -356,6 +363,7 @@ impl CollectorCompositus {
 
     /// Append an Arc-wrapped collector (builder-style).
     #[inline]
+    #[must_use]
     pub fn with_collector_arc(mut self, collector: Arc<dyn CollectorVestigium>) -> Self {
         self.collectors.push(collector);
         self

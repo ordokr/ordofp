@@ -15,7 +15,7 @@ use crate::par::codegen::wgsl::{
 };
 
 /// Default GPU workgroup size (threads per workgroup).
-pub(crate) const WORKGROUP_SIZE: usize = 64;
+pub(super) const WORKGROUP_SIZE: usize = 64;
 
 /// Create the 4-byte params uniform holding the logical element count.
 /// Not pooled: pooled buffers carry STORAGE usage, uniforms need UNIFORM.
@@ -48,7 +48,7 @@ fn to_u32(n: usize, what: &str) -> GpuResult<u32> {
 /// * `type_name` - WGSL type name (e.g., "f32")
 /// * `element_size` - Size of one element in bytes
 #[inline]
-pub(crate) fn execute_map_gpu_bytes(
+pub(super) fn execute_map_gpu_bytes(
     device: &Device,
     queue: &Queue,
     cache: &mut KernelCache,
@@ -106,7 +106,7 @@ pub(crate) fn execute_map_gpu_bytes(
 
 /// Execute a map operation and return the GPU buffer (no download).
 #[inline]
-pub(crate) fn execute_map_to_buffer(
+pub(super) fn execute_map_to_buffer(
     device: &Device,
     queue: &Queue,
     cache: &mut KernelCache,
@@ -220,8 +220,11 @@ pub(crate) fn execute_map_to_buffer(
 /// the bytes returned by the GPU (e.g., `T` is `Pod` and the bytes represent a valid instance).
 // Linear GPU dispatch sequence (encode, dispatch, readback); splitting it
 // would separate the unsafe readback from the setup it depends on.
-#[allow(clippy::too_many_lines)]
-pub(crate) unsafe fn execute_reduce_from_buffer<T>(
+#[allow(
+    clippy::too_many_lines,
+    reason = "linear unsafe dispatch; readback must stay with setup"
+)]
+pub(super) unsafe fn execute_reduce_from_buffer<T>(
     device: &Device,
     queue: &Queue,
     cache: &mut KernelCache,

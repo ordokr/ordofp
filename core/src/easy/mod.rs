@@ -117,7 +117,7 @@ where
 /// assert_eq!(x, 42);
 /// ```
 #[inline]
-pub fn pure<T>(value: T) -> T {
+pub const fn pure<T>(value: T) -> T {
     value
 }
 

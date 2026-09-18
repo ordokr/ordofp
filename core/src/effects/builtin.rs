@@ -96,19 +96,19 @@ pub struct StatusHandler<S> {
 impl<S> StatusHandler<S> {
     /// Create a new state handler with an initial value.
     #[inline]
-    pub fn new(initial: S) -> Self {
-        StatusHandler { state: initial }
+    pub const fn new(initial: S) -> Self {
+        Self { state: initial }
     }
 
     /// Get a reference to the current state.
     #[inline]
-    pub fn get_state(&self) -> &S {
+    pub const fn get_state(&self) -> &S {
         &self.state
     }
 
     /// Get a mutable reference to the current state.
     #[inline]
-    pub fn get_state_mut(&mut self) -> &mut S {
+    pub const fn get_state_mut(&mut self) -> &mut S {
         &mut self.state
     }
 }
@@ -202,13 +202,13 @@ pub struct LectorHandler<R> {
 impl<R> LectorHandler<R> {
     /// Create a new reader handler with the given environment.
     #[inline]
-    pub fn new(env: R) -> Self {
-        LectorHandler { env }
+    pub const fn new(env: R) -> Self {
+        Self { env }
     }
 
     /// Get a reference to the environment.
     #[inline]
-    pub fn env(&self) -> &R {
+    pub const fn env(&self) -> &R {
         &self.env
     }
 }
@@ -283,18 +283,21 @@ pub struct ScriptorHandler<W> {
 impl<W> ScriptorHandler<W> {
     /// Create a new writer handler.
     #[inline]
-    pub fn new() -> Self {
-        ScriptorHandler { output: Vec::new() }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { output: Vec::new() }
     }
 
     /// Get a reference to the accumulated output.
     #[inline]
+    #[must_use]
     pub fn output(&self) -> &[W] {
         &self.output
     }
 
     /// Take the accumulated output.
     #[inline]
+    #[must_use]
     pub fn into_output(self) -> Vec<W> {
         self.output
     }
@@ -380,8 +383,9 @@ pub struct ErrorHandler<E, A> {
 impl<E, A> ErrorHandler<E, A> {
     /// Create a new error handler.
     #[inline]
-    pub fn new() -> Self {
-        ErrorHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _error: PhantomData,
             _output: PhantomData,
         }
@@ -457,20 +461,23 @@ pub struct ElectioHandler<A> {
 impl<A> ElectioHandler<A> {
     /// Create a new choice handler.
     #[inline]
-    pub fn new() -> Self {
-        ElectioHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             results: Vec::new(),
         }
     }
 
     /// Get the collected results.
     #[inline]
+    #[must_use]
     pub fn results(&self) -> &[A] {
         &self.results
     }
 
     /// Take the collected results.
     #[inline]
+    #[must_use]
     pub fn into_results(self) -> Vec<A> {
         self.results
     }
@@ -535,8 +542,9 @@ pub struct MockConsolaHandler {
 impl MockConsolaHandler {
     /// Create a new mock console with predefined inputs.
     #[inline]
-    pub fn new(inputs: Vec<alloc::string::String>) -> Self {
-        MockConsolaHandler {
+    #[must_use]
+    pub const fn new(inputs: Vec<alloc::string::String>) -> Self {
+        Self {
             inputs,
             input_index: 0,
             outputs: Vec::new(),
@@ -545,12 +553,14 @@ impl MockConsolaHandler {
 
     /// Get the captured outputs.
     #[inline]
+    #[must_use]
     pub fn outputs(&self) -> &[alloc::string::String] {
         &self.outputs
     }
 
     /// Take the captured outputs.
     #[inline]
+    #[must_use]
     pub fn into_outputs(self) -> Vec<alloc::string::String> {
         self.outputs
     }

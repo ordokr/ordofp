@@ -48,7 +48,7 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
     #[inline]
     pub fn new(value: T) -> Option<Self> {
         if P::check(&value) {
-            Some(Refinatus {
+            Some(Self {
                 value,
                 _predicate: PhantomData,
             })
@@ -67,7 +67,7 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
     #[inline]
     pub fn try_new(value: T) -> Result<Self, RefinementError> {
         if P::check(&value) {
-            Ok(Refinatus {
+            Ok(Self {
                 value,
                 _predicate: PhantomData,
             })
@@ -92,7 +92,7 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
             P::description()
         );
 
-        Refinatus {
+        Self {
             value,
             _predicate: PhantomData,
         }
@@ -103,8 +103,8 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
     /// # Safety
     /// The caller must ensure the predicate holds for the value.
     #[inline]
-    pub unsafe fn new_unchecked(value: T) -> Self {
-        Refinatus {
+    pub const unsafe fn new_unchecked(value: T) -> Self {
+        Self {
             value,
             _predicate: PhantomData,
         }
@@ -112,7 +112,7 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
 
     /// Get a reference to the inner value.
     #[inline]
-    pub fn value(&self) -> &T {
+    pub const fn value(&self) -> &T {
         &self.value
     }
 
@@ -152,13 +152,13 @@ impl<T, P: Praedicatum<T>> Refinatus<T, P> {
     where
         F: FnOnce(T) -> T,
     {
-        Refinatus::new(f(self.value))
+        Self::new(f(self.value))
     }
 
     /// Replace the inner value, checking the predicate.
     #[inline]
     pub fn replace(self, value: T) -> Option<Self> {
-        Refinatus::new(value)
+        Self::new(value)
     }
 }
 
@@ -169,7 +169,7 @@ impl<T: Clone, P: Praedicatum<T>> Refinatus<T, P> {
     where
         F: FnOnce(T) -> T,
     {
-        Refinatus::new(f(self.value.clone()))
+        Self::new(f(self.value.clone()))
     }
 }
 
@@ -186,7 +186,7 @@ impl<T: Clone, P: Praedicatum<T>> Clone for Refinatus<T, P> {
     #[inline]
     fn clone(&self) -> Self {
         // Safe because we know the predicate holds for cloned value
-        Refinatus {
+        Self {
             value: self.value.clone(),
             _predicate: PhantomData,
         }
@@ -243,8 +243,9 @@ impl<T: core::fmt::Display, P: Praedicatum<T>> core::fmt::Display for Refinatus<
 impl<T: Default, P: Praedicatum<T>> Refinatus<T, P> {
     /// Try to create a refined value from the default.
     #[inline]
+    #[must_use]
     pub fn try_default() -> Option<Self> {
-        Refinatus::new(T::default())
+        Self::new(T::default())
     }
 }
 
@@ -289,8 +290,8 @@ pub struct AedificatorRefinati<T> {
 impl<T> AedificatorRefinati<T> {
     /// Create a new builder with a value.
     #[inline]
-    pub fn new(value: T) -> Self {
-        AedificatorRefinati { value }
+    pub const fn new(value: T) -> Self {
+        Self { value }
     }
 
     /// Refine the value with a predicate.
@@ -326,7 +327,7 @@ impl<T> AedificatorRefinati<T> {
 
 /// Create a refinement builder for a value.
 #[inline]
-pub fn refine<T>(value: T) -> AedificatorRefinati<T> {
+pub const fn refine<T>(value: T) -> AedificatorRefinati<T> {
     AedificatorRefinati::new(value)
 }
 

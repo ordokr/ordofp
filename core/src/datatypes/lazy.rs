@@ -83,8 +83,8 @@ where
     /// assert_eq!(*lazy.force(), 42);
     /// ```
     #[inline]
-    pub fn new(thunk: F) -> Self {
-        Pigritia {
+    pub const fn new(thunk: F) -> Self {
+        Self {
             cell: OnceCell::new(),
             thunk: core::cell::Cell::new(Some(thunk)),
         }
@@ -243,7 +243,7 @@ impl<T> Pigritia<T, fn() -> T> {
     /// ```
     #[inline]
     pub fn pure(value: T) -> Self {
-        let lazy = Pigritia {
+        let lazy = Self {
             cell: OnceCell::new(),
             thunk: core::cell::Cell::new(None),
         };
@@ -258,11 +258,10 @@ impl<T: Clone> Clone for Pigritia<T, fn() -> T> {
     /// Panics if the value has not been evaluated yet (`force` not called):
     /// the thunk cannot be duplicated, so only evaluated `Pigritia` clones.
     fn clone(&self) -> Self {
-        if let Some(value) = self.cell.get() {
-            Pigritia::<T, fn() -> T>::pure(value.clone())
-        } else {
-            panic!("Cannot clone unevaluated Pigritia")
-        }
+        self.cell.get().map_or_else(
+            || panic!("Cannot clone unevaluated Pigritia"),
+            |value| Self::pure(value.clone()),
+        )
     }
 }
 

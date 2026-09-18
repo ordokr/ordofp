@@ -65,19 +65,19 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.data.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         for item in &self.data {
             sink(item.clone());
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // Own the storage — iterate by reference, zero clones. Without this
         // override FastInit falls back to the default (visit_scalar + clone),
@@ -88,22 +88,22 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         true
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         self.data[index].clone()
     }
 
-    #[inline(always)]
+    #[inline]
     fn collect_scalar(&self) -> Vec<Self::Item> {
         self.data.clone()
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         for item in &self.data {
             if f(item).is_break() {
@@ -141,28 +141,28 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let f = &self.f;
         self.prev.visit_scalar(&mut |a| sink(f(a)));
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         (self.f)(self.prev.get(index))
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let func = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -187,12 +187,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let predicate = &self.predicate;
         self.prev.visit_scalar(&mut |a| {
@@ -202,7 +202,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let predicate = &self.predicate;
         self.prev.visit_scalar_ref(&mut |a| {
@@ -212,7 +212,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let predicate = &self.predicate;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -257,12 +257,12 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let f = &self.f;
         self.prev.visit_scalar(&mut |a| {
@@ -272,15 +272,11 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let func = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
-            if let Some(b) = func(a.clone()) {
-                f(&b)
-            } else {
-                ControlFlow::Continue(())
-            }
+            func(a.clone()).map_or(ControlFlow::Continue(()), |b| f(&b))
         });
     }
 
@@ -321,12 +317,12 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let f = &self.f;
         // Use Option<B> to move acc out to feed f, eliminating the extra
@@ -341,7 +337,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let f = &self.f;
         // Same Option<B> pattern; sink receives &B (no extra clone of B).
@@ -368,12 +364,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len().min(self.count)
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         if self.prev.is_indexed() {
             for i in 0..self.len() {
@@ -390,7 +386,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         if self.prev.is_indexed() {
             for i in 0..self.len() {
@@ -408,18 +404,18 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         crate::unlikely_panic!(index >= self.count, "FastTake: index out of bounds");
         self.prev.get(index)
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut remaining = self.count;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -445,12 +441,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len().saturating_sub(self.count)
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         if self.prev.is_indexed() {
             let len = self.len();
@@ -470,7 +466,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         if self.prev.is_indexed() {
             let len = self.len();
@@ -491,17 +487,17 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         self.prev.get(index + self.count)
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut skipped = 0;
         let count = self.count;
@@ -528,12 +524,12 @@ where
 {
     type Item = (usize, T);
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let mut index = 0usize;
         self.prev.visit_scalar(&mut |a| {
@@ -542,17 +538,17 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         (index, self.prev.get(index))
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut index = 0usize;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -578,12 +574,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let f = &self.f;
         self.prev.visit_scalar(&mut |a| {
@@ -592,7 +588,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let f = &self.f;
         self.prev.visit_scalar_ref(&mut |a| {
@@ -601,19 +597,19 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         let item = self.prev.get(index);
         (self.f)(&item);
         item
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let inspect_f = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -643,27 +639,29 @@ where
     T: Clone + Send + Sync + 'static,
 {
     /// Build a fast-path pipeline from an owned vector.
-    #[inline(always)]
-    pub fn from_vec(vec: Vec<T>) -> Self {
+    #[inline]
+    #[must_use]
+    pub const fn from_vec(vec: Vec<T>) -> Self {
         Self {
             node: FastInit { data: vec },
         }
     }
 
     /// Build a fast-path pipeline from a slice (clones the data).
-    #[inline(always)]
+    #[inline]
     pub fn from_slice(slice: &[T]) -> Self {
         Self::from_vec(slice.to_vec())
     }
 
     /// Empty fast-path pipeline.
-    #[inline(always)]
-    pub fn empty() -> Self {
+    #[inline]
+    #[must_use]
+    pub const fn empty() -> Self {
         Self::from_vec(Vec::new())
     }
 
     /// Singleton fast-path pipeline.
-    #[inline(always)]
+    #[inline]
     pub fn singleton(value: T) -> Self {
         Self::from_vec(vec![value])
     }
@@ -675,31 +673,31 @@ where
     P::Item: Clone + Send + Sync + 'static,
 {
     /// Stream length.
-    #[inline(always)]
+    #[inline]
     pub fn len(&self) -> usize {
         self.node.len()
     }
 
     /// Whether the stream is empty.
-    #[inline(always)]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Borrow the underlying node.
-    #[inline(always)]
-    pub fn as_node(&self) -> &P {
+    #[inline]
+    pub const fn as_node(&self) -> &P {
         &self.node
     }
 
     /// Consume and return the underlying node.
-    #[inline(always)]
+    #[inline]
     pub fn into_node(self) -> P {
         self.node
     }
 
     /// Map each element with `f`.
-    #[inline(always)]
+    #[inline]
     pub fn map<B, F>(self, f: F) -> FlumenParallelumFast<FastMap<P, F, P::Item, B>>
     where
         F: Fn(P::Item) -> B + Send + Sync,
@@ -715,7 +713,7 @@ where
     }
 
     /// Filter elements matching `predicate`.
-    #[inline(always)]
+    #[inline]
     pub fn filter<F>(self, predicate: F) -> FlumenParallelumFast<FastFilter<P, F, P::Item>>
     where
         F: Fn(&P::Item) -> bool + Send + Sync,
@@ -730,7 +728,7 @@ where
     }
 
     /// Map + filter in one pass.
-    #[inline(always)]
+    #[inline]
     pub fn filter_map<B, F>(self, f: F) -> FlumenParallelumFast<FastFilterMap<P, F, P::Item, B>>
     where
         F: Fn(P::Item) -> Option<B> + Send + Sync,
@@ -746,7 +744,7 @@ where
     }
 
     /// Prefix scan (cumulative fold).
-    #[inline(always)]
+    #[inline]
     pub fn scan<B, F>(self, init: B, f: F) -> FlumenParallelumFast<FastScan<P, F, P::Item, B>>
     where
         F: Fn(B, P::Item) -> B + Send + Sync,
@@ -763,7 +761,7 @@ where
     }
 
     /// Take the first `n` elements.
-    #[inline(always)]
+    #[inline]
     pub fn take(self, n: usize) -> FlumenParallelumFast<FastTake<P>> {
         FlumenParallelumFast {
             node: FastTake {
@@ -774,7 +772,7 @@ where
     }
 
     /// Skip the first `n` elements.
-    #[inline(always)]
+    #[inline]
     pub fn skip(self, n: usize) -> FlumenParallelumFast<FastSkip<P>> {
         FlumenParallelumFast {
             node: FastSkip {
@@ -785,7 +783,7 @@ where
     }
 
     /// Pair each element with its index.
-    #[inline(always)]
+    #[inline]
     pub fn enumerate(self) -> FlumenParallelumFast<FastEnumerate<P>> {
         FlumenParallelumFast {
             node: FastEnumerate { prev: self.node },
@@ -793,7 +791,7 @@ where
     }
 
     /// Inspect each element without modifying it.
-    #[inline(always)]
+    #[inline]
     pub fn inspect<F>(self, f: F) -> FlumenParallelumFast<FastInspect<P, F, P::Item>>
     where
         F: Fn(&P::Item) + Send + Sync,
@@ -808,7 +806,7 @@ where
     }
 
     /// Collect elements into a `Vec` using the given backend.
-    #[inline(always)]
+    #[inline]
     pub fn collect_vec<Bk>(&self, backend: &Bk) -> Vec<P::Item>
     where
         Bk: Backend,
@@ -817,7 +815,7 @@ where
     }
 
     /// Reduce using an associative operation.
-    #[inline(always)]
+    #[inline]
     pub fn reduce<Bk, F>(&self, backend: &Bk, f: F) -> Option<P::Item>
     where
         Bk: Backend,
@@ -827,7 +825,7 @@ where
     }
 
     /// Fold with an initial value.
-    #[inline(always)]
+    #[inline]
     pub fn fold<Bk, B, F>(&self, backend: &Bk, init: B, f: F) -> B
     where
         Bk: Backend,
@@ -838,7 +836,7 @@ where
     }
 
     /// Side-effect for each element.
-    #[inline(always)]
+    #[inline]
     pub fn for_each<Bk, F>(&self, backend: &Bk, f: F)
     where
         Bk: Backend,
@@ -848,7 +846,7 @@ where
     }
 
     /// Any element matching predicate?
-    #[inline(always)]
+    #[inline]
     pub fn any<Bk, F>(&self, backend: &Bk, predicate: F) -> bool
     where
         Bk: Backend,
@@ -858,7 +856,7 @@ where
     }
 
     /// All elements matching predicate?
-    #[inline(always)]
+    #[inline]
     pub fn all<Bk, F>(&self, backend: &Bk, predicate: F) -> bool
     where
         Bk: Backend,
@@ -868,7 +866,7 @@ where
     }
 
     /// First element matching predicate.
-    #[inline(always)]
+    #[inline]
     pub fn find<Bk, F>(&self, backend: &Bk, predicate: F) -> Option<P::Item>
     where
         Bk: Backend,
@@ -878,7 +876,7 @@ where
     }
 
     /// Count elements.
-    #[inline(always)]
+    #[inline]
     pub fn count<Bk>(&self, backend: &Bk) -> usize
     where
         Bk: Backend,
@@ -922,6 +920,7 @@ where
 /// llvm-objdump, etc.) can find it.
 #[doc(hidden)]
 #[inline(never)]
+#[must_use]
 pub fn __fastpath_evidence_sum_even_doubled_i64(xs: &[i64]) -> i64 {
     use super::backend::CpuScalar;
     FlumenParallelumFast::from_slice(xs)

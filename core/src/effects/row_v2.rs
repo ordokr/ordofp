@@ -113,6 +113,7 @@ pub trait EffectId {
 
     /// Get the bitmask for this effect.
     #[inline]
+    #[must_use]
     fn mask() -> u128 {
         1u128 << Self::ID
     }
@@ -162,31 +163,36 @@ impl<const MASK: u128> EffectSet<MASK> {
 
     /// Create a new effect set instance.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
-        EffectSet
+        Self
     }
 
     /// Check if this set is empty (pure computation).
     #[inline]
+    #[must_use]
     pub const fn is_empty() -> bool {
         MASK == 0
     }
 
     /// Count the number of effects in this set.
     #[inline]
+    #[must_use]
     pub const fn count() -> u32 {
         MASK.count_ones()
     }
 
     /// Check if a specific effect ID is present.
     #[inline]
+    #[must_use]
     pub const fn contains(effect_id: u64) -> bool {
         (MASK >> effect_id) & 1 == 1
     }
 
     /// Get an iterator over effect IDs in this set.
     #[inline]
-    pub fn iter() -> EffectSetIter {
+    #[must_use]
+    pub const fn iter() -> EffectSetIter {
         EffectSetIter {
             mask: MASK,
             position: 0,
@@ -264,7 +270,7 @@ pub type Pure = EffectSetVacuus;
 /// # Scholastic Etymology
 ///
 /// *Habet Effectum* — Has the effect.
-#[inline(always)]
+#[inline]
 pub fn assert_has_effect<R: EffectRow, const EFFECT_ID: u64>() {
     const {
         assert!(
@@ -280,7 +286,7 @@ pub fn assert_has_effect<R: EffectRow, const EFFECT_ID: u64>() {
 /// # Scholastic Etymology
 ///
 /// *Sine Effectu* — Without the effect.
-#[inline(always)]
+#[inline]
 pub fn assert_without_effect<R: EffectRow, const EFFECT_ID: u64>() {
     const {
         assert!(
@@ -344,7 +350,7 @@ pub const fn contract(set: u128, effect_id: u64) -> u128 {
 /// # Scholastic Etymology
 ///
 /// *Sub Ordine* — Under the order.
-#[inline(always)]
+#[inline]
 pub fn assert_subrow<R: EffectRow, const SUPER: u128>() {
     const {
         assert!(
@@ -359,7 +365,7 @@ pub fn assert_subrow<R: EffectRow, const SUPER: u128>() {
 /// # Scholastic Etymology
 ///
 /// *Disiunctio* — Disjunction, separation.
-#[inline(always)]
+#[inline]
 pub fn assert_disjoint<R: EffectRow, const OTHER: u128>() {
     const { assert!((R::MASK & OTHER) == 0, "effect rows are not disjoint") }
 }
@@ -401,8 +407,8 @@ impl<const MASK: u128> EffectRow for EffectSet<MASK> {
 ///
 /// requires::<EffectSet<1>>(); // compiles: IO (bit 0) present
 /// ```
-#[inline(always)]
-pub fn assert_has_effect_type<R: EffectRow, E: EffectId>() {
+#[inline]
+pub const fn assert_has_effect_type<R: EffectRow, E: EffectId>() {
     const {
         assert!(
             (R::MASK >> E::ID) & 1 == 1,

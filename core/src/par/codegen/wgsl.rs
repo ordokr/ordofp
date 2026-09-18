@@ -27,6 +27,7 @@ impl OperatioReductionis {
     /// Parse the public operator string. Returns `None` for anything not in
     /// the closed set — callers turn that into a `GpuError`, never a shader.
     #[inline]
+    #[must_use]
     pub fn parse(op: &str) -> Option<Self> {
         match op {
             "+" => Some(Self::Additio),
@@ -39,6 +40,7 @@ impl OperatioReductionis {
 
     /// The identity element for out-of-bounds lanes, as a WGSL literal.
     #[inline]
+    #[must_use]
     pub fn identity(self, type_name: &str) -> &'static str {
         match (self, type_name) {
             (Self::Additio, "f32") => "0.0",
@@ -58,6 +60,7 @@ impl OperatioReductionis {
 
     /// Emit the combining expression for two WGSL operands.
     #[inline]
+    #[must_use]
     pub fn combine(self, a: &str, b: &str) -> alloc::string::String {
         use alloc::format;
         match self {
@@ -88,12 +91,15 @@ impl OperatioReductionis {
 /// assert!(shader.contains("x * 2.0"));
 /// ```
 #[inline]
+#[must_use]
 pub fn generate_map_shader(
     entry_point: &str,
     operation: &str,
     workgroup_size: u32,
     type_name: &str,
 ) -> String {
+    use core::fmt::Write as _;
+
     // Ideal workgroup size depends on hardware, but should generally be a multiple of 64
     // Common sizes: 64x1x1, 256x1x1
     // Pre-allocate: map shader template is ~300 chars plus small variable substitutions.
@@ -102,7 +108,6 @@ pub fn generate_map_shader(
     let mut out =
         String::with_capacity(320 + entry_point.len() + operation.len() + type_name.len());
     // Rust 1.88+: Use r"..." instead of r#"..."# when no escaping needed
-    use core::fmt::Write as _;
     let _ = write!(
         out,
         r"// Input buffer
@@ -154,12 +159,15 @@ fn {entry_point}(@builtin(global_invocation_id) global_id: vec3<u32>) {{
 /// Reduction requires multiple passes for large arrays. This generates
 /// a single-pass reduction shader that works within a workgroup.
 #[inline]
+#[must_use]
 pub fn generate_reduce_shader(
     entry_point: &str,
     op: OperatioReductionis,
     workgroup_size: u32,
     type_name: &str,
 ) -> String {
+    use core::fmt::Write as _;
+
     let identity = op.identity(type_name);
     let combine = op.combine(
         "shared_data[local_index]",
@@ -169,7 +177,6 @@ pub fn generate_reduce_shader(
     // Pre-allocate: reduce shader template is ~550 chars plus variable substitutions.
     let mut out = String::with_capacity(580 + entry_point.len() + combine.len() + type_name.len());
     // Rust 1.88+: Use r"..." instead of r#"..."# when no escaping needed
-    use core::fmt::Write as _;
     let _ = write!(
         out,
         r"// Input buffer
@@ -241,7 +248,8 @@ pub struct KernelKey {
 impl KernelKey {
     /// Create a new kernel key.
     #[inline]
-    pub fn new(shader_source: String, entry_point: String) -> Self {
+    #[must_use]
+    pub const fn new(shader_source: String, entry_point: String) -> Self {
         Self {
             shader_source,
             entry_point,

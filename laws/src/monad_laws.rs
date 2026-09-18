@@ -17,7 +17,7 @@
 //! assert!(monad_laws::option_left_identity(5, |x| Some(x * 2)));
 //!
 //! // Test right identity
-//! assert!(monad_laws::option_right_identity(Some(42)));
+//! assert!(monad_laws::option_right_identity(&Some(42)));
 //!
 //! // Test associativity
 //! assert!(monad_laws::option_associativity(
@@ -45,9 +45,9 @@ where
 }
 
 /// **Right Identity Law** for Option: `m.flat_map(pure) == m`
-pub fn option_right_identity<A: Clone + Eq>(ma: Option<A>) -> bool {
+pub fn option_right_identity<A: Clone + Eq>(ma: &Option<A>) -> bool {
     let lhs: Option<A> = Monad::flat_map(ma.clone(), |x| <Option<A>>::pure_target(x));
-    lhs == ma
+    lhs == *ma
 }
 
 /// **Associativity Law** for Option: `m.flat_map(f).flat_map(g) == m.flat_map(|x| f(x).flat_map(g))`
@@ -100,9 +100,9 @@ where
 }
 
 /// **Right Identity Law** for Result: `m.flat_map(pure) == m`
-pub fn result_right_identity<A: Clone + Eq, E: Clone + Eq>(ma: Result<A, E>) -> bool {
+pub fn result_right_identity<A: Clone + Eq, E: Clone + Eq>(ma: &Result<A, E>) -> bool {
     let lhs: Result<A, E> = Monad::flat_map(ma.clone(), |x| <Result<A, E>>::pure_target(x));
-    lhs == ma
+    lhs == *ma
 }
 
 /// **Associativity Law** for Result: `m.flat_map(f).flat_map(g) == m.flat_map(|x| f(x).flat_map(g))`
@@ -151,9 +151,10 @@ where
 }
 
 /// **Right Identity Law** for Vec: `m.flat_map(pure) == m`
-pub fn vec_right_identity<A: Clone + Eq>(ma: Vec<A>) -> bool {
+#[must_use]
+pub fn vec_right_identity<A: Clone + Eq>(ma: &Vec<A>) -> bool {
     let lhs: Vec<A> = Monad::flat_map(ma.clone(), |x| <Vec<A>>::pure_target(x));
-    lhs == ma
+    lhs == *ma
 }
 
 /// **Associativity Law** for Vec: `m.flat_map(f).flat_map(g) == m.flat_map(|x| f(x).flat_map(g))`
@@ -204,7 +205,11 @@ mod tests {
 
     #[test]
     fn test_option_right_identity() {
-        quickcheck(option_right_identity::<i32> as fn(Option<i32>) -> bool);
+        fn option_right_identity_prop(x: Option<i32>) -> bool {
+            option_right_identity::<i32>(&x)
+        }
+
+        quickcheck(option_right_identity_prop as fn(Option<i32>) -> bool);
     }
 
     #[test]
@@ -244,8 +249,12 @@ mod tests {
 
     #[test]
     fn test_result_right_identity() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(m: Result<i32, String>) -> bool {
-            result_right_identity(m)
+            result_right_identity(&m)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
@@ -279,7 +288,15 @@ mod tests {
 
     #[test]
     fn test_vec_right_identity() {
-        quickcheck(vec_right_identity::<i32> as fn(Vec<i32>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn vec_right_identity_prop(x: Vec<i32>) -> bool {
+            vec_right_identity::<i32>(&x)
+        }
+
+        quickcheck(vec_right_identity_prop as fn(Vec<i32>) -> bool);
     }
 
     #[test]
@@ -306,11 +323,11 @@ mod tests {
 
     #[test]
     fn manual_right_identity() {
-        assert!(option_right_identity(Some(100)));
-        assert!(option_right_identity(None::<i32>));
-        assert!(result_right_identity(Ok::<_, String>(42)));
-        assert!(result_right_identity(Err::<i32, _>("fail".to_string())));
-        assert!(vec_right_identity(vec![1, 2, 3]));
+        assert!(option_right_identity(&Some(100)));
+        assert!(option_right_identity(&None::<i32>));
+        assert!(result_right_identity(&Ok::<_, String>(42)));
+        assert!(result_right_identity(&Err::<i32, _>("fail".to_string())));
+        assert!(vec_right_identity(&vec![1, 2, 3]));
     }
 
     #[test]

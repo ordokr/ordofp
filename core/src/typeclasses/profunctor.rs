@@ -161,7 +161,7 @@ impl<A: 'static, B: 'static> FnProfunctio<A, B> {
     where
         F: Fn(A) -> B + Send + Sync + 'static,
     {
-        FnProfunctio { f: Arc::new(f) }
+        Self { f: Arc::new(f) }
     }
 
     /// Runs the profunctor on an input value.
@@ -210,7 +210,7 @@ impl<F: 'static, A: 'static, B: 'static> Stella<F, A, B> {
     where
         Func: Fn(A) -> F + Send + Sync + 'static,
     {
-        Stella {
+        Self {
             run: Arc::new(run),
             _marker: core::marker::PhantomData,
         }
@@ -244,7 +244,7 @@ impl<F: 'static, A: 'static, B: 'static> Cometa<F, A, B> {
     where
         Func: Fn(F) -> B + Send + Sync + 'static,
     {
-        Cometa {
+        Self {
             run: Arc::new(run),
             _marker: core::marker::PhantomData,
         }

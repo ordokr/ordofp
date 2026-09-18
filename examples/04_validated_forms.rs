@@ -1,3 +1,5 @@
+//! Example 04: validated forms via the `Probatum` derive.
+
 use ordofp::Probatum;
 use ordofp::prelude::*;
 
@@ -21,7 +23,7 @@ fn validate_name(name: &str) -> Result<String, ValidationError> {
     }
 }
 
-fn validate_age(age: u32) -> Result<u32, ValidationError> {
+const fn validate_age(age: u32) -> Result<u32, ValidationError> {
     if age < 18 {
         Err(ValidationError::Underage)
     } else {

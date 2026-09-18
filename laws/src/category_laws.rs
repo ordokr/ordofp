@@ -10,7 +10,7 @@ use ordofp::typeclasses::Category;
 /// **Identity Law**: `id . f == f` (Left Identity) and `f . id == f` (Right Identity).
 ///
 /// Requires `Hom` to implement `PartialEq` and `Clone`.
-pub fn identity<C, A, B>(f: C::Hom<A, B>) -> bool
+pub fn identity<C, A, B>(f: &C::Hom<A, B>) -> bool
 where
     C: Category,
     C::Hom<A, B>: Clone + PartialEq,
@@ -21,7 +21,7 @@ where
     let left = C::compose(id_b, f.clone());
     let right_side = C::compose(f.clone(), id_a);
 
-    left == f && right_side == f
+    left == *f && right_side == *f
 }
 
 /// **Associativity Law**: `(h . g) . f == h . (g . f)`

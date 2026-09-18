@@ -1,3 +1,5 @@
+//! Example: type-safe deep field access with the path DSL.
+
 use ordofp::NominataUniversalis;
 use ordofp_core::path::ViaTraversor;
 use ordofp_macros::{path, path_type};
@@ -28,6 +30,20 @@ enum SizeUnit {
 }
 
 fn main() {
+    // Prints height as long as `A` has the right "shape" (e.g.
+    // has `dimensions.height: usize` and `dimension.unit: SizeUnit)
+    fn print_height<'a, A, HeightIdx, UnitIdx>(obj: &'a A)
+    where
+        &'a A: ViaTraversor<path_type!(dimensions.height), HeightIdx, TargetValue = &'a usize>
+            + ViaTraversor<path_type!(dimensions.unit), UnitIdx, TargetValue = &'a SizeUnit>,
+    {
+        println!(
+            "Height [{} {:?}]",
+            path!(dimensions.height).get(obj),
+            path!(dimensions.unit).get(obj)
+        );
+    }
+
     let dog = Dog {
         name: "Joe",
         dimensions: Dimensions {
@@ -45,20 +61,6 @@ fn main() {
             unit: SizeUnit::Cm,
         },
     };
-
-    // Prints height as long as `A` has the right "shape" (e.g.
-    // has `dimensions.height: usize` and `dimension.unit: SizeUnit)
-    fn print_height<'a, A, HeightIdx, UnitIdx>(obj: &'a A)
-    where
-        &'a A: ViaTraversor<path_type!(dimensions.height), HeightIdx, TargetValue = &'a usize>
-            + ViaTraversor<path_type!(dimensions.unit), UnitIdx, TargetValue = &'a SizeUnit>,
-    {
-        println!(
-            "Height [{} {:?}]",
-            path!(dimensions.height).get(obj),
-            path!(dimensions.unit).get(obj)
-        );
-    }
 
     print_height(&dog);
     print_height(&cat);

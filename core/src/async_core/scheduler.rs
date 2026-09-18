@@ -116,7 +116,7 @@ impl MunusFibrae {
     where
         F: FnOnce() + Send + 'static,
     {
-        MunusFibrae {
+        Self {
             fibra_id,
             prioritas: Prioritas::default(),
             indicium: IndiciumExecutionis::default(),
@@ -130,7 +130,7 @@ impl MunusFibrae {
     where
         F: FnOnce() + Send + 'static,
     {
-        MunusFibrae {
+        Self {
             fibra_id,
             prioritas,
             indicium: IndiciumExecutionis::default(),
@@ -149,7 +149,7 @@ impl MunusFibrae {
     where
         F: FnOnce() + Send + 'static,
     {
-        MunusFibrae {
+        Self {
             fibra_id,
             prioritas,
             indicium,
@@ -186,8 +186,9 @@ pub struct OrdoLocalis {
 #[cfg(feature = "std")]
 impl OrdoLocalis {
     /// Create a new local queue.
+    #[must_use]
     pub fn new() -> Self {
-        OrdoLocalis {
+        Self {
             tasks: std::sync::Mutex::new(VecDeque::with_capacity(DEFAULT_LOCAL_QUEUE_CAPACITY)),
             count: AtomicUsize::new(0),
         }
@@ -209,6 +210,7 @@ impl OrdoLocalis {
     pub fn push(&self, task: MunusFibrae) {
         let mut guard = self.tasks.lock().unwrap();
         guard.push_back(task);
+        drop(guard);
         // Release: length counter decoration; Mutex already orders the queue itself
         self.count.fetch_add(1, Ordering::Release);
     }
@@ -228,6 +230,7 @@ impl OrdoLocalis {
     pub fn pop(&self) -> Option<MunusFibrae> {
         let mut guard = self.tasks.lock().unwrap();
         let task = guard.pop_back();
+        drop(guard);
         if task.is_some() {
             // Release: length counter decoration; Mutex already orders the queue itself
             self.count.fetch_sub(1, Ordering::Release);
@@ -249,6 +252,7 @@ impl OrdoLocalis {
     pub fn steal(&self) -> Option<MunusFibrae> {
         let mut guard = self.tasks.lock().unwrap();
         let task = guard.pop_front();
+        drop(guard);
         if task.is_some() {
             // Release: length counter decoration; Mutex already orders the queue itself
             self.count.fetch_sub(1, Ordering::Release);
@@ -326,8 +330,9 @@ pub struct OrdoGlobalis {
 #[cfg(feature = "std")]
 impl OrdoGlobalis {
     /// Create a new global queue.
+    #[must_use]
     pub fn new() -> Self {
-        OrdoGlobalis {
+        Self {
             // Pre-allocate enough room for a typical burst of overflow tasks.
             tasks: std::sync::Mutex::new(VecDeque::with_capacity(DEFAULT_LOCAL_QUEUE_CAPACITY)),
             not_empty: std::sync::Condvar::new(),
@@ -349,6 +354,7 @@ impl OrdoGlobalis {
     pub fn push(&self, task: MunusFibrae) {
         let mut guard = self.tasks.lock().unwrap();
         guard.push_back(task);
+        drop(guard);
         self.not_empty.notify_one();
     }
 
@@ -368,6 +374,7 @@ impl OrdoGlobalis {
         for task in tasks {
             guard.push_back(task);
         }
+        drop(guard);
         self.not_empty.notify_all();
     }
 
@@ -483,14 +490,15 @@ pub trait PolitiaFurti: Send + Sync {
 /// Random victim selection policy.
 pub struct PolitiaFortuita {
     /// Simple counter for pseudo-random selection.
-    counter: AtomicU64,
+    counter: AtomicUsize,
 }
 
 impl PolitiaFortuita {
     /// Create a new random policy.
-    pub fn new() -> Self {
-        PolitiaFortuita {
-            counter: AtomicU64::new(0),
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            counter: AtomicUsize::new(0),
         }
     }
 }
@@ -509,7 +517,7 @@ impl PolitiaFurti for PolitiaFortuita {
         }
 
         let count = self.counter.fetch_add(1, Ordering::Relaxed);
-        let mut victim = (count as usize) % num_workers;
+        let mut victim = count % num_workers;
         if victim == thief_id {
             victim = (victim + 1) % num_workers;
         }
@@ -531,8 +539,9 @@ pub struct PolitiaCircularis {
 
 impl PolitiaCircularis {
     /// Create a new round-robin policy.
-    pub fn new() -> Self {
-        PolitiaCircularis {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             next: AtomicUsize::new(0),
         }
     }
@@ -593,7 +602,7 @@ pub const DEFAULT_STEAL_BATCH_SIZE: usize = 32;
 
 impl Default for OrdinariusConfig {
     fn default() -> Self {
-        OrdinariusConfig {
+        Self {
             num_workers: DEFAULT_NUM_WORKERS,
             local_queue_capacity: DEFAULT_LOCAL_QUEUE_CAPACITY,
             work_stealing: true,
@@ -605,8 +614,9 @@ impl Default for OrdinariusConfig {
 impl OrdinariusConfig {
     /// Create a new configuration with custom worker count.
     #[inline]
+    #[must_use]
     pub fn with_workers(num_workers: usize) -> Self {
-        OrdinariusConfig {
+        Self {
             num_workers,
             ..Default::default()
         }
@@ -638,8 +648,9 @@ pub struct Statisticae {
 impl Statisticae {
     /// Create new empty statistics.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        Statisticae::default()
+        Self::default()
     }
 
     /// Record a task being scheduled.
@@ -665,6 +676,11 @@ impl Statisticae {
     }
 
     /// Get the steal success rate.
+    ///
+    /// # Panics
+    ///
+    /// Never panics: the narrowed counters are provably below 2^53 on the
+    /// taken branch, so the internal conversions are infallible.
     #[inline]
     pub fn steal_success_rate(&self) -> f64 {
         let attempts = self.steal_attempts.load(Ordering::Relaxed);
@@ -672,7 +688,18 @@ impl Statisticae {
             0.0
         } else {
             let successes = self.steal_successes.load(Ordering::Relaxed);
-            successes as f64 / attempts as f64
+            // Exact below 2^53 attempts (centuries of stealing); saturates
+            // beyond. Reassembled through 32-bit halves: every step is exact.
+            let to_f64 = |v: u64| {
+                if v < 9_007_199_254_740_992 {
+                    f64::from(u32::try_from(v >> 32).expect("53-bit value fits in u32"))
+                        * 4_294_967_296.0
+                        + f64::from(u32::try_from(v & 0xFFFF_FFFF).expect("masked to 32 bits"))
+                } else {
+                    9_007_199_254_740_992.0
+                }
+            };
+            to_f64(successes) / to_f64(attempts)
         }
     }
 }

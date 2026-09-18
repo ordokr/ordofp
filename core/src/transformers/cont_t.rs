@@ -45,7 +45,7 @@ use alloc::sync::Arc;
 use core::marker::PhantomData;
 
 /// Type alias for the core continuation function type.
-pub(crate) type ContFn<R, A> = dyn Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync;
+pub(super) type ContFn<R, A> = dyn Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync;
 
 /// The continuation monad transformer.
 ///
@@ -80,7 +80,7 @@ pub struct ContinuatioT<R, A> {
 
 impl<R, A> Clone for ContinuatioT<R, A> {
     fn clone(&self) -> Self {
-        ContinuatioT {
+        Self {
             run_cont: self.run_cont.clone(),
             _phantom: PhantomData,
         }
@@ -116,7 +116,7 @@ impl<R: 'static, A: 'static> ContinuatioT<R, A> {
     where
         F: Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static,
     {
-        ContinuatioT {
+        Self {
             run_cont: Arc::new(f),
             _phantom: PhantomData,
         }
@@ -178,7 +178,7 @@ impl<R: 'static, A: 'static> ContinuatioT<R, A> {
     where
         A: Clone + Send + Sync + 'static,
     {
-        ContinuatioT::new(move |k| k(a.clone()))
+        Self::new(move |k| k(a.clone()))
     }
 
     /// Maps a function over the value inside this continuation.
@@ -283,16 +283,13 @@ impl<R: 'static, A: 'static> ContinuatioT<R, A> {
     /// assert_eq!(computation.run(|x| x), 10);
     /// ```
     #[inline]
-    pub fn call_cc<B, F>(f: F) -> ContinuatioT<R, A>
+    pub fn call_cc<B, F>(f: F) -> Self
     where
-        F: Fn(Arc<dyn Fn(A) -> ContinuatioT<R, B> + Send + Sync>) -> ContinuatioT<R, A>
-            + Send
-            + Sync
-            + 'static,
+        F: Fn(Arc<dyn Fn(A) -> ContinuatioT<R, B> + Send + Sync>) -> Self + Send + Sync + 'static,
         A: Clone + Send + Sync + 'static,
         B: 'static,
     {
-        ContinuatioT::new(move |k| {
+        Self::new(move |k| {
             let k_clone = k.clone();
             let escape = Arc::new(move |a: A| {
                 let k_inner = k_clone.clone();
@@ -325,6 +322,7 @@ impl<R: 'static, A: 'static> ContinuatioT<R, A> {
     /// assert_eq!(result, 10);
     /// ```
     #[inline]
+    #[must_use]
     pub fn apply<B>(
         self,
         cf: ContinuatioT<R, Arc<dyn Fn(A) -> B + Send + Sync>>,

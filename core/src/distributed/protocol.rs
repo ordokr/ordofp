@@ -34,7 +34,7 @@ pub struct VersioProtocolli {
 
 impl VersioProtocolli {
     /// Current protocol version.
-    pub const CURRENS: Self = VersioProtocolli {
+    pub const CURRENS: Self = Self {
         maior: 1,
         minor: 0,
         emendatio: 0,
@@ -42,8 +42,9 @@ impl VersioProtocolli {
 
     /// Create a new version.
     #[inline]
+    #[must_use]
     pub const fn new(maior: u16, minor: u16, emendatio: u16) -> Self {
-        VersioProtocolli {
+        Self {
             maior,
             minor,
             emendatio,
@@ -51,7 +52,8 @@ impl VersioProtocolli {
     }
 
     /// Check if this version is compatible with another.
-    pub fn is_compatible(&self, other: &Self) -> bool {
+    #[must_use]
+    pub const fn is_compatible(&self, other: &Self) -> bool {
         // Major version must match, minor version must be >= other
         self.maior == other.maior && self.minor >= other.minor
     }
@@ -154,7 +156,7 @@ impl Nuntius {
     pub fn new(mittens: NodusIdentitas, genus: GenusNuntii, corpus: CorpusNuntii) -> Self {
         static COUNTER: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(1);
 
-        Nuntius {
+        Self {
             caput: CaputNuntii {
                 versio: VersioProtocolli::CURRENS,
                 id: COUNTER.fetch_add(1, core::sync::atomic::Ordering::SeqCst),
@@ -169,13 +171,15 @@ impl Nuntius {
     }
 
     /// Set recipient.
-    pub fn to(mut self, recipiens: NodusIdentitas) -> Self {
+    #[must_use]
+    pub const fn to(mut self, recipiens: NodusIdentitas) -> Self {
         self.caput.recipiens = Some(recipiens);
         self
     }
 
     /// Set correlation ID.
-    pub fn correlating(mut self, id: u64) -> Self {
+    #[must_use]
+    pub const fn correlating(mut self, id: u64) -> Self {
         self.caput.correlatio = Some(id);
         self
     }
@@ -186,8 +190,9 @@ impl Nuntius {
     /// message's recipient field (falling back to the original sender) —
     /// the constructor has no notion of "the local node". Wire-up code with
     /// a real node identity should overwrite the sender.
+    #[must_use]
     pub fn respond(&self, genus: GenusNuntii, corpus: CorpusNuntii) -> Self {
-        Nuntius::new(
+        Self::new(
             // Would be local node ID, using sender as placeholder
             self.caput.recipiens.unwrap_or(self.caput.mittens),
             genus,
@@ -412,7 +417,7 @@ impl ErrorCorpus {
     /// Create an error with code and message.
     #[inline]
     pub fn new(codex: u32, nuntius: impl Into<String>) -> Self {
-        ErrorCorpus {
+        Self {
             codex,
             nuntius: nuntius.into(),
             iterabilis: false,
@@ -420,7 +425,8 @@ impl ErrorCorpus {
     }
 
     /// Mark as retriable.
-    pub fn retriable(mut self) -> Self {
+    #[must_use]
+    pub const fn retriable(mut self) -> Self {
         self.iterabilis = true;
         self
     }
@@ -502,12 +508,14 @@ pub struct AedificatorNuntii {
 impl AedificatorNuntii {
     /// Create a new message builder.
     #[inline]
-    pub fn new(mittens: NodusIdentitas) -> Self {
-        AedificatorNuntii { mittens }
+    #[must_use]
+    pub const fn new(mittens: NodusIdentitas) -> Self {
+        Self { mittens }
     }
 
     /// Build a heartbeat message.
     #[inline]
+    #[must_use]
     pub fn pulsatio(&self, status: StatusNodi, onus: f32, munera: u32, generatio: u64) -> Nuntius {
         Nuntius::new(
             self.mittens,
@@ -523,6 +531,7 @@ impl AedificatorNuntii {
 
     /// Build a join request.
     #[inline]
+    #[must_use]
     pub fn coniunctio(&self, info: InformationesNodi) -> Nuntius {
         Nuntius::new(
             self.mittens,
@@ -536,6 +545,7 @@ impl AedificatorNuntii {
 
     /// Build a computation submission.
     #[inline]
+    #[must_use]
     pub fn computatio(&self, id: u64, nodus: NodusSerializabilis, effectus: Vec<u64>) -> Nuntius {
         Nuntius::new(
             self.mittens,
@@ -552,6 +562,7 @@ impl AedificatorNuntii {
 
     /// Build an effect operation request.
     #[inline]
+    #[must_use]
     pub fn effectus(&self, effectus_id: u64, operatio_id: u64, data: Vec<u8>) -> Nuntius {
         Nuntius::new(
             self.mittens,

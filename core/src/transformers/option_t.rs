@@ -132,8 +132,8 @@ impl<M> OptionT<M> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn new(inner: M) -> Self {
-        OptionT { inner }
+    pub const fn new(inner: M) -> Self {
+        Self { inner }
     }
 
     /// Runs the transformer, extracting the inner computation.
@@ -159,7 +159,7 @@ impl<M> OptionT<M> {
 
     /// Returns a reference to the inner computation.
     #[inline]
-    pub fn inner_ref(&self) -> &M {
+    pub const fn inner_ref(&self) -> &M {
         &self.inner
     }
 }
@@ -171,14 +171,14 @@ impl<M> OptionT<M> {
 impl<A> OptionT<Option<Option<A>>> {
     /// Creates an `OptionT` containing `Some(value)` over `Option`.
     #[inline]
-    pub fn some_option(value: A) -> Self {
-        OptionT::new(Some(Some(value)))
+    pub const fn some_option(value: A) -> Self {
+        Self::new(Some(Some(value)))
     }
 
     /// Creates an empty `OptionT` over `Option`.
     #[inline]
-    pub fn none_option() -> Self {
-        OptionT::new(Some(None))
+    pub const fn none_option() -> Self {
+        Self::new(Some(None))
     }
 
     /// Maps a function over the inner value.
@@ -222,7 +222,7 @@ impl<A> MonadTransformer for OptionT<Option<Option<A>>> {
 
     #[inline]
     fn lift(base: Option<A>) -> Self {
-        OptionT::new(Some(base))
+        Self::new(Some(base))
     }
 }
 
@@ -247,8 +247,8 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn some(value: A) -> Self {
-        OptionT::new(Ok(Some(value)))
+    pub const fn some(value: A) -> Self {
+        Self::new(Ok(Some(value)))
     }
 
     /// Creates an empty `OptionT` over `Result`.
@@ -267,8 +267,8 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn none() -> Self {
-        OptionT::new(Ok(None))
+    pub const fn none() -> Self {
+        Self::new(Ok(None))
     }
 
     /// Creates an `OptionT` representing an error.
@@ -287,8 +287,8 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
     /// # fn main() {}
     /// ```
     #[inline]
-    pub fn err(e: E) -> Self {
-        OptionT::new(Err(e))
+    pub const fn err(e: E) -> Self {
+        Self::new(Err(e))
     }
 
     /// Lifts a `Result` value into `OptionT`, wrapping the success case in `Some`.
@@ -313,7 +313,7 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
     /// ```
     #[inline]
     pub fn lift_m(result: Result<A, E>) -> Self {
-        OptionT::new(result.map(Some))
+        Self::new(result.map(Some))
     }
 
     /// Maps a function over the inner value.
@@ -480,11 +480,12 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn or_else<F>(self, f: F) -> Self
     where
         F: FnOnce() -> Self,
     {
-        OptionT::new(match self.inner {
+        Self::new(match self.inner {
             Ok(Some(a)) => Ok(Some(a)),
             Ok(None) => f().inner,
             Err(e) => Err(e),
@@ -538,19 +539,19 @@ impl<A, E> OptionT<Result<Option<A>, E>> {
 
     /// Checks if the computation contains a value.
     #[inline]
-    pub fn is_some(&self) -> bool {
+    pub const fn is_some(&self) -> bool {
         matches!(&self.inner, Ok(Some(_)))
     }
 
     /// Checks if the computation is empty (None).
     #[inline]
-    pub fn is_none(&self) -> bool {
+    pub const fn is_none(&self) -> bool {
         matches!(&self.inner, Ok(None))
     }
 
     /// Checks if the computation is an error.
     #[inline]
-    pub fn is_err(&self) -> bool {
+    pub const fn is_err(&self) -> bool {
         self.inner.is_err()
     }
 }
@@ -560,7 +561,7 @@ impl<A, E> MonadTransformer for OptionT<Result<Option<A>, E>> {
 
     #[inline]
     fn lift(base: Result<A, E>) -> Self {
-        OptionT::lift_m(base)
+        Self::lift_m(base)
     }
 }
 
@@ -576,19 +577,21 @@ impl<A> OptionT<Vec<Option<A>>> {
     /// Creates an `OptionT` containing `Some(value)` over `Vec`.
     #[inline]
     pub fn some_vec(value: A) -> Self {
-        OptionT::new(alloc::vec![Some(value)])
+        Self::new(alloc::vec![Some(value)])
     }
 
     /// Creates an empty `OptionT` over `Vec`.
     #[inline]
+    #[must_use]
     pub fn none_vec() -> Self {
-        OptionT::new(alloc::vec![None])
+        Self::new(alloc::vec![None])
     }
 
     /// Creates an `OptionT` from multiple optional values.
     #[inline]
-    pub fn from_vec(values: Vec<Option<A>>) -> Self {
-        OptionT::new(values)
+    #[must_use]
+    pub const fn from_vec(values: Vec<Option<A>>) -> Self {
+        Self::new(values)
     }
 
     /// Maps a function over all inner values.
@@ -609,10 +612,7 @@ impl<A> OptionT<Vec<Option<A>>> {
         let results: Vec<Option<B>> = self
             .inner
             .into_iter()
-            .flat_map(|opt| match opt {
-                Some(a) => f(a).inner,
-                None => alloc::vec![None],
-            })
+            .flat_map(|opt| opt.map_or_else(|| alloc::vec![None], |a| f(a).inner))
             .collect();
         OptionT::new(results)
     }
@@ -624,7 +624,7 @@ impl<A> MonadTransformer for OptionT<Vec<Option<A>>> {
 
     #[inline]
     fn lift(base: Vec<A>) -> Self {
-        OptionT::new(base.into_iter().map(Some).collect())
+        Self::new(base.into_iter().map(Some).collect())
     }
 }
 
@@ -685,7 +685,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::type_complexity)] // spelled-out nested transformer type is the point
+    #[allow(
+        clippy::type_complexity,
+        reason = "spelled-out nested transformer type is the point"
+    )]
     fn test_option_t_apply() {
         let val: OptionT<Result<Option<i32>, &str>> = OptionT::some(21);
         let func: OptionT<Result<Option<fn(i32) -> i32>, &str>> = OptionT::some(|x: i32| x * 2);

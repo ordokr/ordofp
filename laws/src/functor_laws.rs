@@ -13,8 +13,8 @@
 //! use ordofp_laws::functor_laws;
 //!
 //! // Test identity law for Option
-//! assert!(functor_laws::option_identity(Some(42)));
-//! assert!(functor_laws::option_identity(None::<i32>));
+//! assert!(functor_laws::option_identity(&Some(42)));
+//! assert!(functor_laws::option_identity(&None::<i32>));
 //!
 //! // Test composition law
 //! assert!(functor_laws::option_composition(Some(5), |x| x + 1, |x| x * 2));
@@ -24,15 +24,15 @@ use crate::is_eq::IsEq;
 use ordofp::gat::Functor;
 
 /// The identity function.
-pub fn id<T>(x: T) -> T {
+pub const fn id<T>(x: T) -> T {
     x
 }
 
 // ==================== Option Laws ====================
 
 /// **Identity Law** for Option: `fa.map(id) == fa`
-pub fn option_identity<A: Clone + Eq>(fa: Option<A>) -> bool {
-    Functor::map(fa.clone(), id) == fa
+pub fn option_identity<A: Clone + Eq>(fa: &Option<A>) -> bool {
+    Functor::map(fa.clone(), id) == *fa
 }
 
 /// **Composition Law** for Option: `fa.map(f).map(g) == fa.map(|x| g(f(x)))`
@@ -57,8 +57,8 @@ pub fn option_identity_eq<A: Clone>(fa: Option<A>) -> IsEq<Option<A>> {
 // ==================== Result Laws ====================
 
 /// **Identity Law** for Result: `fa.map(id) == fa`
-pub fn result_identity<A: Clone + Eq, E: Clone + Eq>(fa: Result<A, E>) -> bool {
-    Functor::map(fa.clone(), id) == fa
+pub fn result_identity<A: Clone + Eq, E: Clone + Eq>(fa: &Result<A, E>) -> bool {
+    Functor::map(fa.clone(), id) == *fa
 }
 
 /// **Composition Law** for Result: `fa.map(f).map(g) == fa.map(|x| g(f(x)))`
@@ -84,8 +84,8 @@ pub fn result_identity_eq<A: Clone, E: Clone>(fa: Result<A, E>) -> IsEq<Result<A
 // ==================== Vec Laws ====================
 
 /// **Identity Law** for Vec: `fa.map(id) == fa`
-pub fn vec_identity<A: Clone + Eq>(fa: Vec<A>) -> bool {
-    Functor::map(fa.clone(), id) == fa
+pub fn vec_identity<A: Clone + Eq>(fa: &Vec<A>) -> bool {
+    Functor::map(fa.clone(), id) == *fa
 }
 
 /// **Composition Law** for Vec: `fa.map(f).map(g) == fa.map(|x| g(f(x)))`
@@ -116,12 +116,16 @@ mod tests {
 
     #[test]
     fn test_option_identity_law() {
-        quickcheck(option_identity::<i32> as fn(Option<i32>) -> bool);
+        fn option_identity_prop(x: Option<i32>) -> bool {
+            option_identity::<i32>(&x)
+        }
+
+        quickcheck(option_identity_prop as fn(Option<i32>) -> bool);
     }
 
     #[test]
     fn test_option_identity_none() {
-        assert!(option_identity(None::<String>));
+        assert!(option_identity(&None::<String>));
     }
 
     #[test]
@@ -144,8 +148,12 @@ mod tests {
 
     #[test]
     fn test_result_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Result<i32, String>) -> bool {
-            result_identity(fa)
+            result_identity(&fa)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
@@ -162,7 +170,15 @@ mod tests {
 
     #[test]
     fn test_vec_identity_law() {
-        quickcheck(vec_identity::<i32> as fn(Vec<i32>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn vec_identity_prop(x: Vec<i32>) -> bool {
+            vec_identity::<i32>(&x)
+        }
+
+        quickcheck(vec_identity_prop as fn(Vec<i32>) -> bool);
     }
 
     #[test]
@@ -178,17 +194,17 @@ mod tests {
     #[test]
     fn manual_identity_tests() {
         // Option
-        assert!(option_identity(Some(42)));
-        assert!(option_identity(None::<i32>));
-        assert!(option_identity(Some("hello".to_string())));
+        assert!(option_identity(&Some(42)));
+        assert!(option_identity(&None::<i32>));
+        assert!(option_identity(&Some("hello".to_string())));
 
         // Result
-        assert!(result_identity(Ok::<i32, &str>(100)));
-        assert!(result_identity(Err::<i32, &str>("error")));
+        assert!(result_identity(&Ok::<i32, &str>(100)));
+        assert!(result_identity(&Err::<i32, &str>("error")));
 
         // Vec
-        assert!(vec_identity(vec![1, 2, 3]));
-        assert!(vec_identity(Vec::<i32>::new()));
+        assert!(vec_identity(&vec![1, 2, 3]));
+        assert!(vec_identity(&Vec::<i32>::new()));
     }
 
     #[test]

@@ -31,7 +31,7 @@ pub trait ReaderOp<E> {
     /// Executes the reader computation against the given environment.
     ///
     /// Consumes `self` and produces the computed `Output` value by reading
-    /// from `env`. Implementors should mark this `#[inline(always)]` so the
+    /// from `env`. Implementors should mark this `#[inline]` so the
     /// compiler can monomorphize the entire computation chain with zero heap
     /// allocation.
     fn run_reader(self, env: &E) -> Self::Output;
@@ -42,7 +42,7 @@ pub struct PureReader<A>(pub A);
 
 impl<E, A> ReaderOp<E> for PureReader<A> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, _env: &E) -> A {
         self.0
     }
@@ -53,7 +53,7 @@ pub struct AskReader<E>(PhantomData<E>);
 
 impl<E: Clone> ReaderOp<E> for AskReader<E> {
     type Output = E;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, env: &E) -> E {
         env.clone()
     }
@@ -64,7 +64,7 @@ pub struct AsksReader<E, A, F: FnOnce(&E) -> A>(pub F, PhantomData<(E, A)>);
 
 impl<E, A, F: FnOnce(&E) -> A> ReaderOp<E> for AsksReader<E, A, F> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, env: &E) -> A {
         (self.0)(env)
     }
@@ -75,7 +75,7 @@ pub struct MapReader<Op, F>(pub Op, pub F);
 
 impl<E, Op: ReaderOp<E>, B, F: FnOnce(Op::Output) -> B> ReaderOp<E> for MapReader<Op, F> {
     type Output = B;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, env: &E) -> B {
         (self.1)(self.0.run_reader(env))
     }
@@ -88,7 +88,7 @@ impl<E, Op1: ReaderOp<E>, Op2: ReaderOp<E>, F: FnOnce(Op1::Output) -> Op2> Reade
     for AndThenReader<Op1, F>
 {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, env: &E) -> Op2::Output {
         let a = self.0.run_reader(env);
         (self.1)(a).run_reader(env)
@@ -100,7 +100,7 @@ pub struct LocalReader<Op, F>(pub Op, pub F);
 
 impl<E, Op: ReaderOp<E>, F: FnOnce(&E) -> E> ReaderOp<E> for LocalReader<Op, F> {
     type Output = Op::Output;
-    #[inline(always)]
+    #[inline]
     fn run_reader(self, env: &E) -> Op::Output {
         let new_env = (self.1)(env);
         self.0.run_reader(&new_env)
@@ -110,13 +110,13 @@ impl<E, Op: ReaderOp<E>, F: FnOnce(&E) -> E> ReaderOp<E> for LocalReader<Op, F> 
 /// Extension trait for chaining reader operations.
 pub trait ReaderOpExt<E>: ReaderOp<E> + Sized {
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     fn map_reader<B, F: FnOnce(Self::Output) -> B>(self, f: F) -> MapReader<Self, F> {
         MapReader(self, f)
     }
 
     /// Chain with another operation.
-    #[inline(always)]
+    #[inline]
     fn and_then_reader<Op2: ReaderOp<E>, F: FnOnce(Self::Output) -> Op2>(
         self,
         f: F,
@@ -125,7 +125,7 @@ pub trait ReaderOpExt<E>: ReaderOp<E> + Sized {
     }
 
     /// Run with a locally modified environment.
-    #[inline(always)]
+    #[inline]
     fn local_reader<F: FnOnce(&E) -> E>(self, f: F) -> LocalReader<Self, F> {
         LocalReader(self, f)
     }
@@ -138,20 +138,21 @@ impl<E, Op: ReaderOp<E>> ReaderOpExt<E> for Op {}
 // =============================================================================
 
 /// Create a pure reader operation.
-#[inline(always)]
-pub fn pure_reader<A>(a: A) -> PureReader<A> {
+#[inline]
+pub const fn pure_reader<A>(a: A) -> PureReader<A> {
     PureReader(a)
 }
 
 /// Create an ask reader operation.
-#[inline(always)]
-pub fn ask_reader<E>() -> AskReader<E> {
+#[inline]
+#[must_use]
+pub const fn ask_reader<E>() -> AskReader<E> {
     AskReader(PhantomData)
 }
 
 /// Create an asks reader operation.
-#[inline(always)]
-pub fn asks_reader<E, A, F: FnOnce(&E) -> A>(f: F) -> AsksReader<E, A, F> {
+#[inline]
+pub const fn asks_reader<E, A, F: FnOnce(&E) -> A>(f: F) -> AsksReader<E, A, F> {
     AsksReader(f, PhantomData)
 }
 

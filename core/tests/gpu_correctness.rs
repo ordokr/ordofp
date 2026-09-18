@@ -30,7 +30,7 @@ macro_rules! gpu_or_skip {
 fn reduce_after_pool_reuse_is_exact() {
     let gpu = gpu_or_skip!();
     // Prime the pool with an 8192-element buffer.
-    let big: Vec<f32> = (0..8192).map(|i| i as f32).collect();
+    let big: Vec<f32> = (0..8192u16).map(f32::from).collect();
     let _ = ParFlumen::from_vec_gpu(big)
         .map_gpu("x", |x| x)
         .collect_gpu(&gpu);

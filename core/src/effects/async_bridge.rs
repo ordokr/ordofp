@@ -127,7 +127,7 @@ impl<E: 'static, A: 'static> EffAsync<E, A> {
         F: FnOnce(E) -> Fut + Send + 'static,
         Fut: Future<Output = A> + Send + 'static,
     {
-        EffAsync {
+        Self {
             run: Box::new(move |env| Box::pin(f(env))),
         }
     }
@@ -138,7 +138,7 @@ impl<E: 'static, A: 'static> EffAsync<E, A> {
     where
         A: Send + 'static,
     {
-        EffAsync {
+        Self {
             run: Box::new(move |_| Box::pin(async move { value })),
         }
     }
@@ -188,6 +188,7 @@ impl<E: 'static, A: 'static> EffAsync<E, A> {
 
     /// Access the environment.
     #[inline]
+    #[must_use]
     pub fn ask() -> EffAsync<E, E>
     where
         E: Clone + Send + 'static,
@@ -197,13 +198,13 @@ impl<E: 'static, A: 'static> EffAsync<E, A> {
 
     /// Run a local computation with a modified environment.
     #[inline]
-    pub fn local<F>(f: F, inner: EffAsync<E, A>) -> EffAsync<E, A>
+    pub fn local<F>(f: F, inner: Self) -> Self
     where
         F: FnOnce(E) -> E + Send + 'static,
         E: Send + 'static,
         A: Send,
     {
-        EffAsync {
+        Self {
             run: Box::new(move |env| {
                 let modified_env = f(env);
                 (inner.run)(modified_env)
@@ -220,6 +221,7 @@ impl<E: 'static, A: 'static> EffAsync<E, A> {
 ///
 /// The Eff computation is run synchronously, then wrapped in async.
 #[inline]
+#[must_use]
 pub fn lift_eff<E: 'static, A: Send + 'static>(eff: Eff<EffectSet<0>, A>) -> EffAsync<E, A> {
     EffAsync::new(move |_| {
         let result = run_purus(eff);
@@ -251,6 +253,7 @@ use crate::transformers::async_transforms::LectorAsync;
 ///
 /// Note: Only works for pure computations (`EffectSet`<0>).
 #[inline]
+#[must_use]
 pub fn eff_to_lector<E: Clone + Send + Sync + 'static, A: Clone + Send + Sync + 'static>(
     eff: Eff<EffectSet<0>, A>,
 ) -> LectorAsync<E, A> {
@@ -262,6 +265,7 @@ pub fn eff_to_lector<E: Clone + Send + Sync + 'static, A: Clone + Send + Sync + 
 ///
 /// The `LectorAsync` is cloned for each run.
 #[inline]
+#[must_use]
 pub fn lector_to_eff_async<E: Clone + Send + Sync + 'static, A: Send + 'static>(
     lector: LectorAsync<E, A>,
 ) -> EffAsync<E, A>
@@ -270,7 +274,7 @@ where
 {
     // LectorAsync holds an Arc internally, so cloning is cheap
     EffAsync::new(move |env: E| {
-        let lector = lector.clone();
+        let lector = lector;
         async move { lector.run(env).await }
     })
 }
@@ -280,6 +284,7 @@ where
 // =============================================================================
 
 /// Sequence two `EffAsync` computations.
+#[must_use]
 pub fn sequence_eff_async<E, A, B>(
     first: EffAsync<E, A>,
     second: EffAsync<E, B>,

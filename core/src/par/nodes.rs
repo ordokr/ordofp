@@ -12,7 +12,7 @@ use super::Nodus;
 // NodusInit - Source data
 // =============================================================================
 
-pub(crate) struct NodusInit<T> {
+pub(super) struct NodusInit<T> {
     pub(crate) data: Vec<T>,
 }
 
@@ -22,19 +22,19 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.data.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         for item in &self.data {
             sink(item.clone());
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // Own the storage — iterate by reference, zero clones.
         for item in &self.data {
@@ -42,22 +42,22 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         true
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         self.data[index].clone()
     }
 
-    #[inline(always)]
+    #[inline]
     fn collect_scalar(&self) -> Vec<Self::Item> {
         self.data.clone()
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         for item in &self.data {
             if f(item).is_break() {
@@ -83,7 +83,7 @@ where
 // NodusMap - Map transformation
 // =============================================================================
 
-pub(crate) struct NodusMap<A, B> {
+pub(super) struct NodusMap<A, B> {
     pub(crate) prev: Arc<dyn Nodus<Item = A>>,
     pub(crate) f: Arc<dyn Fn(A) -> B + Send + Sync>,
 }
@@ -95,12 +95,12 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Pull references from prev; clone only to feed f (mandatory because
         // f: Fn(A) -> B takes A by value). Sink gets the owned b directly.
@@ -108,7 +108,7 @@ where
         self.prev.visit_scalar_ref(&mut |a| sink(f(a.clone())));
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // Same as above, but forward a reference to b so downstream nodes
         // don't clone again.
@@ -119,12 +119,12 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         let a = self.prev.get(index);
         (self.f)(a)
@@ -147,7 +147,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let func = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -228,7 +228,7 @@ where
 // NodusScan - Prefix scan (cumulative fold)
 // =============================================================================
 
-pub(crate) struct NodusScan<A, B> {
+pub(super) struct NodusScan<A, B> {
     pub(crate) prev: Arc<dyn Nodus<Item = A>>,
     pub(crate) init: B,
     pub(crate) f: Arc<dyn Fn(B, A) -> B + Send + Sync>,
@@ -241,12 +241,12 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Owned sink wants B by value. Use Option<B> to move the accumulator
         // out to feed f without cloning, then move the result back in. Sink
@@ -264,7 +264,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let f = &self.f;
         let mut acc: Option<B> = Some(self.init.clone());
@@ -276,7 +276,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let func = &self.f;
         let mut acc: Option<B> = Some(self.init.clone());
@@ -293,7 +293,7 @@ where
 // NodusFilter - Filter elements by predicate
 // =============================================================================
 
-pub(crate) struct NodusFilter<T> {
+pub(super) struct NodusFilter<T> {
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
     pub(crate) predicate: Arc<dyn Fn(&T) -> bool + Send + Sync>,
 }
@@ -304,13 +304,13 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         // Filter length is not known statically; use worst case
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Owned sink: must clone on match.
         let predicate = &self.predicate;
@@ -321,7 +321,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let predicate = &self.predicate;
         self.prev.visit_scalar_ref(&mut |a| {
@@ -331,7 +331,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let predicate = &self.predicate;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -424,7 +424,7 @@ where
 // NodusFilterMap - Filter and map in one pass
 // =============================================================================
 
-pub(crate) struct NodusFilterMap<A, B> {
+pub(super) struct NodusFilterMap<A, B> {
     pub(crate) prev: Arc<dyn Nodus<Item = A>>,
     pub(crate) f: Arc<dyn Fn(A) -> Option<B> + Send + Sync>,
 }
@@ -436,12 +436,12 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // f takes A by value — unavoidable clone on input.
         let f = &self.f;
@@ -452,7 +452,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let f = &self.f;
         self.prev.visit_scalar_ref(&mut |a| {
@@ -491,15 +491,11 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let func = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
-            if let Some(b) = func(a.clone()) {
-                f(&b)
-            } else {
-                ControlFlow::Continue(())
-            }
+            func(a.clone()).map_or(ControlFlow::Continue(()), |b| f(&b))
         });
     }
 
@@ -559,7 +555,7 @@ where
 // NodusTake - Take first n elements
 // =============================================================================
 
-pub(crate) struct NodusTake<T> {
+pub(super) struct NodusTake<T> {
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
     pub(crate) count: usize,
 }
@@ -570,12 +566,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len().min(self.count)
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         if self.prev.is_indexed() {
             for i in 0..self.len() {
@@ -592,7 +588,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         if self.prev.is_indexed() {
             for i in 0..self.len() {
@@ -610,12 +606,12 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         crate::unlikely_panic!(index >= self.count, "NodusTake: index out of bounds");
         self.prev.get(index)
@@ -643,7 +639,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut remaining = self.count;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -660,7 +656,7 @@ where
 // NodusSkip - Skip first n elements
 // =============================================================================
 
-pub(crate) struct NodusSkip<T> {
+pub(super) struct NodusSkip<T> {
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
     pub(crate) count: usize,
 }
@@ -671,12 +667,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len().saturating_sub(self.count)
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         if self.prev.is_indexed() {
             let len = self.len();
@@ -696,7 +692,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         if self.prev.is_indexed() {
             let len = self.len();
@@ -717,12 +713,12 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         self.prev.get(index + self.count)
     }
@@ -743,7 +739,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut skipped = 0;
         let count = self.count;
@@ -762,7 +758,7 @@ where
 // NodusEnumerate - Pair elements with their indices
 // =============================================================================
 
-pub(crate) struct NodusEnumerate<T> {
+pub(super) struct NodusEnumerate<T> {
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
 }
 
@@ -772,12 +768,12 @@ where
 {
     type Item = (usize, T);
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Owned sink wants (usize, T); clone once to build the pair.
         let mut index = 0usize;
@@ -787,7 +783,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // The pair itself must be owned to take its address; still only
         // one clone of T per element.
@@ -799,12 +795,12 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         (index, self.prev.get(index))
     }
@@ -840,7 +836,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut index = 0usize;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -855,7 +851,7 @@ where
 // NodusInspect - Inspect elements without modifying
 // =============================================================================
 
-pub(crate) struct NodusInspect<T> {
+pub(super) struct NodusInspect<T> {
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
     pub(crate) f: Arc<dyn Fn(&T) + Send + Sync>,
 }
@@ -866,12 +862,12 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Owned sink: clone after inspection.
         let f = &self.f;
@@ -881,7 +877,7 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // Zero clones: inspect then forward the reference.
         let f = &self.f;
@@ -891,12 +887,12 @@ where
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         let item = self.prev.get(index);
         (self.f)(&item);
@@ -933,7 +929,7 @@ where
         items
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let inspect_f = &self.f;
         self.prev.try_visit_scalar_ref(&mut |a| {
@@ -947,7 +943,7 @@ where
 // NodusChain - Chain two streams together
 // =============================================================================
 
-pub(crate) struct NodusChain<T> {
+pub(super) struct NodusChain<T> {
     pub(crate) first: Arc<dyn Nodus<Item = T>>,
     pub(crate) second: Arc<dyn Nodus<Item = T>>,
 }
@@ -958,29 +954,29 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.first.len() + self.second.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         self.first.visit_scalar(sink);
         self.second.visit_scalar(sink);
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         self.first.visit_scalar_ref(sink);
         self.second.visit_scalar_ref(sink);
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.first.is_indexed() && self.second.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         let first_len = self.first.len();
         if index < first_len {
@@ -998,7 +994,7 @@ where
         (lo1.saturating_add(lo2), hi)
     }
 
-    #[inline(always)]
+    #[inline]
     fn try_visit_scalar_ref(&self, f: &mut dyn FnMut(&Self::Item) -> ControlFlow<()>) {
         let mut broken = false;
         self.first.try_visit_scalar_ref(&mut |a| {
@@ -1062,7 +1058,7 @@ where
 // NodusZip - Zip two streams together
 // =============================================================================
 
-pub(crate) struct NodusZip<A, B> {
+pub(super) struct NodusZip<A, B> {
     pub(crate) first: Arc<dyn Nodus<Item = A>>,
     pub(crate) second: Arc<dyn Nodus<Item = B>>,
 }
@@ -1074,12 +1070,12 @@ where
 {
     type Item = (A, B);
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.first.len().min(self.second.len())
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         // Optimization: Avoid materializing both streams.
         // We materialize the indexed stream (which usually has fast `collect_scalar`, e.g., memcpy)
@@ -1110,7 +1106,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         // Same strategy as visit_scalar but pass the constructed pair by ref.
         if self.second.is_indexed() {
@@ -1134,12 +1130,12 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.first.is_indexed() && self.second.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         (self.first.get(index), self.second.get(index))
     }
@@ -1200,25 +1196,21 @@ where
         if self.second.is_indexed() {
             let second_items = self.second.collect_scalar();
             let mut second_iter = second_items.into_iter();
-            self.first
-                .try_visit_scalar_ref(&mut |a| match second_iter.next() {
-                    Some(b) => {
-                        let pair = (a.clone(), b);
-                        f(&pair)
-                    }
-                    None => ControlFlow::Break(()),
-                });
+            self.first.try_visit_scalar_ref(&mut |a| {
+                second_iter.next().map_or(ControlFlow::Break(()), |b| {
+                    let pair = (a.clone(), b);
+                    f(&pair)
+                })
+            });
         } else {
             let first_items = self.first.collect_scalar();
             let mut first_iter = first_items.into_iter();
-            self.second
-                .try_visit_scalar_ref(&mut |b| match first_iter.next() {
-                    Some(a) => {
-                        let pair = (a, b.clone());
-                        f(&pair)
-                    }
-                    None => ControlFlow::Break(()),
-                });
+            self.second.try_visit_scalar_ref(&mut |b| {
+                first_iter.next().map_or(ControlFlow::Break(()), |a| {
+                    let pair = (a, b.clone());
+                    f(&pair)
+                })
+            });
         }
     }
 }

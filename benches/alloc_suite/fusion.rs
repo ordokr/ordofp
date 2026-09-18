@@ -22,9 +22,9 @@ mod flumen_fusus_benches {
         unsafe fn clone(_: *const ()) -> RawWaker {
             RawWaker::new(core::ptr::null(), &VTABLE)
         }
-        unsafe fn wake(_: *const ()) {}
-        unsafe fn wake_by_ref(_: *const ()) {}
-        unsafe fn drop(_: *const ()) {}
+        const unsafe fn wake(_: *const ()) {}
+        const unsafe fn wake_by_ref(_: *const ()) {}
+        const unsafe fn drop(_: *const ()) {}
         static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
         unsafe { Waker::from_raw(RawWaker::new(core::ptr::null(), &VTABLE)) }
     }
@@ -315,12 +315,17 @@ fn bench_iterator_fusion(c: &mut Criterion) {
         });
     });
 
-    // Separate allocations (no fusion)
+    // Separate allocations (no fusion): each stage materializes its own Vec
+    // (forced with `black_box`) so the benchmark measures staged allocation
+    // rather than a fused pipeline.
     group.bench_function("Separate", |b| {
         b.iter(|| {
             let v1: Vec<i32> = data.iter().map(|x| x + 1).collect();
+            black_box(&v1);
             let v2: Vec<i32> = v1.into_iter().filter(|x| x % 2 == 0).collect();
+            black_box(&v2);
             let v3: Vec<i32> = v2.into_iter().map(|x| x * 2).collect();
+            black_box(&v3);
             let result: Vec<i32> = v3.into_iter().take(1000).collect();
             black_box(result)
         });

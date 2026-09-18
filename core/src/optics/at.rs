@@ -213,7 +213,7 @@ where
     I: Clone,
 {
     fn clone(&self) -> Self {
-        AspectusAd {
+        Self {
             index: self.index.clone(),
             _phantom: PhantomData,
         }
@@ -228,7 +228,7 @@ where
     /// Create a new at-optic for the given index.
     #[inline]
     pub fn new(index: I) -> Self {
-        AspectusAd {
+        Self {
             index,
             _phantom: PhantomData,
         }
@@ -236,7 +236,7 @@ where
 
     /// Get the index this optic focuses on.
     #[inline]
-    pub fn index(&self) -> &I {
+    pub const fn index(&self) -> &I {
         &self.index
     }
 

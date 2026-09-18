@@ -300,7 +300,7 @@ macro_rules! functio_poly {
             impl<$($pars,)*> $crate::traits::Func<$p_arg_typ> for F {
                 type Output = $p_ret_typ;
 
-                #[inline(always)]
+                #[inline]
                 fn call($p_args: $p_arg_typ) -> Self::Output { $p_body }
             }
         )*
@@ -308,7 +308,7 @@ macro_rules! functio_poly {
             impl $crate::traits::Func<$arg_typ> for F {
                 type Output = $ret_typ;
 
-                #[inline(always)]
+                #[inline]
                 fn call($args: $arg_typ) -> Self::Output { $body }
             }
         )*
@@ -942,7 +942,10 @@ mod tests {
     #[test]
     // The never-executed `let _: Disiunctio![…] = panic!()` blocks are
     // typecheck proofs; the diverging expression is the cheapest inhabitant.
-    #[allow(clippy::diverging_sub_expression)]
+    #[allow(
+        clippy::diverging_sub_expression,
+        reason = "panic!() is the cheapest typecheck-proof inhabitant"
+    )]
     fn trailing_commas() {
         use crate::test_structs::unit_copy::{A, B};
 

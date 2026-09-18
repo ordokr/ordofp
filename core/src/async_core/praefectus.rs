@@ -68,6 +68,7 @@ use core::future::Future;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use core::time::Duration;
 
 use super::fibra::{Fibra, FibraError, FibraManubrium, TesseraAbrogationis};
 use super::runtime::RuntimeGenerare;
@@ -117,7 +118,7 @@ pub struct IntensitasRestart {
 
 impl Default for IntensitasRestart {
     fn default() -> Self {
-        IntensitasRestart {
+        Self {
             max_restarts: DEFAULT_MAX_RESTARTS,
             within_seconds: DEFAULT_RESTART_WITHIN_SECONDS,
         }
@@ -150,7 +151,7 @@ impl InfansSpecificatio {
         F: Fn() -> Fut + Send + Sync + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
-        InfansSpecificatio {
+        Self {
             nomen: nomen.into(),
             fabricare: Arc::new(move || Box::pin(fabricare())),
             restart: true,
@@ -160,14 +161,16 @@ impl InfansSpecificatio {
 
     /// Set whether to restart on failure.
     #[inline]
-    pub fn with_restart(mut self, restart: bool) -> Self {
+    #[must_use]
+    pub const fn with_restart(mut self, restart: bool) -> Self {
         self.restart = restart;
         self
     }
 
     /// Set shutdown timeout.
     #[inline]
-    pub fn with_shutdown_timeout(mut self, timeout_ms: u64) -> Self {
+    #[must_use]
+    pub const fn with_shutdown_timeout(mut self, timeout_ms: u64) -> Self {
         self.shutdown_timeout_ms = timeout_ms;
         self
     }
@@ -250,8 +253,9 @@ pub struct Praefectus<R: RuntimeGenerare> {
 impl<R: RuntimeGenerare> Praefectus<R> {
     /// Create a new supervisor with the given restart strategy.
     #[inline]
+    #[must_use]
     pub fn new(strategia: StrategiaRestart) -> Self {
-        Praefectus {
+        Self {
             strategia,
             intensitas: IntensitasRestart::default(),
             // Supervisors typically hold a small, known set of children.
@@ -265,7 +269,8 @@ impl<R: RuntimeGenerare> Praefectus<R> {
 
     /// Set the restart intensity limits.
     #[inline]
-    pub fn with_intensitas(mut self, intensitas: IntensitasRestart) -> Self {
+    #[must_use]
+    pub const fn with_intensitas(mut self, intensitas: IntensitasRestart) -> Self {
         self.intensitas = intensitas;
         self
     }
@@ -288,18 +293,21 @@ impl<R: RuntimeGenerare> Praefectus<R> {
 
     /// Get the restart strategy.
     #[inline]
-    pub fn strategia(&self) -> StrategiaRestart {
+    #[must_use]
+    pub const fn strategia(&self) -> StrategiaRestart {
         self.strategia
     }
 
     /// Get the number of children.
     #[inline]
-    pub fn child_count(&self) -> usize {
+    #[must_use]
+    pub const fn child_count(&self) -> usize {
         self.specs.len()
     }
 
     /// Check if the supervisor is running.
     #[inline]
+    #[must_use]
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::SeqCst)
     }
@@ -322,8 +330,26 @@ impl<R: RuntimeGenerare> Praefectus<R> {
     /// including after ownership of the `Praefectus` has been moved into
     /// [`start`](Self::start).
     #[inline]
+    #[must_use]
     pub fn stop_handle(&self) -> Arc<TesseraAbrogationis> {
         self.sistendum.clone()
+    }
+
+    /// Spawn one supervised child from its spec, returning a live handle.
+    fn spawn_child(spec: &InfansSpecificatio) -> FibraManubrium<()> {
+        let fibra = Fibra::new((spec.fabricare)());
+        let id = fibra.id();
+        let cancelled = fibra.cancellation_token();
+        let join_handle = R::spawn(fibra);
+        FibraManubrium::new(id, join_handle, cancelled)
+    }
+
+    /// Cancel a child handle in place and join it, leaving `None`.
+    async fn cancel_join(handle: &mut Option<FibraManubrium<()>>) {
+        if let Some(h) = handle.take() {
+            h.cancel();
+            let _ = h.conjungere().await; // cancel now wakes (Task 13)
+        }
     }
 
     /// Start all children and begin supervision.
@@ -331,7 +357,11 @@ impl<R: RuntimeGenerare> Praefectus<R> {
     /// Returns a fiber that runs the supervision loop.
     // One linear supervision loop; splitting it would scatter the restart
     // policy across helpers without making it clearer.
-    #[allow(clippy::too_many_lines)]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "supervision event loop; phases share slots and atomics"
+    )]
+    #[must_use]
     pub fn start(self) -> Fibra<()> {
         let running = self.running.clone();
         let restart_count = self.restart_count.clone();
@@ -356,12 +386,7 @@ impl<R: RuntimeGenerare> Praefectus<R> {
 
             // Spawn initial children
             for (spec, handle, status, _restart_count) in &mut children {
-                let fut = (spec.fabricare)();
-                let fibra = Fibra::new(fut);
-                let id = fibra.id();
-                let cancelled = fibra.cancellation_token();
-                let join_handle = R::spawn(fibra);
-                *handle = Some(FibraManubrium::new(id, join_handle, cancelled));
+                *handle = Some(Self::spawn_child(spec));
                 *status = StatusInfans::Currens;
             }
 
@@ -440,10 +465,7 @@ impl<R: RuntimeGenerare> Praefectus<R> {
                     // Escalate: intensity exceeded — cancel AND JOIN all children,
                     // then end the supervisor.
                     for (_s, h, st, _rc) in &mut children {
-                        if let Some(handle) = h.take() {
-                            handle.cancel();
-                            let _ = handle.conjungere().await; // cancel now wakes (Task 13)
-                        }
+                        Self::cancel_join(h).await;
                         *st = StatusInfans::Terminatus;
                     }
                     break;
@@ -454,16 +476,8 @@ impl<R: RuntimeGenerare> Praefectus<R> {
                 // the restart set, then respawn it into the same slot (indexes are
                 // stable across respawns — slots are never added or removed).
                 for i in indices {
-                    if let Some(old) = children[i].1.take() {
-                        old.cancel();
-                        let _ = old.conjungere().await;
-                    }
-                    let fut = (children[i].0.fabricare)();
-                    let fibra = Fibra::new(fut);
-                    let id = fibra.id();
-                    let token = fibra.cancellation_token();
-                    let join_handle = R::spawn(fibra);
-                    children[i].1 = Some(FibraManubrium::new(id, join_handle, token));
+                    Self::cancel_join(&mut children[i].1).await;
+                    children[i].1 = Some(Self::spawn_child(&children[i].0));
                     children[i].2 = StatusInfans::Currens;
                     children[i].3 += 1;
                     restart_count.fetch_add(1, Ordering::SeqCst);
@@ -473,10 +487,7 @@ impl<R: RuntimeGenerare> Praefectus<R> {
             // Shutdown: cancel AND join every child (the old code cancelled
             // without joining, leaking running children).
             for (_spec, handle, status, _rc) in &mut children {
-                if let Some(h) = handle.take() {
-                    h.cancel();
-                    let _ = h.conjungere().await;
-                }
+                Self::cancel_join(handle).await;
                 *status = StatusInfans::Terminatus;
             }
 
@@ -567,6 +578,7 @@ pub type DeciderDefectus = Box<dyn Fn(&FibraError) -> PolitiaDefectus + Send + S
 
 /// Create a default decider that always restarts.
 #[inline]
+#[must_use]
 pub fn default_decider() -> DeciderDefectus {
     Box::new(|_| PolitiaDefectus::Renovare)
 }
@@ -616,7 +628,7 @@ pub enum StrategiaMora {
 
 impl Default for StrategiaMora {
     fn default() -> Self {
-        StrategiaMora::Exponens {
+        Self::Exponens {
             initial_ms: DEFAULT_EXPONENS_INITIAL_MS,
             max_ms: DEFAULT_EXPONENS_MAX_MS,
             factor: DEFAULT_EXPONENS_FACTOR,
@@ -626,26 +638,40 @@ impl Default for StrategiaMora {
 
 impl StrategiaMora {
     /// Calculate the delay for a given attempt number.
+    ///
+    /// Exponential growth saturates at `max_ms`; attempts beyond `i32::MAX`
+    /// saturate the exponent rather than wrapping, and absurd
+    /// millisecond bounds (above `u32::MAX`) saturate instead of losing
+    /// precision.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the computed exponential delay is `NaN` (e.g. a `NaN`
+    /// `factor`), which is not a valid duration.
     #[inline]
-    pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
+    #[must_use]
+    pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
         match self {
-            StrategiaMora::Nulla => 0,
-            StrategiaMora::Constans { delay_ms } => *delay_ms,
-            StrategiaMora::Exponens {
+            Self::Nulla => Duration::ZERO,
+            Self::Constans { delay_ms } => Duration::from_millis(*delay_ms),
+            Self::Exponens {
                 initial_ms,
                 max_ms,
                 factor,
             } => {
-                let delay = (*initial_ms as f64) * factor.powi(attempt as i32);
-                (delay as u64).min(*max_ms)
+                let exp = i32::try_from(attempt).unwrap_or(i32::MAX);
+                let initial = f64::from(u32::try_from(*initial_ms).unwrap_or(u32::MAX));
+                let max = f64::from(u32::try_from(*max_ms).unwrap_or(u32::MAX));
+                let delay_ms = (initial * factor.powi(exp)).clamp(0.0, max);
+                Duration::from_secs_f64(delay_ms / 1000.0)
             }
-            StrategiaMora::Linearis {
+            Self::Linearis {
                 initial_ms,
                 increment_ms,
                 max_ms,
             } => {
                 let delay = initial_ms + (increment_ms * u64::from(attempt));
-                delay.min(*max_ms)
+                Duration::from_millis(delay.min(*max_ms))
             }
         }
     }
@@ -657,18 +683,21 @@ impl StrategiaMora {
 
 /// Create a supervisor with one-for-one strategy.
 #[inline]
+#[must_use]
 pub fn supervisor_unus_pro_uno<R: RuntimeGenerare>() -> Praefectus<R> {
     Praefectus::new(StrategiaRestart::UnusProUno)
 }
 
 /// Create a supervisor with all-for-one strategy.
 #[inline]
+#[must_use]
 pub fn supervisor_omnes_pro_uno<R: RuntimeGenerare>() -> Praefectus<R> {
     Praefectus::new(StrategiaRestart::OmnesProUno)
 }
 
 /// Create a supervisor with rest-for-one strategy.
 #[inline]
+#[must_use]
 pub fn supervisor_reliqui_pro_uno<R: RuntimeGenerare>() -> Praefectus<R> {
     Praefectus::new(StrategiaRestart::ReliquiProUno)
 }
@@ -712,15 +741,15 @@ mod tests {
     #[test]
     fn test_strategia_mora_nulla() {
         let s = StrategiaMora::Nulla;
-        assert_eq!(s.delay_for_attempt(0), 0);
-        assert_eq!(s.delay_for_attempt(10), 0);
+        assert_eq!(s.delay_for_attempt(0), Duration::ZERO);
+        assert_eq!(s.delay_for_attempt(10), Duration::ZERO);
     }
 
     #[test]
     fn test_strategia_mora_constans() {
         let s = StrategiaMora::Constans { delay_ms: 1000 };
-        assert_eq!(s.delay_for_attempt(0), 1000);
-        assert_eq!(s.delay_for_attempt(10), 1000);
+        assert_eq!(s.delay_for_attempt(0), Duration::from_millis(1000));
+        assert_eq!(s.delay_for_attempt(10), Duration::from_millis(1000));
     }
 
     #[test]
@@ -730,10 +759,10 @@ mod tests {
             max_ms: 10000,
             factor: 2.0,
         };
-        assert_eq!(s.delay_for_attempt(0), 100);
-        assert_eq!(s.delay_for_attempt(1), 200);
-        assert_eq!(s.delay_for_attempt(2), 400);
-        assert_eq!(s.delay_for_attempt(10), 10000); // capped at max
+        assert_eq!(s.delay_for_attempt(0), Duration::from_millis(100));
+        assert_eq!(s.delay_for_attempt(1), Duration::from_millis(200));
+        assert_eq!(s.delay_for_attempt(2), Duration::from_millis(400));
+        assert_eq!(s.delay_for_attempt(10), Duration::from_millis(10000)); // capped at max
     }
 
     #[test]
@@ -743,10 +772,10 @@ mod tests {
             increment_ms: 100,
             max_ms: 500,
         };
-        assert_eq!(s.delay_for_attempt(0), 100);
-        assert_eq!(s.delay_for_attempt(1), 200);
-        assert_eq!(s.delay_for_attempt(2), 300);
-        assert_eq!(s.delay_for_attempt(10), 500); // capped at max
+        assert_eq!(s.delay_for_attempt(0), Duration::from_millis(100));
+        assert_eq!(s.delay_for_attempt(1), Duration::from_millis(200));
+        assert_eq!(s.delay_for_attempt(2), Duration::from_millis(300));
+        assert_eq!(s.delay_for_attempt(10), Duration::from_millis(500)); // capped at max
     }
 
     #[test]

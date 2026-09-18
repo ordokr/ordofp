@@ -8,7 +8,7 @@ use std::hint::black_box;
 const SIZES: &[usize] = &[10, 100, 1_000, 10_000, 100_000];
 
 // min_len: 1 forces rayon even at small N so we can observe the parallel path.
-fn rayon_backend() -> CpuRayon {
+const fn rayon_backend() -> CpuRayon {
     CpuRayon { min_len: 1 }
 }
 
@@ -29,7 +29,8 @@ fn bench_nodus_map_collect_rayon(c: &mut Criterion) {
 
     for &n in SIZES {
         // Pre-allocate data outside the timed loop.
-        let data: Vec<i32> = (0..n as i32).collect();
+        let data: Vec<i32> =
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
 
         group.bench_with_input(BenchmarkId::new("Sequential", n), &n, |b, _| {
             b.iter(|| {
@@ -64,8 +65,13 @@ fn bench_nodus_chain_collect_rayon(c: &mut Criterion) {
     for &n in SIZES {
         let half = n / 2;
         // Pre-compute work-heavy elements so only collection is timed.
-        let a_data: Vec<i32> = (0..half as i32).map(work).collect();
-        let b_data: Vec<i32> = (half as i32..n as i32).map(work).collect();
+        let a_data: Vec<i32> = (0..i32::try_from(half).expect("benchmark input size fits in i32"))
+            .map(work)
+            .collect();
+        let b_data: Vec<i32> = (i32::try_from(half).expect("benchmark input size fits in i32")
+            ..i32::try_from(n).expect("benchmark input size fits in i32"))
+            .map(work)
+            .collect();
 
         group.bench_with_input(BenchmarkId::new("Sequential", n), &n, |b, _| {
             b.iter(|| {
@@ -92,8 +98,11 @@ fn bench_nodus_zip_collect_rayon(c: &mut Criterion) {
     let rayon = rayon_backend();
 
     for &n in SIZES {
-        let a_data: Vec<i32> = (0..n as i32).collect();
-        let b_data: Vec<i32> = (0..n as i32).map(work).collect();
+        let a_data: Vec<i32> =
+            (0..i32::try_from(n).expect("benchmark input size fits in i32")).collect();
+        let b_data: Vec<i32> = (0..i32::try_from(n).expect("benchmark input size fits in i32"))
+            .map(work)
+            .collect();
 
         // indexed × indexed (NodusZip::is_indexed = true → parallel by index)
         group.bench_with_input(BenchmarkId::new("Sequential/Indexed", n), &n, |b, _| {

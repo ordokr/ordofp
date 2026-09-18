@@ -8,8 +8,8 @@ mod buffer_pool_stress {
 
     #[test]
     fn stress_buffer_pool_many_overlaps() {
-        let mut pool = BufferPool::new();
         const N: usize = 10_000;
+        let mut pool = BufferPool::new();
 
         // Create many overlapping buffers
         // Buffer i has range [i, i+100), so buffer i and i+1 overlap
@@ -99,8 +99,8 @@ mod transformer_stress {
     #[test]
     fn stress_cps_deep_chain() {
         // Test deep left-associated chain (reduced from 100k to 1k to avoid stack overflow)
-        let mut chain = LectorEcclesiaT::new(|env: i32| env);
         const DEPTH: usize = 1_000;
+        let mut chain = LectorEcclesiaT::new(|env: i32| env);
 
         for _ in 0..DEPTH {
             chain = chain.flat_map(|x| LectorEcclesiaT::new(move |env: i32| x.saturating_add(env)));

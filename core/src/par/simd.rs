@@ -232,6 +232,7 @@ impl Simd4f32 {
 
     /// Create from an array.
     #[inline]
+    #[must_use]
     pub const fn new(arr: [f32; 4]) -> Self {
         Self {
             inner: Backing4::from_array(arr),
@@ -240,6 +241,7 @@ impl Simd4f32 {
 
     /// Create a SIMD vector with all lanes set to the same value.
     #[inline]
+    #[must_use]
     pub const fn splat(value: f32) -> Self {
         Self {
             inner: Backing4::splat(value),
@@ -248,18 +250,21 @@ impl Simd4f32 {
 
     /// Create a SIMD vector with all zeros.
     #[inline]
+    #[must_use]
     pub const fn zero() -> Self {
         Self::splat(0.0)
     }
 
     /// Create a SIMD vector with all ones.
     #[inline]
+    #[must_use]
     pub const fn one() -> Self {
         Self::splat(1.0)
     }
 
     /// Load from a slice. Panics if slice has fewer than 4 elements.
     #[inline]
+    #[must_use]
     pub fn load(slice: &[f32]) -> Self {
         Self {
             inner: Backing4::from_slice(slice),
@@ -268,6 +273,7 @@ impl Simd4f32 {
 
     /// Load from a slice, using zeros for missing elements.
     #[inline]
+    #[must_use]
     pub fn load_partial(slice: &[f32]) -> Self {
         let mut arr = [0.0f32; 4];
         let len = slice.len().min(4);
@@ -291,30 +297,35 @@ impl Simd4f32 {
 
     /// Convert to array.
     #[inline]
+    #[must_use]
     pub const fn to_array(self) -> [f32; 4] {
         self.inner.to_array()
     }
 
     /// Access the underlying array (for compatibility).
     #[inline]
+    #[must_use]
     pub const fn arr(&self) -> [f32; 4] {
         self.inner.to_array()
     }
 
     /// Horizontal sum of all lanes using SIMD reduce.
     #[inline]
+    #[must_use]
     pub fn sum(self) -> f32 {
         self.inner.reduce_sum()
     }
 
     /// Horizontal product of all lanes using SIMD reduce.
     #[inline]
+    #[must_use]
     pub fn product(self) -> f32 {
         self.inner.reduce_product()
     }
 
     /// Element-wise minimum using SIMD.
     #[inline]
+    #[must_use]
     pub fn min(self, other: Self) -> Self {
         Self {
             inner: self.inner.simd_min(other.inner),
@@ -323,6 +334,7 @@ impl Simd4f32 {
 
     /// Element-wise maximum using SIMD.
     #[inline]
+    #[must_use]
     pub fn max(self, other: Self) -> Self {
         Self {
             inner: self.inner.simd_max(other.inner),
@@ -331,18 +343,21 @@ impl Simd4f32 {
 
     /// Horizontal minimum using SIMD reduce.
     #[inline]
+    #[must_use]
     pub fn min_element(self) -> f32 {
         self.inner.reduce_min()
     }
 
     /// Horizontal maximum using SIMD reduce.
     #[inline]
+    #[must_use]
     pub fn max_element(self) -> f32 {
         self.inner.reduce_max()
     }
 
     /// Element-wise absolute value using SIMD.
     #[inline]
+    #[must_use]
     pub fn abs(self) -> Self {
         Self {
             inner: self.inner.abs(),
@@ -352,6 +367,7 @@ impl Simd4f32 {
     /// Element-wise square root using SIMD.
     #[inline]
     #[cfg(feature = "std")]
+    #[must_use]
     pub fn sqrt(self) -> Self {
         Self {
             inner: self.inner.sqrt(),
@@ -361,6 +377,7 @@ impl Simd4f32 {
     /// Fused multiply-add: self * a + b (uses FMA instructions when available)
     #[inline]
     #[cfg(feature = "std")]
+    #[must_use]
     pub fn mul_add(self, a: Self, b: Self) -> Self {
         Self {
             inner: self.inner.mul_add(a.inner, b.inner),
@@ -370,6 +387,7 @@ impl Simd4f32 {
     /// Apply a function to each element.
     /// Note: This is a scalar fallback; prefer SIMD operations when possible.
     #[inline]
+    #[must_use]
     pub fn map<F: Fn(f32) -> f32>(self, f: F) -> Self {
         let arr = self.inner.to_array();
         Self::new([f(arr[0]), f(arr[1]), f(arr[2]), f(arr[3])])
@@ -478,6 +496,7 @@ impl Simd8f32 {
 
     /// Create from an array.
     #[inline]
+    #[must_use]
     pub const fn new(arr: [f32; 8]) -> Self {
         Self {
             inner: Backing8::from_array(arr),
@@ -486,6 +505,7 @@ impl Simd8f32 {
 
     /// Create a SIMD vector with all lanes set to the same value.
     #[inline]
+    #[must_use]
     pub const fn splat(value: f32) -> Self {
         Self {
             inner: Backing8::splat(value),
@@ -494,12 +514,14 @@ impl Simd8f32 {
 
     /// Create a SIMD vector with all zeros.
     #[inline]
+    #[must_use]
     pub const fn zero() -> Self {
         Self::splat(0.0)
     }
 
     /// Load from a slice. Panics if slice has fewer than 8 elements.
     #[inline]
+    #[must_use]
     pub fn load(slice: &[f32]) -> Self {
         Self {
             inner: Backing8::from_slice(slice),
@@ -508,6 +530,7 @@ impl Simd8f32 {
 
     /// Load from a slice, using zeros for missing elements.
     #[inline]
+    #[must_use]
     pub fn load_partial(slice: &[f32]) -> Self {
         let mut arr = [0.0f32; 8];
         let len = slice.len().min(8);
@@ -531,12 +554,14 @@ impl Simd8f32 {
 
     /// Access the underlying array (for compatibility).
     #[inline]
+    #[must_use]
     pub const fn arr(&self) -> [f32; 8] {
         self.inner.to_array()
     }
 
     /// Horizontal sum using SIMD reduce.
     #[inline]
+    #[must_use]
     pub fn sum(self) -> f32 {
         self.inner.reduce_sum()
     }
@@ -544,6 +569,7 @@ impl Simd8f32 {
     /// Apply a function to each element.
     /// Note: This is a scalar fallback; prefer SIMD operations when possible.
     #[inline]
+    #[must_use]
     pub fn map<F: Fn(f32) -> f32>(self, f: F) -> Self {
         let arr = self.inner.to_array();
         Self::new([
@@ -643,6 +669,7 @@ where
 
 /// Sum an f32 slice using SIMD.
 #[inline]
+#[must_use]
 pub fn simd_sum_f32(data: &[f32]) -> f32 {
     let mut acc = Simd4f32::zero();
 
@@ -664,6 +691,7 @@ pub fn simd_sum_f32(data: &[f32]) -> f32 {
 ///
 /// Panics if `a` and `b` have different lengths.
 #[inline]
+#[must_use]
 pub fn simd_dot_f32(a: &[f32], b: &[f32]) -> f32 {
     assert_eq!(a.len(), b.len(), "Vectors must have same length");
 
@@ -700,6 +728,7 @@ pub fn simd_dot_f32(a: &[f32], b: &[f32]) -> f32 {
 
 /// Find minimum value in an f32 slice using SIMD.
 #[inline]
+#[must_use]
 pub fn simd_min_f32(data: &[f32]) -> Option<f32> {
     if data.is_empty() {
         return None;
@@ -724,6 +753,7 @@ pub fn simd_min_f32(data: &[f32]) -> Option<f32> {
 
 /// Find maximum value in an f32 slice using SIMD.
 #[inline]
+#[must_use]
 pub fn simd_max_f32(data: &[f32]) -> Option<f32> {
     if data.is_empty() {
         return None;
@@ -752,6 +782,7 @@ pub fn simd_max_f32(data: &[f32]) -> Option<f32> {
 ///
 /// Panics if `a` and `b` have different lengths.
 #[inline]
+#[must_use]
 pub fn simd_add_f32(a: &[f32], b: &[f32]) -> Vec<f32> {
     assert_eq!(a.len(), b.len(), "Vectors must have same length");
 
@@ -782,6 +813,7 @@ pub fn simd_add_f32(a: &[f32], b: &[f32]) -> Vec<f32> {
 ///
 /// Panics if `a` and `b` have different lengths.
 #[inline]
+#[must_use]
 pub fn simd_mul_f32(a: &[f32], b: &[f32]) -> Vec<f32> {
     assert_eq!(a.len(), b.len(), "Vectors must have same length");
 
@@ -808,6 +840,7 @@ pub fn simd_mul_f32(a: &[f32], b: &[f32]) -> Vec<f32> {
 
 /// Scale an f32 slice by a constant using SIMD.
 #[inline]
+#[must_use]
 pub fn simd_scale_f32(data: &[f32], scale: f32) -> Vec<f32> {
     let scale_vec = Simd4f32::splat(scale);
     let mut result = Vec::with_capacity(data.len());
@@ -847,31 +880,38 @@ mod tests {
     use super::*;
     use alloc::vec;
 
+    /// Bit-exact `[f32; N]` comparison for SIMD lane tests: lanes must match
+    /// exactly, and `==` on floats trips `float_cmp`.
+    #[track_caller]
+    fn assert_lanes_eq<const N: usize>(actual: [f32; N], expected: [f32; N]) {
+        assert_eq!(actual.map(f32::to_bits), expected.map(f32::to_bits));
+    }
+
     #[test]
     fn test_simd4f32_basic() {
         let a = Simd4f32::new([1.0, 2.0, 3.0, 4.0]);
         let b = Simd4f32::new([5.0, 6.0, 7.0, 8.0]);
 
         let sum = a + b;
-        assert_eq!(sum.arr(), [6.0, 8.0, 10.0, 12.0]);
+        assert_lanes_eq(sum.arr(), [6.0, 8.0, 10.0, 12.0]);
 
         let prod = a * b;
-        assert_eq!(prod.arr(), [5.0, 12.0, 21.0, 32.0]);
+        assert_lanes_eq(prod.arr(), [5.0, 12.0, 21.0, 32.0]);
 
         let diff = b - a;
-        assert_eq!(diff.arr(), [4.0, 4.0, 4.0, 4.0]);
+        assert_lanes_eq(diff.arr(), [4.0, 4.0, 4.0, 4.0]);
     }
 
     #[test]
     fn test_simd4f32_splat() {
         let v = Simd4f32::splat(2.5);
-        assert_eq!(v.arr(), [2.5, 2.5, 2.5, 2.5]);
+        assert_lanes_eq(v.arr(), [2.5, 2.5, 2.5, 2.5]);
     }
 
     #[test]
     fn test_simd4f32_sum() {
         let v = Simd4f32::new([1.0, 2.0, 3.0, 4.0]);
-        assert_eq!(v.sum(), 10.0);
+        assert_eq!(v.sum().to_bits(), 10.0f32.to_bits());
     }
 
     #[test]
@@ -880,17 +920,17 @@ mod tests {
         let b = Simd4f32::new([2.0, 4.0, 6.0, 1.0]);
 
         let min = a.min(b);
-        assert_eq!(min.arr(), [1.0, 4.0, 3.0, 1.0]);
+        assert_lanes_eq(min.arr(), [1.0, 4.0, 3.0, 1.0]);
 
         let max = a.max(b);
-        assert_eq!(max.arr(), [2.0, 5.0, 6.0, 7.0]);
+        assert_lanes_eq(max.arr(), [2.0, 5.0, 6.0, 7.0]);
     }
 
     #[test]
     fn test_simd4f32_map() {
         let v = Simd4f32::new([1.0, 2.0, 3.0, 4.0]);
         let doubled = v.map(|x| x * 2.0);
-        assert_eq!(doubled.arr(), [2.0, 4.0, 6.0, 8.0]);
+        assert_lanes_eq(doubled.arr(), [2.0, 4.0, 6.0, 8.0]);
     }
 
     #[test]
@@ -910,13 +950,13 @@ mod tests {
     #[test]
     fn test_simd_sum_f32() {
         let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        assert_eq!(simd_sum_f32(&data), 36.0);
+        assert_eq!(simd_sum_f32(&data).to_bits(), 36.0f32.to_bits());
     }
 
     #[test]
     fn test_simd_sum_f32_odd() {
         let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0];
-        assert_eq!(simd_sum_f32(&data), 15.0);
+        assert_eq!(simd_sum_f32(&data).to_bits(), 15.0f32.to_bits());
     }
 
     #[test]
@@ -924,7 +964,7 @@ mod tests {
         let a = vec![1.0f32, 2.0, 3.0, 4.0];
         let b = vec![5.0f32, 6.0, 7.0, 8.0];
         // 1*5 + 2*6 + 3*7 + 4*8 = 5 + 12 + 21 + 32 = 70
-        assert_eq!(simd_dot_f32(&a, &b), 70.0);
+        assert_eq!(simd_dot_f32(&a, &b).to_bits(), 70.0f32.to_bits());
     }
 
     #[test]
@@ -962,9 +1002,9 @@ mod tests {
         let b = Simd8f32::splat(2.0);
 
         let sum = a + b;
-        assert_eq!(sum.arr(), [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]);
+        assert_lanes_eq(sum.arr(), [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]);
 
         let prod = a * b;
-        assert_eq!(prod.arr(), [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0]);
+        assert_lanes_eq(prod.arr(), [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0]);
     }
 }

@@ -124,6 +124,7 @@ pub trait UsusLinearis: Sized {
 /// This is automatically implemented for types that implement `Clone`.
 pub trait Duplicabilis: Clone {
     /// Create a duplicate of this value.
+    #[must_use]
     fn duplicare(&self) -> Self {
         self.clone()
     }

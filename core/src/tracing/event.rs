@@ -66,7 +66,7 @@ impl EventusVestigium {
         effect_name: impl Into<String>,
         operation: impl Into<String>,
     ) -> Self {
-        EventusVestigium {
+        Self {
             id: EventusId::generate(),
             trace_id,
             parent_span_id: None,
@@ -84,40 +84,46 @@ impl EventusVestigium {
 
     /// Set the parent span ID.
     #[inline]
-    pub fn with_parent(mut self, parent: SpatiumId) -> Self {
+    #[must_use]
+    pub const fn with_parent(mut self, parent: SpatiumId) -> Self {
         self.parent_span_id = Some(parent);
         self
     }
 
     /// Set the timestamp.
     #[inline]
-    pub fn with_timestamp(mut self, timestamp_ns: u64) -> Self {
+    #[must_use]
+    pub const fn with_timestamp(mut self, timestamp_ns: u64) -> Self {
         self.timestamp_ns = timestamp_ns;
         self
     }
 
     /// Set the duration.
     #[inline]
-    pub fn with_duration(mut self, duration_ns: u64) -> Self {
+    #[must_use]
+    pub const fn with_duration(mut self, duration_ns: u64) -> Self {
         self.duration_ns = Some(duration_ns);
         self
     }
 
     /// Set the severity level.
     #[inline]
-    pub fn with_level(mut self, level: Gradus) -> Self {
+    #[must_use]
+    pub const fn with_level(mut self, level: Gradus) -> Self {
         self.level = level;
         self
     }
 
     /// Set the event kind.
     #[inline]
-    pub fn with_kind(mut self, kind: EventusKind) -> Self {
+    #[must_use]
+    pub const fn with_kind(mut self, kind: EventusKind) -> Self {
         self.kind = kind;
         self
     }
 
     /// Add an attribute.
+    #[must_use]
     pub fn with_attribute(
         mut self,
         key: impl Into<String>,
@@ -132,72 +138,84 @@ impl EventusVestigium {
 
     /// Get the event ID.
     #[inline]
-    pub fn id(&self) -> EventusId {
+    #[must_use]
+    pub const fn id(&self) -> EventusId {
         self.id
     }
 
     /// Get the trace ID.
     #[inline]
-    pub fn trace_id(&self) -> VestigiumId {
+    #[must_use]
+    pub const fn trace_id(&self) -> VestigiumId {
         self.trace_id
     }
 
     /// Get the parent span ID.
     #[inline]
-    pub fn parent_span_id(&self) -> Option<SpatiumId> {
+    #[must_use]
+    pub const fn parent_span_id(&self) -> Option<SpatiumId> {
         self.parent_span_id
     }
 
     /// Get the span ID.
     #[inline]
-    pub fn span_id(&self) -> SpatiumId {
+    #[must_use]
+    pub const fn span_id(&self) -> SpatiumId {
         self.span_id
     }
 
     /// Get the effect ID.
     #[inline]
-    pub fn effect_id(&self) -> u64 {
+    #[must_use]
+    pub const fn effect_id(&self) -> u64 {
         self.effect_id
     }
 
     /// Get the effect name.
     #[inline]
+    #[must_use]
     pub fn effect_name(&self) -> &str {
         &self.effect_name
     }
 
     /// Get the operation name.
     #[inline]
+    #[must_use]
     pub fn operation(&self) -> &str {
         &self.operation
     }
 
     /// Get the timestamp.
     #[inline]
-    pub fn timestamp_ns(&self) -> u64 {
+    #[must_use]
+    pub const fn timestamp_ns(&self) -> u64 {
         self.timestamp_ns
     }
 
     /// Get the duration.
     #[inline]
-    pub fn duration_ns(&self) -> Option<u64> {
+    #[must_use]
+    pub const fn duration_ns(&self) -> Option<u64> {
         self.duration_ns
     }
 
     /// Get the severity level.
     #[inline]
-    pub fn level(&self) -> Gradus {
+    #[must_use]
+    pub const fn level(&self) -> Gradus {
         self.level
     }
 
     /// Get the event kind.
     #[inline]
-    pub fn kind(&self) -> EventusKind {
+    #[must_use]
+    pub const fn kind(&self) -> EventusKind {
         self.kind
     }
 
     /// Get the attributes.
     #[inline]
+    #[must_use]
     pub fn attributes(&self) -> &[Attributum] {
         &self.attributes
     }
@@ -214,8 +232,9 @@ pub struct EventusId(u64);
 impl EventusId {
     /// Create a new event ID.
     #[inline]
-    pub fn new(id: u64) -> Self {
-        EventusId(id)
+    #[must_use]
+    pub const fn new(id: u64) -> Self {
+        Self(id)
     }
 
     /// Generate a new unique event ID.
@@ -223,12 +242,13 @@ impl EventusId {
     pub fn generate() -> Self {
         use core::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
-        EventusId(COUNTER.fetch_add(1, Ordering::Relaxed))
+        Self(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Get the raw ID value.
     #[inline]
-    pub fn value(&self) -> u64 {
+    #[must_use]
+    pub const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -268,37 +288,41 @@ pub enum EventusKind {
 impl EventusKind {
     /// Get the kind name.
     #[inline]
-    pub fn name(&self) -> &'static str {
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
         match self {
-            EventusKind::OperationStart => "operation.start",
-            EventusKind::OperationEnd => "operation.end",
-            EventusKind::OperationError => "operation.error",
-            EventusKind::EffectPerform => "effect.perform",
-            EventusKind::EffectHandle => "effect.handle",
-            EventusKind::EffectResume => "effect.resume",
-            EventusKind::FibraSpawn => "fibra.spawn",
-            EventusKind::FibraComplete => "fibra.complete",
-            EventusKind::FibraCancel => "fibra.cancel",
-            EventusKind::Custom => "custom",
+            Self::OperationStart => "operation.start",
+            Self::OperationEnd => "operation.end",
+            Self::OperationError => "operation.error",
+            Self::EffectPerform => "effect.perform",
+            Self::EffectHandle => "effect.handle",
+            Self::EffectResume => "effect.resume",
+            Self::FibraSpawn => "fibra.spawn",
+            Self::FibraComplete => "fibra.complete",
+            Self::FibraCancel => "fibra.cancel",
+            Self::Custom => "custom",
         }
     }
 
     /// Check if this is a start event.
     #[inline]
-    pub fn is_start(&self) -> bool {
-        matches!(self, EventusKind::OperationStart | EventusKind::FibraSpawn)
+    #[must_use]
+    pub const fn is_start(&self) -> bool {
+        matches!(self, Self::OperationStart | Self::FibraSpawn)
     }
 
     /// Check if this is an end event.
     #[inline]
-    pub fn is_end(&self) -> bool {
-        matches!(self, EventusKind::OperationEnd | EventusKind::FibraComplete)
+    #[must_use]
+    pub const fn is_end(&self) -> bool {
+        matches!(self, Self::OperationEnd | Self::FibraComplete)
     }
 
     /// Check if this is an error event.
     #[inline]
-    pub fn is_error(&self) -> bool {
-        matches!(self, EventusKind::OperationError)
+    #[must_use]
+    pub const fn is_error(&self) -> bool {
+        matches!(self, Self::OperationError)
     }
 }
 
@@ -335,49 +359,49 @@ pub enum AttributumValue {
 
 impl From<String> for AttributumValue {
     fn from(s: String) -> Self {
-        AttributumValue::String(s)
+        Self::String(s)
     }
 }
 
 impl From<&str> for AttributumValue {
     fn from(s: &str) -> Self {
-        AttributumValue::String(s.into())
+        Self::String(s.into())
     }
 }
 
 impl From<i64> for AttributumValue {
     fn from(v: i64) -> Self {
-        AttributumValue::Int(v)
+        Self::Int(v)
     }
 }
 
 impl From<i32> for AttributumValue {
     fn from(v: i32) -> Self {
-        AttributumValue::Int(i64::from(v))
+        Self::Int(i64::from(v))
     }
 }
 
 impl From<u64> for AttributumValue {
     fn from(v: u64) -> Self {
-        AttributumValue::UInt(v)
+        Self::UInt(v)
     }
 }
 
 impl From<u32> for AttributumValue {
     fn from(v: u32) -> Self {
-        AttributumValue::UInt(u64::from(v))
+        Self::UInt(u64::from(v))
     }
 }
 
 impl From<f64> for AttributumValue {
     fn from(v: f64) -> Self {
-        AttributumValue::Float(v)
+        Self::Float(v)
     }
 }
 
 impl From<bool> for AttributumValue {
     fn from(v: bool) -> Self {
-        AttributumValue::Bool(v)
+        Self::Bool(v)
     }
 }
 

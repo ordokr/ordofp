@@ -34,33 +34,33 @@ pub enum Free<F: FunctorHKT, A> {
     /// Pure value - terminate recursion early.
     Purus(A),
     /// Suspended computation - continue unfolding.
-    Suspensus(Box<F::Target<Free<F, A>>>),
+    Suspensus(Box<F::Target<Self>>),
 }
 
 #[cfg(feature = "alloc")]
 impl<F: FunctorHKT, A> Free<F, A> {
     /// Create a pure value.
     #[inline]
-    pub fn purus(a: A) -> Self {
-        Free::Purus(a)
+    pub const fn purus(a: A) -> Self {
+        Self::Purus(a)
     }
 
     /// Create a suspended computation.
     #[inline]
-    pub fn suspensus(layer: F::Target<Free<F, A>>) -> Self {
-        Free::Suspensus(Box::new(layer))
+    pub fn suspensus(layer: F::Target<Self>) -> Self {
+        Self::Suspensus(Box::new(layer))
     }
 
     /// Check if this is a pure value.
     #[inline]
-    pub fn is_pure(&self) -> bool {
-        matches!(self, Free::Purus(_))
+    pub const fn is_pure(&self) -> bool {
+        matches!(self, Self::Purus(_))
     }
 
     /// Check if this is suspended.
     #[inline]
-    pub fn is_suspended(&self) -> bool {
-        matches!(self, Free::Suspensus(_))
+    pub const fn is_suspended(&self) -> bool {
+        matches!(self, Self::Suspensus(_))
     }
 
     /// Map over the value type.
@@ -77,8 +77,8 @@ impl<F: FunctorHKT, A> Free<F, A> {
         G: Fn(A) -> B + Clone,
     {
         match self {
-            Free::Purus(a) => Free::Purus(f(a)),
-            Free::Suspensus(layer) => {
+            Self::Purus(a) => Free::Purus(f(a)),
+            Self::Suspensus(layer) => {
                 let mapped = F::map(*layer, |child| child.map_impl(f.clone()));
                 Free::Suspensus(Box::new(mapped))
             }
@@ -99,8 +99,8 @@ impl<F: FunctorHKT, A> Free<F, A> {
         G: Fn(A) -> Free<F, B> + Clone,
     {
         match self {
-            Free::Purus(a) => f(a),
-            Free::Suspensus(layer) => {
+            Self::Purus(a) => f(a),
+            Self::Suspensus(layer) => {
                 let mapped = F::map(*layer, |child| child.flat_map_impl(f.clone()));
                 Free::Suspensus(Box::new(mapped))
             }
@@ -113,7 +113,7 @@ impl<F: FunctorHKT, A> Free<F, A> {
     where
         A: Clone,
     {
-        Free::Suspensus(Box::new(F::map(fa, Free::purus)))
+        Self::Suspensus(Box::new(F::map(fa, Self::purus)))
     }
 }
 
@@ -194,26 +194,26 @@ pub enum Aut<L, R> {
 impl<L, R> Aut<L, R> {
     /// Create a left value.
     #[inline]
-    pub fn sinister(l: L) -> Self {
-        Aut::Sinister(l)
+    pub const fn sinister(l: L) -> Self {
+        Self::Sinister(l)
     }
 
     /// Create a right value.
     #[inline]
-    pub fn dexter(r: R) -> Self {
-        Aut::Dexter(r)
+    pub const fn dexter(r: R) -> Self {
+        Self::Dexter(r)
     }
 
     /// Check if left.
     #[inline]
-    pub fn is_sinister(&self) -> bool {
-        matches!(self, Aut::Sinister(_))
+    pub const fn is_sinister(&self) -> bool {
+        matches!(self, Self::Sinister(_))
     }
 
     /// Check if right.
     #[inline]
-    pub fn is_dexter(&self) -> bool {
-        matches!(self, Aut::Dexter(_))
+    pub const fn is_dexter(&self) -> bool {
+        matches!(self, Self::Dexter(_))
     }
 
     /// Map over the left value.
@@ -223,8 +223,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(L) -> B,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(f(l)),
-            Aut::Dexter(r) => Aut::Dexter(r),
+            Self::Sinister(l) => Aut::Sinister(f(l)),
+            Self::Dexter(r) => Aut::Dexter(r),
         }
     }
 
@@ -235,8 +235,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(R) -> B,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(l),
-            Aut::Dexter(r) => Aut::Dexter(f(r)),
+            Self::Sinister(l) => Aut::Sinister(l),
+            Self::Dexter(r) => Aut::Dexter(f(r)),
         }
     }
 
@@ -248,8 +248,8 @@ impl<L, R> Aut<L, R> {
         G: FnOnce(R) -> B,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(f(l)),
-            Aut::Dexter(r) => Aut::Dexter(g(r)),
+            Self::Sinister(l) => Aut::Sinister(f(l)),
+            Self::Dexter(r) => Aut::Dexter(g(r)),
         }
     }
 }

@@ -87,8 +87,8 @@ pub struct DefaultMultiHandler<A, M: Usage> {
 
 impl<A: Clone + Send + 'static, M: Usage> DefaultMultiHandler<A, M> {
     /// Create a handler that always resumes with the given value.
-    pub fn new(default: A) -> Self {
-        DefaultMultiHandler {
+    pub const fn new(default: A) -> Self {
+        Self {
             default,
             _multiplicity: PhantomData,
         }
@@ -152,8 +152,8 @@ pub struct AbortMultiHandler<A, B, M: Usage> {
 
 impl<A: Clone, B, M: Usage> AbortMultiHandler<A, B, M> {
     /// Create a handler that always aborts with the given value.
-    pub fn new(value: A) -> Self {
-        AbortMultiHandler {
+    pub const fn new(value: A) -> Self {
+        Self {
             value,
             _input: PhantomData,
             _multiplicity: PhantomData,
@@ -196,11 +196,13 @@ pub struct ElectioEffect<T> {
 
 impl<T> ElectioEffect<T> {
     /// Create a choice effect with the given alternatives.
-    pub fn new(choices: Vec<T>) -> Self {
-        ElectioEffect { choices }
+    #[must_use]
+    pub const fn new(choices: Vec<T>) -> Self {
+        Self { choices }
     }
 
     /// Binary choice (true or false).
+    #[must_use]
     pub fn boolean() -> ElectioEffect<bool> {
         ElectioEffect {
             choices: alloc::vec![true, false],
@@ -208,6 +210,7 @@ impl<T> ElectioEffect<T> {
     }
 
     /// Choice from a range.
+    #[must_use]
     pub fn range(start: i32, end: i32) -> ElectioEffect<i32> {
         ElectioEffect {
             choices: (start..end).collect(),
@@ -227,8 +230,9 @@ pub struct ElectioHandler<A> {
 
 impl<A> ElectioHandler<A> {
     /// Create a new choice handler.
-    pub fn new() -> Self {
-        ElectioHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _output: PhantomData,
         }
     }
@@ -273,8 +277,8 @@ where
     P: Fn(&A) -> bool,
 {
     /// Create a handler that finds the first result satisfying the predicate.
-    pub fn new(predicate: P) -> Self {
-        ElectioFirstHandler {
+    pub const fn new(predicate: P) -> Self {
+        Self {
             predicate,
             _output: PhantomData,
         }
@@ -327,8 +331,9 @@ pub struct DefectioHandler<A> {
 
 impl<A> DefectioHandler<A> {
     /// Create a new failure handler.
-    pub fn new() -> Self {
-        DefectioHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _output: PhantomData,
         }
     }
@@ -372,11 +377,13 @@ pub struct AmbiguitasEffect<T> {
 
 impl<T> AmbiguitasEffect<T> {
     /// Create an amb effect with alternatives.
-    pub fn new(alternatives: Vec<T>) -> Self {
-        AmbiguitasEffect { alternatives }
+    #[must_use]
+    pub const fn new(alternatives: Vec<T>) -> Self {
+        Self { alternatives }
     }
 
     /// Require a condition to hold (fail if false).
+    #[must_use]
     pub fn require(condition: bool) -> AmbiguitasEffect<()> {
         if condition {
             AmbiguitasEffect {
@@ -399,8 +406,9 @@ pub struct AmbiguitasHandler<A> {
 
 impl<A> AmbiguitasHandler<A> {
     /// Create a new amb handler.
-    pub fn new() -> Self {
-        AmbiguitasHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _output: PhantomData,
         }
     }
@@ -450,19 +458,24 @@ pub struct ProbabilitasEffect<T> {
 
 impl<T> ProbabilitasEffect<T> {
     /// Create a probabilistic choice with weights.
-    pub fn weighted(weighted: Vec<(T, f64)>) -> Self {
-        ProbabilitasEffect { weighted }
+    #[must_use]
+    pub const fn weighted(weighted: Vec<(T, f64)>) -> Self {
+        Self { weighted }
     }
 
     /// Uniform distribution over alternatives.
+    #[must_use]
     pub fn uniform(alternatives: Vec<T>) -> Self {
-        let weight = 1.0 / alternatives.len() as f64;
-        ProbabilitasEffect {
+        // Weights are uniform, so saturating an absurd length preserves the
+        // distribution (all weights scale identically).
+        let weight = 1.0 / f64::from(u32::try_from(alternatives.len()).unwrap_or(u32::MAX));
+        Self {
             weighted: alternatives.into_iter().map(|a| (a, weight)).collect(),
         }
     }
 
     /// Bernoulli distribution (coin flip).
+    #[must_use]
     pub fn bernoulli(p: f64) -> ProbabilitasEffect<bool> {
         ProbabilitasEffect {
             weighted: alloc::vec![(true, p), (false, 1.0 - p)],
@@ -488,8 +501,9 @@ pub struct ProbabilitasHandler<A> {
 
 impl<A> ProbabilitasHandler<A> {
     /// Create a new probabilistic handler.
-    pub fn new() -> Self {
-        ProbabilitasHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _output: PhantomData,
         }
     }
@@ -539,8 +553,8 @@ pub struct ComposedMultiHandler<H1, H2> {
 
 impl<H1, H2> ComposedMultiHandler<H1, H2> {
     /// Create a composed handler.
-    pub fn new(handler1: H1, handler2: H2) -> Self {
-        ComposedMultiHandler { handler1, handler2 }
+    pub const fn new(handler1: H1, handler2: H2) -> Self {
+        Self { handler1, handler2 }
     }
 }
 

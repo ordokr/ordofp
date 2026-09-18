@@ -121,7 +121,7 @@ impl<R: EffectRow, A: 'static + Send> Eff<R, A> {
     /// ```
     #[inline]
     pub fn purus(value: A) -> Self {
-        Eff {
+        Self {
             run: Box::new(move || EffResult::Purus(value)),
         }
     }
@@ -228,6 +228,7 @@ impl<R: EffectRow, A: 'static + Send> Eff<R, A> {
 /// `EffectSet<0>` nevertheless suspends on an effect, which the effect-row
 /// types make impossible — such a panic indicates a bug in this crate.
 #[inline]
+#[must_use]
 pub fn run_purus<A: 'static + Send>(eff: Eff<EffectSet<0>, A>) -> A {
     match (eff.run)() {
         EffResult::Purus(a) => a,
@@ -349,6 +350,7 @@ pub fn pure_eff<R: EffectRow, A: 'static + Send>(a: A) -> Eff<R, A> {
 
 /// Sequence two Eff computations, discarding the first result.
 #[inline]
+#[must_use]
 pub fn then<R: EffectRow, A: 'static + Send, B: 'static + Send>(
     first: Eff<R, A>,
     second: Eff<R, B>,
@@ -357,6 +359,7 @@ pub fn then<R: EffectRow, A: 'static + Send, B: 'static + Send>(
 }
 
 /// Sequence a vector of Eff computations.
+#[must_use]
 pub fn sequence_eff<R: EffectRow, A: 'static + Send + Clone>(
     effs: alloc::vec::Vec<Eff<R, A>>,
 ) -> Eff<R, alloc::vec::Vec<A>> {

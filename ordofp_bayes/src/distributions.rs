@@ -15,8 +15,8 @@ use rand::RngExt;
 /// surely and averages ~1.27 rounds per sample.
 pub(crate) fn sample_standard_normal<R: Rng + ?Sized>(rng: &mut R) -> f64 {
     loop {
-        let u = 2.0 * rng.random::<f64>() - 1.0;
-        let v = 2.0 * rng.random::<f64>() - 1.0;
+        let u = 2.0f64.mul_add(rng.random::<f64>(), -1.0);
+        let v = 2.0f64.mul_add(rng.random::<f64>(), -1.0);
         let s = u * u + v * v;
         if s > 0.0 && s < 1.0 {
             return u * (-2.0 * s.ln() / s).sqrt();
@@ -44,6 +44,7 @@ impl Normal {
     ///
     /// # Panics
     /// Panics if `std_dev` is not finite or is negative.
+    #[must_use]
     pub fn new(mean: f64, std_dev: f64) -> Self {
         assert!(
             std_dev.is_finite() && std_dev >= 0.0,
@@ -58,7 +59,7 @@ impl Distribution for Normal {
 
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
-        self.mean + self.std_dev * sample_standard_normal(rng)
+        self.std_dev.mul_add(sample_standard_normal(rng), self.mean)
     }
 }
 
@@ -73,6 +74,7 @@ impl Uniform {
     ///
     /// # Panics
     /// Panics if `min >= max`.
+    #[must_use]
     pub fn new(min: f64, max: f64) -> Self {
         Self {
             dist: rand::distr::Uniform::new(min, max).unwrap(),
@@ -122,7 +124,10 @@ mod tests {
     /// constructor (`std_dev = 0.0` is finite and non-negative) but distinct from
     /// the ordinary spread-distribution case tested by `normal_samples_are_finite`.
     #[test]
-    #[allow(clippy::float_cmp)] // point-mass sample must equal the mean bit-for-bit
+    #[allow(
+        clippy::float_cmp,
+        reason = "point-mass sample must equal the mean bit-for-bit"
+    )]
     fn normal_zero_std_dev_always_returns_mean() {
         let mean = std::f64::consts::PI;
         let dist = Normal::new(mean, 0.0);

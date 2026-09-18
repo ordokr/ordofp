@@ -58,12 +58,13 @@ mod tests {
 
             fn poll(self: core::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<i32> {
                 let mut state = self.0.lock().expect("handoff lock poisoned");
-                if let Some(v) = state.0.take() {
-                    Poll::Ready(v)
-                } else {
-                    state.1 = Some(cx.waker().clone());
-                    Poll::Pending
-                }
+                state.0.take().map_or_else(
+                    || {
+                        state.1 = Some(cx.waker().clone());
+                        Poll::Pending
+                    },
+                    Poll::Ready,
+                )
             }
         }
 

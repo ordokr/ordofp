@@ -49,11 +49,13 @@ pub trait Praedicatum<T>: Sized {
     fn description() -> &'static str;
 
     /// Error message when predicate fails.
+    #[must_use]
     fn error_message() -> &'static str {
         Self::description()
     }
 
     /// Get the name of this predicate.
+    #[must_use]
     fn name() -> &'static str {
         core::any::type_name::<Self>()
     }
@@ -121,7 +123,7 @@ impl<T, P: Praedicatum<T>> EvidentiaPredicati<T, P> {
     #[inline]
     pub fn verify(value: &T) -> Option<Self> {
         if P::check(value) {
-            Some(EvidentiaPredicati {
+            Some(Self {
                 _marker: PhantomData,
             })
         } else {
@@ -134,8 +136,9 @@ impl<T, P: Praedicatum<T>> EvidentiaPredicati<T, P> {
     /// # Safety
     /// The caller must ensure that the predicate `P` holds for the value.
     #[inline]
-    pub unsafe fn assume() -> Self {
-        EvidentiaPredicati {
+    #[must_use]
+    pub const unsafe fn assume() -> Self {
+        Self {
             _marker: PhantomData,
         }
     }
@@ -178,14 +181,16 @@ pub enum ExitusPraedicati {
 impl ExitusPraedicati {
     /// Check if the predicate passed.
     #[inline]
-    pub fn passed(&self) -> bool {
-        matches!(self, ExitusPraedicati::Verum)
+    #[must_use]
+    pub const fn passed(&self) -> bool {
+        matches!(self, Self::Verum)
     }
 
     /// Check if the predicate failed.
     #[inline]
-    pub fn failed(&self) -> bool {
-        matches!(self, ExitusPraedicati::Falsum { .. })
+    #[must_use]
+    pub const fn failed(&self) -> bool {
+        matches!(self, Self::Falsum { .. })
     }
 
     /// Convert to Result.
@@ -195,10 +200,10 @@ impl ExitusPraedicati {
     /// Returns `Err` carrying the failure description exactly when the
     /// outcome is [`ExitusPraedicati::Falsum`]; `Verum` becomes `Ok(())`.
     #[inline]
-    pub fn to_result(self) -> Result<(), &'static str> {
+    pub const fn to_result(self) -> Result<(), &'static str> {
         match self {
-            ExitusPraedicati::Verum => Ok(()),
-            ExitusPraedicati::Falsum { description } => Err(description),
+            Self::Verum => Ok(()),
+            Self::Falsum { description } => Err(description),
         }
     }
 }

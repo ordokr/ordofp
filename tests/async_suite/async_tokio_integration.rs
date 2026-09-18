@@ -9,6 +9,7 @@ use ordofp::async_core::{Flumen, Futurus, TraversableAsync};
 use ordofp::transformers::async_transforms::{
     EitherTAsync, LectorAsync, OptionTAsync, ScriptorAsync, StatusAsync,
 };
+use std::future::{Future, ready};
 
 // ============================================================================
 // Futurus Tests under Tokio
@@ -122,7 +123,7 @@ async fn test_lector_async_ask() {
         timeout_ms: 5000,
     };
 
-    let reader = LectorAsync::<Config, String>::ask().fmap(|c| c.base_url.clone());
+    let reader = LectorAsync::<Config, String>::ask().fmap(|c| c.base_url);
 
     let result = reader.run(config).await;
     assert_eq!(result, "https://api.example.com");
@@ -148,7 +149,7 @@ async fn test_lector_async_flat_map() {
     };
 
     let reader = LectorAsync::<Config, String>::ask().flat_map(|c| {
-        let url = c.base_url.clone();
+        let url = c.base_url;
         // LectorAsync::asks takes Fn(&E) -> B - specify type explicitly
         LectorAsync::<Config, String>::asks(move |c2: &Config| {
             format!("{}/timeout/{}", url, c2.timeout_ms)
@@ -429,20 +430,20 @@ async fn test_concurrent_stream_processing() {
 
 #[tokio::test]
 async fn test_either_t_async_error_chain() {
-    async fn validate_positive(x: i32) -> Result<i32, String> {
-        if x > 0 {
+    fn validate_positive(x: i32) -> impl Future<Output = Result<i32, String>> {
+        ready(if x > 0 {
             Ok(x)
         } else {
             Err("must be positive".to_string())
-        }
+        })
     }
 
-    async fn validate_even(x: i32) -> Result<i32, String> {
-        if x % 2 == 0 {
+    fn validate_even(x: i32) -> impl Future<Output = Result<i32, String>> {
+        ready(if x % 2 == 0 {
             Ok(x)
         } else {
             Err("must be even".to_string())
-        }
+        })
     }
 
     // Valid case - use From<Result<A, E>> to convert
@@ -478,8 +479,8 @@ use ordofp::{chain_async, compose_async, mdo_async, pipe_async};
 
 #[tokio::test]
 async fn test_mdo_async_with_await() {
-    async fn fetch_value(x: i32) -> i32 {
-        x * 2
+    fn fetch_value(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
 
     let result = mdo_async! {
@@ -495,14 +496,14 @@ async fn test_mdo_async_with_await() {
 
 #[tokio::test]
 async fn test_pipe_async_tokio() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     let result = pipe_async!(10, add_one, double, subtract_three).await;
@@ -512,14 +513,14 @@ async fn test_pipe_async_tokio() {
 
 #[tokio::test]
 async fn test_compose_async_tokio() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     // compose_async!(f, g, h)(x) = f(g(h(x)))
@@ -531,14 +532,14 @@ async fn test_compose_async_tokio() {
 
 #[tokio::test]
 async fn test_chain_async_tokio() {
-    async fn add_one(x: i32) -> i32 {
-        x + 1
+    fn add_one(x: i32) -> impl Future<Output = i32> {
+        ready(x + 1)
     }
-    async fn double(x: i32) -> i32 {
-        x * 2
+    fn double(x: i32) -> impl Future<Output = i32> {
+        ready(x * 2)
     }
-    async fn subtract_three(x: i32) -> i32 {
-        x - 3
+    fn subtract_three(x: i32) -> impl Future<Output = i32> {
+        ready(x - 3)
     }
 
     // chain_async!(f, g, h)(x) = h(g(f(x))) - left to right

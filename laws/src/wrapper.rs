@@ -27,42 +27,42 @@ pub struct Wrapper<A>(pub A);
 
 impl<A: Arbitrary + Ord + Clone> Arbitrary for Wrapper<Max<A>> {
     fn arbitrary(g: &mut Gen) -> Self {
-        Wrapper(Max(Arbitrary::arbitrary(g)))
+        Self(Max(Arbitrary::arbitrary(g)))
     }
 }
 
 impl<A: Arbitrary + Ord + Clone> Arbitrary for Wrapper<Min<A>> {
     fn arbitrary(g: &mut Gen) -> Self {
-        Wrapper(Min(Arbitrary::arbitrary(g)))
+        Self(Min(Arbitrary::arbitrary(g)))
     }
 }
 
 impl<A: Arbitrary> Arbitrary for Wrapper<Omnis<A>> {
     fn arbitrary(g: &mut Gen) -> Self {
-        Wrapper(Omnis(Arbitrary::arbitrary(g)))
+        Self(Omnis(Arbitrary::arbitrary(g)))
     }
 }
 
 impl<A: Arbitrary> Arbitrary for Wrapper<Aliquid<A>> {
     fn arbitrary(g: &mut Gen) -> Self {
-        Wrapper(Aliquid(Arbitrary::arbitrary(g)))
+        Self(Aliquid(Arbitrary::arbitrary(g)))
     }
 }
 
 impl<A: Arbitrary> Arbitrary for Wrapper<Multiplicatio<A>> {
     fn arbitrary(g: &mut Gen) -> Self {
-        Wrapper(Multiplicatio(Arbitrary::arbitrary(g)))
+        Self(Multiplicatio(Arbitrary::arbitrary(g)))
     }
 }
 
 impl<A: Compositio> Compositio for Wrapper<A> {
     fn combine(&self, other: &Self) -> Self {
-        Wrapper(self.0.combine(&other.0))
+        Self(self.0.combine(&other.0))
     }
 }
 
 impl<A: Unitas> Unitas for Wrapper<A> {
     fn empty() -> Self {
-        Wrapper(<A as Unitas>::empty())
+        Self(<A as Unitas>::empty())
     }
 }

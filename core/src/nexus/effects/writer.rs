@@ -92,12 +92,13 @@ pub trait Monoid: Clone {
     fn empty() -> Self;
 
     /// Combine two values.
+    #[must_use]
     fn append(&self, other: &Self) -> Self;
 }
 
 impl Monoid for alloc::string::String {
     fn empty() -> Self {
-        alloc::string::String::new()
+        Self::new()
     }
 
     fn append(&self, other: &Self) -> Self {
@@ -109,7 +110,7 @@ impl Monoid for alloc::string::String {
 
 impl<T: Clone> Monoid for alloc::vec::Vec<T> {
     fn empty() -> Self {
-        alloc::vec::Vec::new()
+        Self::new()
     }
 
     fn append(&self, other: &Self) -> Self {
@@ -159,9 +160,9 @@ pub enum WriterComputation<W: Monoid, A> {
 
 impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     /// Create a new writer computation from a function.
-    #[inline(always)]
+    #[inline]
     pub fn new<F: FnOnce() -> (A, W) + 'static>(f: F) -> Self {
-        WriterComputation::Boxed(Box::new(f))
+        Self::Boxed(Box::new(f))
     }
 
     /// Run the computation, returning result and log.
@@ -175,11 +176,11 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     /// (checked at runtime via `TypeId`). The `tell` constructor only
     /// builds `Tell` at `A = ()`, so this can only fire on a
     /// hand-constructed variant.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> (A, W) {
         match self {
-            WriterComputation::Pure(a) => (a, W::empty()),
-            WriterComputation::Tell(w) => {
+            Self::Pure(a) => (a, W::empty()),
+            Self::Tell(w) => {
                 if TypeId::of::<A>() == TypeId::of::<()>() {
                     let mut opt: Option<()> = Some(());
                     let any_opt = &mut opt as &mut dyn core::any::Any;
@@ -190,14 +191,14 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
                     panic!("WriterComputation::Tell invariant violated: A must be ()");
                 }
             }
-            WriterComputation::Boxed(f) => f(),
+            Self::Boxed(f) => f(),
         }
     }
 
     /// Pure value with empty log - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn pure(value: A) -> Self {
-        WriterComputation::Pure(value)
+    #[inline]
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Map over the result.
@@ -212,11 +213,11 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     /// (checked at runtime via `TypeId`). The `tell` constructor only
     /// builds `Tell` at `A = ()`, so this can only fire on a
     /// hand-constructed variant.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: 'static, F: FnOnce(A) -> B + 'static>(self, f: F) -> WriterComputation<W, B> {
         match self {
-            WriterComputation::Pure(a) => WriterComputation::Pure(f(a)),
-            WriterComputation::Tell(w) => {
+            Self::Pure(a) => WriterComputation::Pure(f(a)),
+            Self::Tell(w) => {
                 if TypeId::of::<A>() == TypeId::of::<()>() {
                     let mut opt: Option<()> = Some(());
                     let any_opt = &mut opt as &mut dyn core::any::Any;
@@ -228,7 +229,7 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
                     panic!("WriterComputation::Tell invariant violated: A must be ()");
                 }
             }
-            WriterComputation::Boxed(run_fn) => WriterComputation::Boxed(Box::new(move || {
+            Self::Boxed(run_fn) => WriterComputation::Boxed(Box::new(move || {
                 let (a, w) = run_fn();
                 (f(a), w)
             })),
@@ -236,7 +237,7 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     }
 
     /// Chain two writer computations.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B: 'static, F: FnOnce(A) -> WriterComputation<W, B> + 'static>(
         self,
         f: F,
@@ -249,7 +250,7 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     }
 
     /// Listen to the log produced.
-    #[inline(always)]
+    #[inline]
     pub fn listen(self) -> WriterComputation<W, (A, W)> {
         WriterComputation::Boxed(Box::new(move || {
             let (a, w) = self.run();
@@ -258,9 +259,9 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
     }
 
     /// Modify the log with a function.
-    #[inline(always)]
-    pub fn censor<F: FnOnce(W) -> W + 'static>(self, f: F) -> WriterComputation<W, A> {
-        WriterComputation::Boxed(Box::new(move || {
+    #[inline]
+    pub fn censor<F: FnOnce(W) -> W + 'static>(self, f: F) -> Self {
+        Self::Boxed(Box::new(move || {
             let (a, w) = self.run();
             (a, f(w))
         }))
@@ -270,18 +271,18 @@ impl<W: Monoid + 'static, A: 'static> WriterComputation<W, A> {
 /// Specialized implementation for tell operation.
 impl<W: Monoid + 'static> WriterComputation<W, ()> {
     /// Write a value to the log - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn tell(w: W) -> Self {
-        WriterComputation::Tell(w)
+    #[inline]
+    pub const fn tell(w: W) -> Self {
+        Self::Tell(w)
     }
 
     /// Run the tell computation - specialized for A = ().
-    #[inline(always)]
+    #[inline]
     pub fn run_tell(self) -> ((), W) {
         match self {
-            WriterComputation::Pure(()) => ((), W::empty()),
-            WriterComputation::Tell(w) => ((), w),
-            WriterComputation::Boxed(f) => f(),
+            Self::Pure(()) => ((), W::empty()),
+            Self::Tell(w) => ((), w),
+            Self::Boxed(f) => f(),
         }
     }
 }

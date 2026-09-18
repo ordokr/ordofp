@@ -123,20 +123,20 @@ pub trait Extendo<Label, Value>: Sized {
 
 /// Extending Nihil creates a single-field record.
 impl<Label, Value> Extendo<Label, Value> for Nihil {
-    type Output = Coniunctio<Field<Label, Value>, Nihil>;
+    type Output = Coniunctio<Field<Label, Value>, Self>;
 
     #[inline]
     fn extend(self, name: &'static str, value: Value) -> Self::Output {
         Coniunctio {
             head: field_with_name(name, value),
-            tail: Nihil,
+            tail: Self,
         }
     }
 }
 
 /// Extending a non-empty record prepends the new field.
 impl<Label, Value, Head, Tail: HList> Extendo<Label, Value> for Coniunctio<Head, Tail> {
-    type Output = Coniunctio<Field<Label, Value>, Coniunctio<Head, Tail>>;
+    type Output = Coniunctio<Field<Label, Value>, Self>;
 
     #[inline]
     fn extend(self, name: &'static str, value: Value) -> Self::Output {

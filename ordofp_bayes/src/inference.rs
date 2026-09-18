@@ -77,7 +77,7 @@ impl<A: Clone> Clone for Trace<A> {
 impl<A> Trace<A> {
     /// Create a new trace with given values.
     #[inline]
-    pub fn new(variables: Vec<f64>, output: A, log_prob_density: f64) -> Self {
+    pub const fn new(variables: Vec<f64>, output: A, log_prob_density: f64) -> Self {
         Self {
             variables,
             output,
@@ -87,7 +87,7 @@ impl<A> Trace<A> {
 
     /// Create a pure trace with no random variables.
     #[inline]
-    pub fn pure(output: A) -> Self {
+    pub const fn pure(output: A) -> Self {
         Self {
             variables: Vec::new(),
             output,
@@ -184,7 +184,7 @@ impl<M: Clone> Clone for Particle<M> {
 impl<M> Particle<M> {
     /// Create a new particle with unit weight.
     #[inline]
-    pub fn new(value: M) -> Self {
+    pub const fn new(value: M) -> Self {
         Self {
             value,
             log_weight: 0.0,
@@ -193,7 +193,7 @@ impl<M> Particle<M> {
 
     /// Create a particle with specified log-weight.
     #[inline]
-    pub fn with_weight(value: M, log_weight: f64) -> Self {
+    pub const fn with_weight(value: M, log_weight: f64) -> Self {
         Self { value, log_weight }
     }
 
@@ -256,11 +256,9 @@ fn generate_multinomial_counts<R>(
         assert_eq!(n, ws.len(), "counts and weights length mismatch");
     }
 
-    let sum_weights = if let Some(ws) = &mut weights {
-        prepare_weights_in_place(ws)
-    } else {
-        0.0
-    };
+    let sum_weights = weights
+        .as_mut()
+        .map_or(0.0, |ws| prepare_weights_in_place(ws));
 
     // If no weights provided or all weights are negligible/zero.
     // `prepare_weights_in_place` returns either 0.0 (empty/all-dead input) or a
@@ -331,7 +329,7 @@ fn generate_multinomial_counts<R>(
                 continue;
             }
 
-            w_cumsum_scaled += w_linear * inv_scale;
+            w_cumsum_scaled = w_linear.mul_add(inv_scale, w_cumsum_scaled);
 
             // Optimization: record r_idx before advancing, then compute count as a
             // difference after the loop.  This eliminates one `count += 1` increment
@@ -393,7 +391,8 @@ fn generate_multinomial_counts<R>(
 #[allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    reason = "particle counts far below 2^52; target clamped to n"
 )]
 fn generate_systematic_counts<R>(counts: &mut [usize], mut weights: Option<&mut [f64]>, rng: &mut R)
 where
@@ -404,11 +403,9 @@ where
         assert_eq!(n, ws.len(), "counts and weights length mismatch");
     }
 
-    let sum_weights = if let Some(ws) = &mut weights {
-        prepare_weights_in_place(ws)
-    } else {
-        0.0
-    };
+    let sum_weights = weights
+        .as_mut()
+        .map_or(0.0, |ws| prepare_weights_in_place(ws));
 
     // `prepare_weights_in_place` returns 0.0 or >= 1.0, never NaN (see multinomial).
     if sum_weights <= 0.0 {
@@ -495,7 +492,8 @@ where
 #[allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    reason = "particle counts far below 2^52; target clamped to n"
 )]
 fn generate_stratified_counts<R>(counts: &mut [usize], mut weights: Option<&mut [f64]>, rng: &mut R)
 where
@@ -506,11 +504,9 @@ where
         assert_eq!(n, ws.len(), "counts and weights length mismatch");
     }
 
-    let sum_weights = if let Some(ws) = &mut weights {
-        prepare_weights_in_place(ws)
-    } else {
-        0.0
-    };
+    let sum_weights = weights
+        .as_mut()
+        .map_or(0.0, |ws| prepare_weights_in_place(ws));
 
     // `prepare_weights_in_place` returns 0.0 or >= 1.0, never NaN (see multinomial).
     if sum_weights <= 0.0 {
@@ -902,6 +898,7 @@ where
 
 impl SequentialMonteCarlo {
     /// Create new SMC with particle count.
+    #[must_use]
     pub fn new(particles: usize) -> Self {
         Self {
             particles,
@@ -910,7 +907,8 @@ impl SequentialMonteCarlo {
     }
 
     /// Set the resampling strategy.
-    pub fn with_resampling(mut self, strategy: ResamplingStrategy) -> Self {
+    #[must_use]
+    pub const fn with_resampling(mut self, strategy: ResamplingStrategy) -> Self {
         self.resampling = strategy;
         self
     }
@@ -1104,7 +1102,10 @@ impl SequentialMonteCarlo {
         // Skipping resampling here saves O(N) RNG draws, memory moves, and preserves
         // maximum particle diversity, matching the `weights.is_none()` fast path.
         // Bit-exact float equality is the point: any spread at all means resample.
-        #[allow(clippy::float_cmp)]
+        #[allow(
+            clippy::float_cmp,
+            reason = "uniformity fast path requires bit-exact equality"
+        )]
         if let Some(ws) = &weights {
             let first = ws[0]; // Safe because n > 1
             if ws.iter().all(|&w| w == first) {
@@ -1153,7 +1154,8 @@ pub struct MetropolisHastings {
 impl MetropolisHastings {
     /// Create new Metropolis-Hastings with iterations.
     #[inline]
-    pub fn new(iterations: usize, burn_in: usize) -> Self {
+    #[must_use]
+    pub const fn new(iterations: usize, burn_in: usize) -> Self {
         Self {
             iterations,
             burn_in,
@@ -1163,7 +1165,8 @@ impl MetropolisHastings {
 
     /// Set proposal step size.
     #[inline]
-    pub fn with_step_size(mut self, step_size: f64) -> Self {
+    #[must_use]
+    pub const fn with_step_size(mut self, step_size: f64) -> Self {
         self.step_size = step_size;
         self
     }
@@ -1250,7 +1253,7 @@ impl MetropolisHastings {
                 // Reflected random walk on [0,1): symmetric proposal, so the
                 // MH correction term is unchanged. Replaces the independent
                 // uniform resample that ignored step_size entirely (M3/M9).
-                let step = self.step_size * (rng.random::<f64>() * 2.0 - 1.0);
+                let step = self.step_size * rng.random::<f64>().mul_add(2.0, -1.0);
                 let mut v = (old_val + step).rem_euclid(2.0);
                 if v >= 1.0 {
                     v = 2.0 - v;
@@ -1271,7 +1274,10 @@ impl MetropolisHastings {
 
                 // Optimization: avoid ln() calls if trace length is unchanged
                 // Optimization: combine ln calls to save one transcendental op
-                #[allow(clippy::cast_precision_loss)] // trace lengths ≪ 2^52
+                #[allow(
+                    clippy::cast_precision_loss,
+                    reason = "trace lengths are tiny versus 2^52"
+                )]
                 let log_correction = if n == m {
                     0.0
                 } else {
@@ -1326,7 +1332,7 @@ impl MetropolisHastings {
                     // the idx_dist refresh logic in a single code path. This deduplicates
                     // the Uniform::new call, reducing instruction-cache pressure in the
                     // hot loop and ensuring the compiler sees one clear update site.
-                    let new_n = if let Cow::Owned(v) = proposed_vars {
+                    if let Cow::Owned(v) = proposed_vars {
                         // Prefer the buffer with larger capacity: if `v` has more capacity
                         // than `current.variables`, take it via an O(1) move.  When
                         // capacities are equal, also move: both sides hold the same amount
@@ -1339,15 +1345,14 @@ impl MetropolisHastings {
                         } else {
                             current.variables.clone_from(&v);
                         }
-                        m
                     } else {
                         // proposed_vars are a slice of current.variables (already modified
                         // in place). Truncate in case the model used fewer variables.
                         // Optimization: reuse `m` (already computed as proposed_vars.len()
                         // above) instead of dispatching through Cow::Deref a second time.
                         current.variables.truncate(m);
-                        m
-                    };
+                    }
+                    let new_n = m;
                     // Refresh cached index distribution if the trace length changed.
                     if new_n != n {
                         n = new_n;
@@ -1474,7 +1479,8 @@ pub struct WeightedSample<M> {
 impl ImportanceSampling {
     /// Create new Importance Sampling.
     #[inline]
-    pub fn new(samples: usize) -> Self {
+    #[must_use]
+    pub const fn new(samples: usize) -> Self {
         Self { samples }
     }
 
@@ -1576,6 +1582,7 @@ pub fn normalized_weights<A>(samples: &[WeightedSample<A>]) -> Vec<f64> {
 /// weight degeneracy (a few particles dominate) and the estimate should not
 /// be trusted. Expects weights that sum to 1 (see [`normalized_weights`]).
 #[inline]
+#[must_use]
 pub fn effective_sample_size(weights: &[f64]) -> f64 {
     let sum_sq: f64 = weights.iter().map(|w| w * w).sum();
     1.0 / sum_sq
@@ -1584,7 +1591,11 @@ pub fn effective_sample_size(weights: &[f64]) -> f64 {
 #[cfg(test)]
 // Tests assert bit-exact float results on purpose, and cast small test sizes
 // to f64 for expected-value arithmetic.
-#[allow(clippy::float_cmp, clippy::cast_precision_loss)]
+#[allow(
+    clippy::float_cmp,
+    clippy::cast_precision_loss,
+    reason = "tests assert bit-exact floats and cast small sizes"
+)]
 mod tests {
     use super::*;
 

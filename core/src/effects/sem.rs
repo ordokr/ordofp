@@ -100,7 +100,7 @@ impl<R: EffectRow, A: 'static + Send> Sem<R, A> {
     /// > *"Computatio pura"* — Pure computation.
     #[inline]
     pub fn purus(value: A) -> Self {
-        Sem {
+        Self {
             run: Box::new(move || SemResult::Purus(value)),
         }
     }
@@ -165,6 +165,7 @@ impl<R: EffectRow, A: 'static + Send> Sem<R, A> {
 /// `EffectSet<0>` nevertheless suspends on an effect, which the effect-row
 /// types make impossible — such a panic indicates a bug in this crate.
 #[inline]
+#[must_use]
 pub fn run_sem<A: 'static + Send>(sem: Sem<EffectSet<0>, A>) -> A {
     match (sem.run)() {
         SemResult::Purus(a) => a,
@@ -208,6 +209,7 @@ pub fn run_sem<A: 'static + Send>(sem: Sem<EffectSet<0>, A>) -> A {
 /// let computation: Sem<IoRow, i32> = Sem::purus(42);
 /// let subsumed: Sem<IoRow, i32> = subsume::<MyIo, IoRow, IoRow, i32>(computation);
 /// ```
+#[must_use]
 pub fn subsume<E, RIn, ROut, A>(sem: Sem<RIn, A>) -> Sem<ROut, A>
 where
     E: EffectusAlgebraicus + EffectId + Send + 'static,
@@ -245,6 +247,7 @@ where
 /// let pure_computation: Sem<EffectSet<0>, i32> = Sem::purus(42);
 /// let embedded: Sem<IoRow, i32> = embed(pure_computation);
 /// ```
+#[must_use]
 pub fn embed<R1, const SUPER: u128, A>(sem: Sem<R1, A>) -> Sem<EffectSet<SUPER>, A>
 where
     R1: EffectRow,
@@ -301,6 +304,7 @@ pub fn pure_sem<R: EffectRow, A: 'static + Send>(a: A) -> Sem<R, A> {
 
 /// Sequence two Sem computations.
 #[inline]
+#[must_use]
 pub fn then_sem<R: EffectRow, A: 'static + Send, B: 'static + Send>(
     first: Sem<R, A>,
     second: Sem<R, B>,
@@ -316,6 +320,7 @@ pub fn then_sem<R: EffectRow, A: 'static + Send, B: 'static + Send>(
 /// runtime exists yet, so only computations that happen to be pure (built
 /// via `purus`/`map`/`flat_map` without performing IO) complete. See the
 /// module docs for the pure-only status of this facade.
+#[must_use]
 pub fn run_io<A: 'static + Send>(sem: Sem<super::row_v2::IoRow, A>) -> A {
     // This would actually run IO effects
     // For now, we just panic as IO requires runtime support
@@ -397,9 +402,10 @@ mod tests {
 
     #[test]
     fn test_embed() {
+        use super::super::row_v2::IoRow;
+
         let pure: Sem<EffectSet<0>, i32> = Sem::purus(42);
         // Embed into a larger row (IO)
-        use super::super::row_v2::IoRow;
         let embedded: Sem<IoRow, i32> = embed(pure);
         // Can't run directly without handling IO, but we can test the structure
         match (embedded.run)() {

@@ -157,7 +157,7 @@ impl<S, M> StateT<S, M> {
     where
         F: Fn(S) -> M + Send + Sync + 'static,
     {
-        StateT {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -209,7 +209,7 @@ impl<S: 'static, A: 'static> StateT<S, Option<(S, A)>> {
     where
         A: Clone + Send + Sync,
     {
-        StateT::new(move |s: S| Some((s, value.clone())))
+        Self::new(move |s: S| Some((s, value.clone())))
     }
 
     /// Creates a `StateT` that always fails.
@@ -228,12 +228,14 @@ impl<S: 'static, A: 'static> StateT<S, Option<(S, A)>> {
     /// # fn main() {}
     /// ```
     #[inline]
+    #[must_use]
     pub fn none() -> Self {
-        StateT::new(|_: S| None)
+        Self::new(|_: S| None)
     }
 
     /// Creates a `StateT` that returns the current state without modifying it.
     #[inline]
+    #[must_use]
     pub fn get() -> StateT<S, Option<(S, S)>>
     where
         S: Clone + Send + Sync,
@@ -329,6 +331,7 @@ impl<S: 'static, A: 'static> StateT<S, Option<(S, A)>> {
 
     /// Applies a wrapped function to this value.
     #[inline]
+    #[must_use]
     pub fn apply<B, F>(self, sf: StateT<S, Option<(S, F)>>) -> StateT<S, Option<(S, B)>>
     where
         F: FnOnce(A) -> B + Clone + Send + Sync + 'static,
@@ -367,7 +370,7 @@ impl<S: 'static, A: 'static, E: 'static> StateT<S, Result<(S, A), E>> {
     where
         A: Clone + Send + Sync,
     {
-        StateT::new(move |s: S| Ok((s, value.clone())))
+        Self::new(move |s: S| Ok((s, value.clone())))
     }
 
     /// Creates a `StateT` that always returns an error.
@@ -376,11 +379,12 @@ impl<S: 'static, A: 'static, E: 'static> StateT<S, Result<(S, A), E>> {
     where
         E: Clone + Send + Sync,
     {
-        StateT::new(move |_: S| Err(error.clone()))
+        Self::new(move |_: S| Err(error.clone()))
     }
 
     /// Creates a `StateT` that returns the current state.
     #[inline]
+    #[must_use]
     pub fn get_result() -> StateT<S, Result<(S, S), E>>
     where
         S: Clone + Send + Sync,
@@ -495,13 +499,14 @@ impl<S: Clone + 'static, A: 'static> StateT<S, Vec<(S, A)>> {
     where
         A: Clone + Send + Sync,
     {
-        StateT::new(move |s: S| alloc::vec![(s, value.clone())])
+        Self::new(move |s: S| alloc::vec![(s, value.clone())])
     }
 
     /// Creates a `StateT` that returns no results.
     #[inline]
+    #[must_use]
     pub fn empty_vec() -> Self {
-        StateT::new(|_: S| alloc::vec![])
+        Self::new(|_: S| alloc::vec![])
     }
 
     /// Maps a function over all values.

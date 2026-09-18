@@ -401,7 +401,9 @@ impl CpuRayon {
             usize::MAX
         } else {
             let break_even = PARALLEL_OVERHEAD_NS / u64::from(cost_ns_per_elem);
-            (break_even as usize).max(Self::MIN_PARALLEL_FLOOR)
+            usize::try_from(break_even)
+                .unwrap_or(usize::MAX)
+                .max(Self::MIN_PARALLEL_FLOOR)
         };
         Self { min_len }
     }
@@ -582,30 +584,35 @@ pub struct CpuSimd;
 impl CpuSimd {
     /// SIMD-accelerated sum of f32 values.
     #[inline]
+    #[must_use]
     pub fn sum_f32(&self, data: &[f32]) -> f32 {
         super::simd::simd_sum_f32(data)
     }
 
     /// SIMD-accelerated dot product of f32 vectors.
     #[inline]
+    #[must_use]
     pub fn dot_f32(&self, a: &[f32], b: &[f32]) -> f32 {
         super::simd::simd_dot_f32(a, b)
     }
 
     /// SIMD-accelerated element-wise addition.
     #[inline]
+    #[must_use]
     pub fn add_f32(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
         super::simd::simd_add_f32(a, b)
     }
 
     /// SIMD-accelerated element-wise multiplication.
     #[inline]
+    #[must_use]
     pub fn mul_f32(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
         super::simd::simd_mul_f32(a, b)
     }
 
     /// SIMD-accelerated scalar multiplication.
     #[inline]
+    #[must_use]
     pub fn scale_f32(&self, data: &[f32], scale: f32) -> Vec<f32> {
         super::simd::simd_scale_f32(data, scale)
     }
@@ -618,12 +625,14 @@ impl CpuSimd {
 
     /// SIMD-accelerated min/max.
     #[inline]
+    #[must_use]
     pub fn min_f32(&self, data: &[f32]) -> Option<f32> {
         super::simd::simd_min_f32(data)
     }
 
     /// SIMD-accelerated maximum.
     #[inline]
+    #[must_use]
     pub fn max_f32(&self, data: &[f32]) -> Option<f32> {
         super::simd::simd_max_f32(data)
     }
@@ -980,7 +989,7 @@ mod tests {
         fn test_cpu_simd_sum() {
             let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
             let backend = CpuSimd;
-            assert_eq!(backend.sum_f32(&data), 36.0);
+            assert_eq!(backend.sum_f32(&data).to_bits(), 36.0f32.to_bits());
         }
 
         #[test]
@@ -989,7 +998,7 @@ mod tests {
             let b = vec![5.0f32, 6.0, 7.0, 8.0];
             let backend = CpuSimd;
             // 1*5 + 2*6 + 3*7 + 4*8 = 5 + 12 + 21 + 32 = 70
-            assert_eq!(backend.dot_f32(&a, &b), 70.0);
+            assert_eq!(backend.dot_f32(&a, &b).to_bits(), 70.0f32.to_bits());
         }
 
         #[test]

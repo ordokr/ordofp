@@ -73,7 +73,7 @@ pub enum CacheStrategy {
 
 impl Default for CacheStrategy {
     fn default() -> Self {
-        CacheStrategy::LRU(1000)
+        Self::LRU(1000)
     }
 }
 
@@ -90,8 +90,8 @@ struct CacheEntry<V> {
 }
 
 impl<V> CacheEntry<V> {
-    fn new(value: V, last_access: u64) -> Self {
-        CacheEntry { value, last_access }
+    const fn new(value: V, last_access: u64) -> Self {
+        Self { value, last_access }
     }
 }
 
@@ -116,6 +116,7 @@ pub struct Cache<K, V> {
 
 impl<K: Eq + Clone, V: Clone> Cache<K, V> {
     /// Create a new cache with the given strategy.
+    #[must_use]
     pub fn new(strategy: CacheStrategy) -> Self {
         let capacity = match strategy {
             CacheStrategy::None => 0,
@@ -127,7 +128,7 @@ impl<K: Eq + Clone, V: Clone> Cache<K, V> {
         // reallocate. For Unbounded we cap the initial reservation to avoid
         // asking the allocator for usize::MAX bytes.
         let initial = if capacity == usize::MAX { 16 } else { capacity };
-        Cache {
+        Self {
             entries: VecDeque::with_capacity(initial),
             strategy,
             capacity,
@@ -137,7 +138,7 @@ impl<K: Eq + Clone, V: Clone> Cache<K, V> {
 
     /// Advance the monotonic clock and return the new stamp.
     #[inline]
-    fn tick(&mut self) -> u64 {
+    const fn tick(&mut self) -> u64 {
         self.clock += 1;
         self.clock
     }
@@ -224,12 +225,14 @@ impl<K: Eq + Clone, V: Clone> Cache<K, V> {
 
     /// Get the number of cached entries.
     #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Check if the cache is empty.
     #[inline]
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -260,7 +263,7 @@ where
     /// Create a new memoized function with default caching strategy.
     #[inline]
     pub fn new(func: F) -> Self {
-        Memoized {
+        Self {
             func,
             cache: Cache::new(CacheStrategy::default()),
             _marker: PhantomData,
@@ -270,7 +273,7 @@ where
     /// Create a new memoized function with specified caching strategy.
     #[inline]
     pub fn with_strategy(func: F, strategy: CacheStrategy) -> Self {
-        Memoized {
+        Self {
             func,
             cache: Cache::new(strategy),
             _marker: PhantomData,
@@ -378,7 +381,7 @@ where
 {
     /// Create a new memoized effectful computation.
     pub fn new(func: F) -> Self {
-        MemoizedEff {
+        Self {
             inner: Memoized::new(func),
             _effect: PhantomData,
         }
@@ -410,8 +413,8 @@ where
     F: FnOnce() -> A,
 {
     /// Create a new lazy value.
-    pub fn new(compute: F) -> Self {
-        Lazy {
+    pub const fn new(compute: F) -> Self {
+        Self {
             compute: Some(compute),
             value: None,
         }
@@ -444,14 +447,14 @@ where
 
     /// Check if the value has been computed.
     #[inline]
-    pub fn is_computed(&self) -> bool {
+    pub const fn is_computed(&self) -> bool {
         self.value.is_some()
     }
 }
 
 /// Create a lazy value.
 #[inline]
-pub fn lazy<A, F: FnOnce() -> A>(compute: F) -> Lazy<A, F> {
+pub const fn lazy<A, F: FnOnce() -> A>(compute: F) -> Lazy<A, F> {
     Lazy::new(compute)
 }
 
@@ -467,13 +470,14 @@ pub struct Thunk<A> {
 impl<A: 'static> Thunk<A> {
     /// Create a new thunk.
     pub fn new<F: FnOnce() -> A + 'static>(compute: F) -> Self {
-        Thunk {
+        Self {
             inner: Box::new(compute),
         }
     }
 
     /// Force evaluation and take the value.
     #[inline]
+    #[must_use]
     pub fn force(self) -> A {
         (self.inner)()
     }

@@ -45,10 +45,7 @@ fn bench_option_t_flat_map(c: &mut Criterion) {
             let res: Vec<Option<i32>> = data
                 .clone()
                 .into_iter()
-                .flat_map(|opt| match opt {
-                    None => vec![None],
-                    Some(x) => vec![Some(x * 2)],
-                })
+                .flat_map(|opt| opt.map_or_else(|| vec![None], |x| vec![Some(x * 2)]))
                 .collect();
             black_box(res)
         });

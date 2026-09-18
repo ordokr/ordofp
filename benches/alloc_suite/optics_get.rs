@@ -12,36 +12,36 @@ use std::hint::black_box;
 
 #[derive(Clone)]
 struct Course {
-    _id: u64,
+    id: u64,
     name: String,
-    _description: String,
-    _tags: Vec<String>,
+    description: String,
+    tags: Vec<String>,
 }
 
 #[derive(Clone)]
 struct Enrollment {
-    _student: String,
+    student: String,
     course: Course,
-    _grade: f64,
+    grade: f64,
 }
 
 fn sample() -> Enrollment {
     Enrollment {
-        _student: "Alice Student".to_string(),
+        student: "Alice Student".to_string(),
         course: Course {
-            _id: 42,
+            id: 42,
             name: "Advanced Functional Programming".to_string(),
-            _description: "A fairly long course description that makes the \
+            description: "A fairly long course description that makes the \
                            intermediate Course struct non-trivial to clone."
                 .to_string(),
-            _tags: vec![
+            tags: vec![
                 "rust".to_string(),
                 "fp".to_string(),
                 "monads".to_string(),
                 "optics".to_string(),
             ],
         },
-        _grade: 95.0,
+        grade: 95.0,
     }
 }
 
@@ -54,17 +54,17 @@ fn bench_composed_get(c: &mut Criterion) {
         |e: &Enrollment| e.course.clone(),
         |e: &Enrollment, course: Course| Enrollment {
             course,
-            _student: e._student.clone(),
-            _grade: e._grade,
+            student: e.student.clone(),
+            grade: e.grade,
         },
     );
     let name_lens = aspectus(
         |c: &Course| c.name.clone(),
         |c: &Course, name: String| Course {
             name,
-            _id: c._id,
-            _description: c._description.clone(),
-            _tags: c._tags.clone(),
+            id: c.id,
+            description: c.description.clone(),
+            tags: c.tags.clone(),
         },
     );
     let course_name = course_lens.compose(&name_lens);

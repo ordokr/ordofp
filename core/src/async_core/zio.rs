@@ -82,13 +82,13 @@ pub enum Causa<E> {
     ///
     /// > *"Utrumque simul"*
     /// > — Both at the same time.
-    Utrumque(Box<Causa<E>>, Box<Causa<E>>),
+    Utrumque(Box<Self>, Box<Self>),
 
     /// Sequential causes (first then second).
     ///
     /// > *"Deinde post"*
     /// > — Then after.
-    Deinde(Box<Causa<E>>, Box<Causa<E>>),
+    Deinde(Box<Self>, Box<Self>),
 
     /// Empty cause (for internal use).
     Vacua,
@@ -97,65 +97,68 @@ pub enum Causa<E> {
 impl<E> Causa<E> {
     /// Create a failure cause from an error.
     #[inline]
-    pub fn defectus(e: E) -> Self {
-        Causa::Defectus(e)
+    pub const fn defectus(e: E) -> Self {
+        Self::Defectus(e)
     }
 
     /// Create a death cause from a panic message.
     #[inline]
     pub fn mors(msg: impl Into<String>) -> Self {
-        Causa::Mors(msg.into())
+        Self::Mors(msg.into())
     }
 
     /// Create an interruption cause.
     #[inline]
-    pub fn interruptio(fibra_id: FibraId) -> Self {
-        Causa::Interruptio(fibra_id)
+    #[must_use]
+    pub const fn interruptio(fibra_id: FibraId) -> Self {
+        Self::Interruptio(fibra_id)
     }
 
     /// Combine two causes that happened in parallel.
     #[inline]
-    pub fn both(self, other: Causa<E>) -> Self {
+    #[must_use]
+    pub fn both(self, other: Self) -> Self {
         match (&self, &other) {
-            (Causa::Vacua, _) => other,
-            (_, Causa::Vacua) => self,
-            _ => Causa::Utrumque(Box::new(self), Box::new(other)),
+            (Self::Vacua, _) => other,
+            (_, Self::Vacua) => self,
+            _ => Self::Utrumque(Box::new(self), Box::new(other)),
         }
     }
 
     /// Chain two causes sequentially.
     #[inline]
-    pub fn then(self, other: Causa<E>) -> Self {
+    #[must_use]
+    pub fn then(self, other: Self) -> Self {
         match (&self, &other) {
-            (Causa::Vacua, _) => other,
-            (_, Causa::Vacua) => self,
-            _ => Causa::Deinde(Box::new(self), Box::new(other)),
+            (Self::Vacua, _) => other,
+            (_, Self::Vacua) => self,
+            _ => Self::Deinde(Box::new(self), Box::new(other)),
         }
     }
 
     /// Check if this is a defect (expected error).
     #[inline]
-    pub fn is_defectus(&self) -> bool {
-        matches!(self, Causa::Defectus(_))
+    pub const fn is_defectus(&self) -> bool {
+        matches!(self, Self::Defectus(_))
     }
 
     /// Check if this is a death (unexpected error).
     #[inline]
-    pub fn is_mors(&self) -> bool {
-        matches!(self, Causa::Mors(_))
+    pub const fn is_mors(&self) -> bool {
+        matches!(self, Self::Mors(_))
     }
 
     /// Check if this is an interruption.
     #[inline]
-    pub fn is_interruptio(&self) -> bool {
-        matches!(self, Causa::Interruptio(_))
+    pub const fn is_interruptio(&self) -> bool {
+        matches!(self, Self::Interruptio(_))
     }
 
     /// Extract the defect if present.
     #[inline]
-    pub fn defect(&self) -> Option<&E> {
+    pub const fn defect(&self) -> Option<&E> {
         match self {
-            Causa::Defectus(e) => Some(e),
+            Self::Defectus(e) => Some(e),
             _ => None,
         }
     }
@@ -169,8 +172,8 @@ impl<E> Causa<E> {
 
     fn collect_defects<'a>(&'a self, result: &mut Vec<&'a E>) {
         match self {
-            Causa::Defectus(e) => result.push(e),
-            Causa::Utrumque(a, b) | Causa::Deinde(a, b) => {
+            Self::Defectus(e) => result.push(e),
+            Self::Utrumque(a, b) | Self::Deinde(a, b) => {
                 a.collect_defects(result);
                 b.collect_defects(result);
             }
@@ -184,16 +187,16 @@ impl<E> Causa<E> {
         F: Fn(E) -> E2 + Clone,
     {
         match self {
-            Causa::Defectus(e) => Causa::Defectus(f(e)),
-            Causa::Mors(s) => Causa::Mors(s),
-            Causa::Interruptio(id) => Causa::Interruptio(id),
-            Causa::Utrumque(a, b) => {
+            Self::Defectus(e) => Causa::Defectus(f(e)),
+            Self::Mors(s) => Causa::Mors(s),
+            Self::Interruptio(id) => Causa::Interruptio(id),
+            Self::Utrumque(a, b) => {
                 Causa::Utrumque(Box::new(a.map_error(f.clone())), Box::new(b.map_error(f)))
             }
-            Causa::Deinde(a, b) => {
+            Self::Deinde(a, b) => {
                 Causa::Deinde(Box::new(a.map_error(f.clone())), Box::new(b.map_error(f)))
             }
-            Causa::Vacua => Causa::Vacua,
+            Self::Vacua => Causa::Vacua,
         }
     }
 }
@@ -201,12 +204,12 @@ impl<E> Causa<E> {
 impl<E: core::fmt::Display> core::fmt::Display for Causa<E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Causa::Defectus(e) => write!(f, "Defectus: {e}"),
-            Causa::Mors(s) => write!(f, "Mors: {s}"),
-            Causa::Interruptio(id) => write!(f, "Interruptio: {id}"),
-            Causa::Utrumque(a, b) => write!(f, "({a} ∧ {b})"),
-            Causa::Deinde(a, b) => write!(f, "({a} → {b})"),
-            Causa::Vacua => write!(f, "Vacua"),
+            Self::Defectus(e) => write!(f, "Defectus: {e}"),
+            Self::Mors(s) => write!(f, "Mors: {s}"),
+            Self::Interruptio(id) => write!(f, "Interruptio: {id}"),
+            Self::Utrumque(a, b) => write!(f, "({a} ∧ {b})"),
+            Self::Deinde(a, b) => write!(f, "({a} → {b})"),
+            Self::Vacua => write!(f, "Vacua"),
         }
     }
 }
@@ -239,61 +242,62 @@ pub enum Exitus<E, A> {
 impl<E, A> Exitus<E, A> {
     /// Create a successful exit.
     #[inline]
-    pub fn successus(a: A) -> Self {
-        Exitus::Successus(a)
+    pub const fn successus(a: A) -> Self {
+        Self::Successus(a)
     }
 
     /// Create a failed exit from an error.
     #[inline]
-    pub fn defectio(e: E) -> Self {
-        Exitus::Defectio(Causa::defectus(e))
+    pub const fn defectio(e: E) -> Self {
+        Self::Defectio(Causa::defectus(e))
     }
 
     /// Create a failed exit from a cause.
     #[inline]
-    pub fn defectio_causa(causa: Causa<E>) -> Self {
-        Exitus::Defectio(causa)
+    pub const fn defectio_causa(causa: Causa<E>) -> Self {
+        Self::Defectio(causa)
     }
 
     /// Create a death exit.
     #[inline]
     pub fn mors(msg: impl Into<String>) -> Self {
-        Exitus::Defectio(Causa::mors(msg))
+        Self::Defectio(Causa::mors(msg))
     }
 
     /// Create an interruption exit.
     #[inline]
-    pub fn interruptio(fibra_id: FibraId) -> Self {
-        Exitus::Defectio(Causa::interruptio(fibra_id))
+    #[must_use]
+    pub const fn interruptio(fibra_id: FibraId) -> Self {
+        Self::Defectio(Causa::interruptio(fibra_id))
     }
 
     /// Check if this exit is a success.
     #[inline]
-    pub fn is_successus(&self) -> bool {
-        matches!(self, Exitus::Successus(_))
+    pub const fn is_successus(&self) -> bool {
+        matches!(self, Self::Successus(_))
     }
 
     /// Check if this exit is a failure.
     #[inline]
-    pub fn is_defectio(&self) -> bool {
-        matches!(self, Exitus::Defectio(_))
+    pub const fn is_defectio(&self) -> bool {
+        matches!(self, Self::Defectio(_))
     }
 
     /// Get the success value if present.
     #[inline]
-    pub fn successus_value(&self) -> Option<&A> {
+    pub const fn successus_value(&self) -> Option<&A> {
         match self {
-            Exitus::Successus(a) => Some(a),
-            Exitus::Defectio(_) => None,
+            Self::Successus(a) => Some(a),
+            Self::Defectio(_) => None,
         }
     }
 
     /// Get the failure cause if present.
     #[inline]
-    pub fn causa(&self) -> Option<&Causa<E>> {
+    pub const fn causa(&self) -> Option<&Causa<E>> {
         match self {
-            Exitus::Defectio(c) => Some(c),
-            Exitus::Successus(_) => None,
+            Self::Defectio(c) => Some(c),
+            Self::Successus(_) => None,
         }
     }
 
@@ -304,8 +308,8 @@ impl<E, A> Exitus<E, A> {
         F: FnOnce(A) -> B,
     {
         match self {
-            Exitus::Successus(a) => Exitus::Successus(f(a)),
-            Exitus::Defectio(c) => Exitus::Defectio(c),
+            Self::Successus(a) => Exitus::Successus(f(a)),
+            Self::Defectio(c) => Exitus::Defectio(c),
         }
     }
 
@@ -316,8 +320,8 @@ impl<E, A> Exitus<E, A> {
         F: Fn(E) -> E2 + Clone,
     {
         match self {
-            Exitus::Successus(a) => Exitus::Successus(a),
-            Exitus::Defectio(c) => Exitus::Defectio(c.map_error(f)),
+            Self::Successus(a) => Exitus::Successus(a),
+            Self::Defectio(c) => Exitus::Defectio(c.map_error(f)),
         }
     }
 
@@ -331,8 +335,8 @@ impl<E, A> Exitus<E, A> {
     #[inline]
     pub fn to_result(self) -> Result<A, Causa<E>> {
         match self {
-            Exitus::Successus(a) => Ok(a),
-            Exitus::Defectio(c) => Err(c),
+            Self::Successus(a) => Ok(a),
+            Self::Defectio(c) => Err(c),
         }
     }
 
@@ -340,8 +344,8 @@ impl<E, A> Exitus<E, A> {
     #[inline]
     pub fn from_result(result: Result<A, E>) -> Self {
         match result {
-            Ok(a) => Exitus::successus(a),
-            Err(e) => Exitus::defectio(e),
+            Ok(a) => Self::successus(a),
+            Err(e) => Self::defectio(e),
         }
     }
 
@@ -352,8 +356,8 @@ impl<E, A> Exitus<E, A> {
         F: FnOnce(A) -> Exitus<E, B>,
     {
         match self {
-            Exitus::Successus(a) => f(a),
-            Exitus::Defectio(c) => Exitus::Defectio(c),
+            Self::Successus(a) => f(a),
+            Self::Defectio(c) => Exitus::Defectio(c),
         }
     }
 
@@ -365,8 +369,8 @@ impl<E, A> Exitus<E, A> {
         FF: FnOnce(Causa<E>) -> B,
     {
         match self {
-            Exitus::Successus(a) => on_success(a),
-            Exitus::Defectio(c) => on_failure(c),
+            Self::Successus(a) => on_success(a),
+            Self::Defectio(c) => on_failure(c),
         }
     }
 }
@@ -374,7 +378,7 @@ impl<E, A> Exitus<E, A> {
 impl<E, A> From<Result<A, E>> for Exitus<E, A> {
     #[inline]
     fn from(result: Result<A, E>) -> Self {
-        Exitus::from_result(result)
+        Self::from_result(result)
     }
 }
 
@@ -396,19 +400,19 @@ pub struct Ambitus<R> {
 impl<R> Ambitus<R> {
     /// Create a new environment.
     #[inline]
-    pub fn new(value: R) -> Self {
-        Ambitus { value }
+    pub const fn new(value: R) -> Self {
+        Self { value }
     }
 
     /// Get a reference to the environment.
     #[inline]
-    pub fn get(&self) -> &R {
+    pub const fn get(&self) -> &R {
         &self.value
     }
 
     /// Get a mutable reference to the environment.
     #[inline]
-    pub fn get_mut(&mut self) -> &mut R {
+    pub const fn get_mut(&mut self) -> &mut R {
         &mut self.value
     }
 
@@ -430,7 +434,7 @@ impl<R> Ambitus<R> {
 
 impl<R: Default> Default for Ambitus<R> {
     fn default() -> Self {
-        Ambitus::new(R::default())
+        Self::new(R::default())
     }
 }
 
@@ -478,7 +482,7 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     where
         A: Send,
     {
-        Zio {
+        Self {
             run: Box::new(move |_| Box::pin(async move { Exitus::successus(a) })),
             _phantom: PhantomData,
         }
@@ -493,7 +497,7 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     where
         E: Send,
     {
-        Zio {
+        Self {
             run: Box::new(move |_| Box::pin(async move { Exitus::defectio(e) })),
             _phantom: PhantomData,
         }
@@ -503,7 +507,7 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     #[inline]
     pub fn die(msg: impl Into<String> + Send + 'static) -> Self {
         let msg = msg.into();
-        Zio {
+        Self {
             run: Box::new(move |_| Box::pin(async move { Exitus::mors(msg) })),
             _phantom: PhantomData,
         }
@@ -516,7 +520,7 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
         F: FnOnce(Ambitus<R>) -> Fut + Send + 'static,
         Fut: Future<Output = Exitus<E, A>> + Send + 'static,
     {
-        Zio {
+        Self {
             run: Box::new(move |env| Box::pin(f(env))),
             _phantom: PhantomData,
         }
@@ -524,6 +528,7 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
 
     /// Create an effect that accesses the environment.
     #[inline]
+    #[must_use]
     pub fn environment() -> Zio<R, E, R>
     where
         R: Clone + Send,
@@ -635,12 +640,13 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     /// kept live for the handler.  On success the result is returned directly
     /// without re-wrapping it in `Exitus::successus`.
     #[inline]
-    pub fn catch_all<F>(self, handler: F) -> Zio<R, E, A>
+    #[must_use]
+    pub fn catch_all<F>(self, handler: F) -> Self
     where
-        F: FnOnce(Causa<E>) -> Zio<R, E, A> + Send + 'static,
+        F: FnOnce(Causa<E>) -> Self + Send + 'static,
         R: Clone + Send,
     {
-        Zio {
+        Self {
             run: Box::new(move |env| {
                 Box::pin(async move {
                     let env_for_self = Ambitus::new(env.get().clone());
@@ -662,13 +668,14 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     /// effect, original forwarded to the handler on typed-error; success
     /// and non-typed failures are returned without touching `env`.
     #[inline]
-    pub fn catch<F>(self, handler: F) -> Zio<R, E, A>
+    #[must_use]
+    pub fn catch<F>(self, handler: F) -> Self
     where
-        F: FnOnce(E) -> Zio<R, E, A> + Send + 'static,
+        F: FnOnce(E) -> Self + Send + 'static,
         R: Clone + Send,
         E: Clone,
     {
-        Zio {
+        Self {
             run: Box::new(move |env| {
                 Box::pin(async move {
                     let env_for_self = Ambitus::new(env.get().clone());
@@ -691,12 +698,13 @@ impl<R: Send + 'static, E: Send + 'static, A: Send + 'static> Zio<R, E, A> {
     /// original outcome wins. Use a finalizer that cannot fail, or handle
     /// its errors inside it.
     #[inline]
-    pub fn ensuring<F>(self, finalizer: F) -> Zio<R, E, A>
+    #[must_use]
+    pub fn ensuring<F>(self, finalizer: F) -> Self
     where
         F: FnOnce() -> Zio<R, E, ()> + Send + 'static,
         R: Clone + Send,
     {
-        Zio {
+        Self {
             run: Box::new(move |env| {
                 Box::pin(async move {
                     let env_for_self = Ambitus::new(env.get().clone());
@@ -752,6 +760,7 @@ pub fn fail<R: Send + 'static, E: Send + 'static, A: Send + 'static>(e: E) -> Zi
 
 /// Create an effect that accesses the environment.
 #[inline]
+#[must_use]
 pub fn environment<R: Clone + Send + 'static, E: Send + 'static>() -> Zio<R, E, R> {
     Zio::<R, E, R>::environment()
 }
@@ -770,10 +779,7 @@ pub fn from_result<R: Send + 'static, E: Send + 'static, A: Send + 'static>(
 /// Create an effect from an Option.
 #[inline]
 pub fn from_option<R: Send + 'static, A: Send + 'static>(opt: Option<A>) -> Zio<R, (), A> {
-    match opt {
-        Some(a) => Zio::succeed(a),
-        None => Zio::fail(()),
-    }
+    opt.map_or_else(|| Zio::fail(()), |a| Zio::succeed(a))
 }
 
 // =============================================================================

@@ -10,7 +10,10 @@ use std::hint::black_box;
 fn bench_nonempty_filter(c: &mut Criterion) {
     let mut group = c.benchmark_group("NonEmpty/filter");
     for &n in &[100usize, 1_000, 10_000, 100_000] {
-        let template: NonEmpty<i64> = NonEmpty::new(0, (1..n as i64).collect());
+        let template: NonEmpty<i64> = NonEmpty::new(
+            0,
+            (1..i64::try_from(n).expect("benchmark size fits in i64")).collect(),
+        );
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter_batched(
                 || template.clone(),

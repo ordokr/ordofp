@@ -143,11 +143,21 @@ fn main() {
     // Rep-1 phase shares under the counting allocator (sanity check that the
     // counter overhead lands where the allocations are, not a time verdict).
     let rep_ns: u64 = first.phase_ns.iter().sum();
+    // Exact below 2^53 ns (104 days); saturates beyond. Reassembled
+    // through 32-bit halves: every step is exact.
+    let to_f64 = |v: u64| {
+        if v < 9_007_199_254_740_992 {
+            f64::from(u32::try_from(v >> 32).expect("53-bit value fits in u32")) * 4_294_967_296.0
+                + f64::from(u32::try_from(v & 0xFFFF_FFFF).expect("masked to 32 bits"))
+        } else {
+            9_007_199_254_740_992.0
+        }
+    };
     for (name, ns) in workload::PHASES.iter().zip(first.phase_ns) {
         println!(
             "phase={name} rep1_ms={:.2} share={:.1}%",
-            ns as f64 / 1e6,
-            ns as f64 * 100.0 / rep_ns as f64
+            to_f64(ns) / 1e6,
+            to_f64(ns) * 100.0 / to_f64(rep_ns)
         );
     }
     println!("peak_live_bytes={}", PEAK.load(Relaxed));

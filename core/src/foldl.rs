@@ -69,7 +69,7 @@ where
     /// Create a new `Fold` from step function, initial state, and extract function.
     #[inline]
     pub fn new(step: Step, initial: S, extract: Extract) -> Self {
-        Fold {
+        Self {
             step,
             initial,
             extract,
@@ -108,6 +108,7 @@ where
 // ============================================================================
 
 /// Sum all numeric elements.
+#[must_use]
 pub fn sum<A>() -> Fold<A, A, A, impl Fn(A, A) -> A, impl Fn(A) -> A>
 where
     A: core::ops::Add<Output = A> + Default + Copy,
@@ -116,16 +117,19 @@ where
 }
 
 /// Product of all numeric elements (for i32).
+#[must_use]
 pub fn product_i32() -> Fold<i32, i32, i32, impl Fn(i32, i32) -> i32, impl Fn(i32) -> i32> {
     Fold::new(|acc, x| acc * x, 1, |s| s)
 }
 
 /// Product of all numeric elements (for f64).
+#[must_use]
 pub fn product_f64() -> Fold<f64, f64, f64, impl Fn(f64, f64) -> f64, impl Fn(f64) -> f64> {
     Fold::new(|acc, x| acc * x, 1.0, |s| s)
 }
 
 /// Count elements.
+#[must_use]
 pub fn length<A>() -> Fold<A, usize, usize, impl Fn(usize, A) -> usize, impl Fn(usize) -> usize> {
     Fold::new(|count, _: A| count + 1, 0, |s| s)
 }
@@ -191,6 +195,12 @@ where
 }
 
 /// Compute the mean of numeric elements.
+///
+/// # Panics
+///
+/// Never panics at run time: the narrowed count is provably below 2^53
+/// on the taken branch, so the internal conversion is infallible.
+#[must_use]
 pub fn mean() -> FnFold<f64, Option<f64>, (f64, usize)> {
     Fold::new(
         |(sum, count): (f64, usize), x: f64| (sum + x, count + 1),
@@ -199,7 +209,19 @@ pub fn mean() -> FnFold<f64, Option<f64>, (f64, usize)> {
             if count == 0 {
                 None
             } else {
-                Some(sum / count as f64)
+                // Exact below 2^53 elements; saturates beyond. Reassembled
+                // through 32-bit halves: every step is exact.
+                let count_u64 = u64::try_from(count).expect("usize count fits in u64");
+                let count_f = if count_u64 < 9_007_199_254_740_992 {
+                    f64::from(u32::try_from(count_u64 >> 32).expect("53-bit value fits in u32"))
+                        * 4_294_967_296.0
+                        + f64::from(
+                            u32::try_from(count_u64 & 0xFFFF_FFFF).expect("masked to 32 bits"),
+                        )
+                } else {
+                    9_007_199_254_740_992.0
+                };
+                Some(sum / count_f)
             }
         },
     )
@@ -207,6 +229,7 @@ pub fn mean() -> FnFold<f64, Option<f64>, (f64, usize)> {
 
 /// Collect all elements into a Vec.
 #[cfg(feature = "alloc")]
+#[must_use]
 pub fn to_vec<A>() -> FnFold<A, Vec<A>, Vec<A>> {
     Fold::new(
         |mut v: Vec<A>, x| {
@@ -273,7 +296,7 @@ impl<Code> Failure<Code> {
     /// Create a new failure.
     #[inline]
     pub fn new(line: usize, code: Code, message: impl Into<String>) -> Self {
-        Failure {
+        Self {
             line,
             code,
             message: message.into(),
@@ -749,11 +772,19 @@ mod tests {
         // An empty sequence must return the multiplicative identity 1.0, mirroring
         // the analogous test for product_i32.  product_f64 is otherwise untested.
         let empty: f64 = product_f64().run(vec![]);
-        assert_eq!(empty, 1.0, "product_f64 of empty sequence must be 1.0");
+        assert_eq!(
+            empty.to_bits(),
+            1.0f64.to_bits(),
+            "product_f64 of empty sequence must be 1.0"
+        );
 
         // A single 0.0 anywhere in the sequence collapses the entire product to 0.0.
         let with_zero = product_f64().run(vec![2.0, 3.0, 0.0, 5.0]);
-        assert_eq!(with_zero, 0.0, "product_f64 containing 0.0 must be 0.0");
+        assert_eq!(
+            with_zero.to_bits(),
+            0.0f64.to_bits(),
+            "product_f64 containing 0.0 must be 0.0"
+        );
     }
 
     #[test]

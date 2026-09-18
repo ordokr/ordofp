@@ -65,8 +65,9 @@ pub struct Mono<T>(PhantomData<fn() -> T>);
 
 impl<T> Mono<T> {
     /// Create a new monomorphization marker.
+    #[must_use]
     pub const fn new() -> Self {
-        Mono(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -85,8 +86,9 @@ pub struct Distinct<T, const ID: u64 = 0>(PhantomData<T>);
 
 impl<T, const ID: u64> Distinct<T, ID> {
     /// Create a new distinct marker.
+    #[must_use]
     pub const fn new() -> Self {
-        Distinct(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -116,8 +118,9 @@ impl<S> Stateful<S> {
     ///
     /// This is a zero-cost constructor; the returned value is a
     /// `PhantomData` wrapper with no runtime representation.
+    #[must_use]
     pub const fn new() -> Self {
-        Stateful(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -136,8 +139,9 @@ impl<R> Effectful<R> {
     ///
     /// This is a zero-cost constructor; the returned value is a
     /// `PhantomData` wrapper with no runtime representation.
+    #[must_use]
     pub const fn new() -> Self {
-        Effectful(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -172,8 +176,9 @@ impl<T> FuseWith<T> {
     ///
     /// This is a zero-cost constructor; the returned value is a
     /// `PhantomData` wrapper with no runtime representation.
+    #[must_use]
     pub const fn new() -> Self {
-        FuseWith(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -196,13 +201,13 @@ pub struct InlineHint<F>(pub F);
 
 impl<F> InlineHint<F> {
     /// Create a new inline hint wrapper.
-    #[inline(always)]
-    pub fn new(f: F) -> Self {
-        InlineHint(f)
+    #[inline]
+    pub const fn new(f: F) -> Self {
+        Self(f)
     }
 
     /// Call the wrapped function.
-    #[inline(always)]
+    #[inline]
     pub fn call<A, R>(self, arg: A) -> R
     where
         F: FnOnce(A) -> R,
@@ -217,8 +222,8 @@ pub struct NoInlineHint<F>(pub F);
 impl<F> NoInlineHint<F> {
     /// Create a new no-inline hint wrapper.
     #[inline(never)]
-    pub fn new(f: F) -> Self {
-        NoInlineHint(f)
+    pub const fn new(f: F) -> Self {
+        Self(f)
     }
 
     /// Call the wrapped function.
@@ -244,6 +249,7 @@ pub trait SmallType: Sized + Copy {
 
     /// Whether this type is actually small.
     #[inline]
+    #[must_use]
     fn is_small() -> bool {
         core::mem::size_of::<Self>() <= Self::MAX_SIZE
     }
@@ -273,6 +279,7 @@ impl<T> SmallType for *mut T {}
 pub trait ZeroSized: Sized {
     /// Whether this type is zero-sized.
     #[inline]
+    #[must_use]
     fn is_zst() -> bool {
         core::mem::size_of::<Self>() == 0
     }

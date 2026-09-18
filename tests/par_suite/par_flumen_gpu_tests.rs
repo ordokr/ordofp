@@ -19,14 +19,20 @@ use ordofp_core::par::{ParFlumen, backend::CpuScalar};
 
 /// Generate test data: 10M f32 values.
 fn generate_10m_f32() -> Vec<f32> {
-    (0..10_000_000).map(|i| i as f32).collect()
+    (0..10_000_000u32)
+        .map(|i| {
+            f32::from(u16::try_from(i >> 16).expect("test index fits in u16 after shifting"))
+                * 65_536.0
+                + f32::from(u16::try_from(i & 0xFFFF).expect("masked to 16 bits"))
+        })
+        .collect()
 }
 
 /// Test the new GPU execution API with `map_gpu` and `collect_gpu`.
 #[test]
 #[ignore = "Requires GPU hardware"]
 fn test_gpu_map_collect_f32_api() {
-    let data: Vec<f32> = (0..10_000).map(|i| i as f32).collect();
+    let data: Vec<f32> = (0..10_000u16).map(f32::from).collect();
 
     // Expected result from CPU
     let expected: Vec<f32> = data.iter().map(|x| x * 2.0).collect();
@@ -60,7 +66,7 @@ fn test_gpu_map_collect_f32_api() {
 #[test]
 #[ignore = "Requires GPU hardware"]
 fn test_gpu_chained_operations() {
-    let data: Vec<f32> = (1..1001).map(|i| i as f32).collect();
+    let data: Vec<f32> = (1..1001u16).map(f32::from).collect();
 
     // Expected: (x * 2.0) + 1.0
     let expected: Vec<f32> = data.iter().map(|x| (x * 2.0) + 1.0).collect();
@@ -252,7 +258,13 @@ fn test_gpu_small_n_heuristic() {
 #[test]
 #[ignore = "Requires GPU hardware"]
 fn test_gpu_cpu_rayon_equivalence() {
-    let data: Vec<f32> = (0..100_000).map(|i| i as f32).collect();
+    let data: Vec<f32> = (0..100_000u32)
+        .map(|i| {
+            f32::from(u16::try_from(i >> 16).expect("test index fits in u16 after shifting"))
+                * 65_536.0
+                + f32::from(u16::try_from(i & 0xFFFF).expect("masked to 16 bits"))
+        })
+        .collect();
 
     let cpu_result: Vec<f32> = ParFlumen::from_vec(data.clone())
         .map(|x| x * 2.0)

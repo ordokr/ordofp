@@ -45,14 +45,14 @@ pub enum RecursionState<Done, Continue> {
 impl<D, C> RecursionState<D, C> {
     /// Returns `true` if this is a `Done` variant.
     #[inline]
-    pub fn is_done(&self) -> bool {
-        matches!(self, RecursionState::Done(_))
+    pub const fn is_done(&self) -> bool {
+        matches!(self, Self::Done(_))
     }
 
     /// Returns `true` if this is a `Continue` variant.
     #[inline]
-    pub fn is_continue(&self) -> bool {
-        matches!(self, RecursionState::Continue(_))
+    pub const fn is_continue(&self) -> bool {
+        matches!(self, Self::Continue(_))
     }
 
     /// Maps the `Done` value using the provided function.
@@ -62,8 +62,8 @@ impl<D, C> RecursionState<D, C> {
         F: FnOnce(D) -> D2,
     {
         match self {
-            RecursionState::Done(d) => RecursionState::Done(f(d)),
-            RecursionState::Continue(c) => RecursionState::Continue(c),
+            Self::Done(d) => RecursionState::Done(f(d)),
+            Self::Continue(c) => RecursionState::Continue(c),
         }
     }
 
@@ -74,8 +74,8 @@ impl<D, C> RecursionState<D, C> {
         F: FnOnce(C) -> C2,
     {
         match self {
-            RecursionState::Done(d) => RecursionState::Done(d),
-            RecursionState::Continue(c) => RecursionState::Continue(f(c)),
+            Self::Done(d) => RecursionState::Done(d),
+            Self::Continue(c) => RecursionState::Continue(f(c)),
         }
     }
 }

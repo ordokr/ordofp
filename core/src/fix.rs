@@ -11,22 +11,22 @@ use alloc::boxed::Box;
 /// `Fix f` is the type `t` such that `t ~ f t`.
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
-pub struct Fix<F: FunctorHKT>(pub Box<F::Target<Fix<F>>>);
+pub struct Fix<F: FunctorHKT>(pub Box<F::Target<Self>>);
 
 #[cfg(feature = "alloc")]
 impl<F: FunctorHKT> Clone for Fix<F>
 where
-    F::Target<Fix<F>>: Clone,
+    F::Target<Self>: Clone,
 {
     fn clone(&self) -> Self {
-        Fix(self.0.clone())
+        Self(self.0.clone())
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<F: FunctorHKT> PartialEq for Fix<F>
 where
-    F::Target<Fix<F>>: PartialEq,
+    F::Target<Self>: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
@@ -34,19 +34,20 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<F: FunctorHKT> Eq for Fix<F> where F::Target<Fix<F>>: Eq {}
+impl<F: FunctorHKT> Eq for Fix<F> where F::Target<Self>: Eq {}
 
 #[cfg(feature = "alloc")]
 impl<F: FunctorHKT> Fix<F> {
     /// Creates a new `Fix`.
     #[inline]
-    pub fn new(x: F::Target<Fix<F>>) -> Self {
-        Fix(Box::new(x))
+    pub fn new(x: F::Target<Self>) -> Self {
+        Self(Box::new(x))
     }
 
     /// Unwraps one layer of the fixed point.
     #[inline]
-    pub fn unfix(self) -> F::Target<Fix<F>> {
+    #[must_use]
+    pub fn unfix(self) -> F::Target<Self> {
         *self.0
     }
 
@@ -100,8 +101,8 @@ impl<F: FunctorHKT> Fix<F> {
         Coalg: FnMut(A) -> F::Target<A>,
     {
         let layer = coalg(a);
-        let mapped = F::map(layer, |sub| Fix::ana_impl(sub, coalg));
-        Fix::new(mapped)
+        let mapped = F::map(layer, |sub| Self::ana_impl(sub, coalg));
+        Self::new(mapped)
     }
 }
 

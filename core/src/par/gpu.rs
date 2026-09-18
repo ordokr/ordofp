@@ -20,6 +20,7 @@ pub struct GpuMapChain {
 impl GpuMapChain {
     /// Create a new GPU map chain.
     #[inline]
+    #[must_use]
     pub fn new(source_len: usize) -> Self {
         Self {
             source_len,
@@ -36,6 +37,7 @@ impl GpuMapChain {
 
     /// Compose all operations into a single WGSL expression.
     #[inline]
+    #[must_use]
     pub fn compose_wgsl(&self) -> alloc::string::String {
         if self.operations.is_empty() {
             return alloc::string::String::from("x");
@@ -53,7 +55,7 @@ impl GpuMapChain {
 
 /// True if `b` can be part of a WGSL identifier (`[A-Za-z0-9_]`).
 #[inline]
-fn is_ident_byte(b: u8) -> bool {
+const fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
@@ -85,7 +87,7 @@ fn replace_ident_x(op: &str, replacement: &str) -> alloc::string::String {
 // NodusGpuMap - GPU-capable map with WGSL expression
 // =============================================================================
 
-pub(crate) struct NodusGpuMap<T> {
+pub(super) struct NodusGpuMap<T> {
     /// Previous node.
     pub(crate) prev: Arc<dyn Nodus<Item = T>>,
     /// WGSL expression (uses 'x' as input variable).
@@ -97,18 +99,18 @@ pub(crate) struct NodusGpuMap<T> {
 impl<T: backend::wgpu::GpuScalar + Clone> Nodus for NodusGpuMap<T> {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.prev.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         let f = &self.fallback;
         self.prev.visit_scalar_ref(&mut |a| sink(f(*a)));
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         let f = &self.fallback;
         self.prev.visit_scalar_ref(&mut |a| {
@@ -117,12 +119,12 @@ impl<T: backend::wgpu::GpuScalar + Clone> Nodus for NodusGpuMap<T> {
         });
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         self.prev.is_indexed()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         let a = self.prev.get(index);
         (self.fallback)(a)
@@ -147,38 +149,38 @@ impl<T: backend::wgpu::GpuScalar + Clone> Nodus for NodusGpuMap<T> {
 // NodusInitGpu - Source node for Pod data with GPU support
 // =============================================================================
 
-pub(crate) struct NodusInitGpu<T> {
+pub(super) struct NodusInitGpu<T> {
     pub(crate) data: Vec<T>,
 }
 
 impl<T: backend::wgpu::GpuScalar + Clone> Nodus for NodusInitGpu<T> {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.data.len()
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar(&self, sink: &mut dyn FnMut(Self::Item)) {
         for item in &self.data {
             sink(*item);
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn visit_scalar_ref(&self, sink: &mut dyn FnMut(&Self::Item)) {
         for item in &self.data {
             sink(item);
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_indexed(&self) -> bool {
         true
     }
 
-    #[inline(always)]
+    #[inline]
     fn get(&self, index: usize) -> Self::Item {
         self.data[index]
     }

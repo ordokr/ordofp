@@ -5,7 +5,7 @@
 use ordofp_core::async_core::Futurus;
 
 // Helper to statically assert Unpin implementation
-fn assert_unpin<T: Unpin>() {}
+const fn assert_unpin<T: Unpin>() {}
 
 #[test]
 fn test_futurus_unpin_correctness() {

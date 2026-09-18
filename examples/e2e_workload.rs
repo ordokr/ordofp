@@ -62,18 +62,28 @@ fn main() {
     );
     println!("setup_ms={:.2}", setup.as_secs_f64() * 1e3);
     let work_ns: u64 = phase_total.iter().sum();
+    // Exact below 2^53 ns (104 days); saturates beyond. Reassembled
+    // through 32-bit halves: every step is exact.
+    let to_f64 = |v: u64| {
+        if v < 9_007_199_254_740_992 {
+            f64::from(u32::try_from(v >> 32).expect("53-bit value fits in u32")) * 4_294_967_296.0
+                + f64::from(u32::try_from(v & 0xFFFF_FFFF).expect("masked to 32 bits"))
+        } else {
+            9_007_199_254_740_992.0
+        }
+    };
     for (name, ns) in workload::PHASES.iter().zip(phase_total) {
         println!(
             "phase={name} total_ms={:.2} share={:.1}% per_rep_us={:.1}",
-            ns as f64 / 1e6,
-            ns as f64 * 100.0 / work_ns as f64,
-            ns as f64 / 1e3 / cfg.reps as f64
+            to_f64(ns) / 1e6,
+            to_f64(ns) * 100.0 / to_f64(work_ns),
+            to_f64(ns) / 1e3 / f64::from(u32::try_from(cfg.reps).expect("rep count fits in u32"))
         );
     }
     println!(
         "work_ms={:.2} (timed_phases_ms={:.2})",
         work.as_secs_f64() * 1e3,
-        work_ns as f64 / 1e6
+        to_f64(work_ns) / 1e6
     );
     println!(
         "grades_per_rep={grades} valid_grades={} errored_students={} errors={}",

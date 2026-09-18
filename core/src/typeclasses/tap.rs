@@ -53,6 +53,7 @@ pub trait Tap: Sized {
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
+    #[must_use]
     fn tap<F>(self, f: F) -> Self
     where
         F: FnOnce(&Self),
@@ -75,6 +76,7 @@ pub trait Tap: Sized {
     /// assert_eq!(result, vec![1, 2, 3, 4]);
     /// ```
     #[inline]
+    #[must_use]
     fn tap_mut<F>(mut self, f: F) -> Self
     where
         F: FnOnce(&mut Self),
@@ -96,6 +98,7 @@ pub trait Tap: Sized {
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
+    #[must_use]
     fn tap_debug(self) -> Self
     where
         Self: Debug,
@@ -118,6 +121,7 @@ pub trait Tap: Sized {
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
+    #[must_use]
     fn tap_debug_label(self, label: &str) -> Self
     where
         Self: Debug,
@@ -141,6 +145,7 @@ pub trait Tap: Sized {
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
+    #[must_use]
     fn tap_if<P, F>(self, pred: P, f: F) -> Self
     where
         P: FnOnce(&Self) -> bool,
@@ -174,6 +179,7 @@ pub trait TapOption<T>: Sized {
     /// let result = none.tap_some(|x| println!("Got: {}", x)); // Closure not called
     /// assert_eq!(result, None);
     /// ```
+    #[must_use]
     fn tap_some<F>(self, f: F) -> Self
     where
         F: FnOnce(&T);
@@ -189,6 +195,7 @@ pub trait TapOption<T>: Sized {
     /// let result = none.tap_none(|| println!("Value is None"));
     /// assert_eq!(result, None);
     /// ```
+    #[must_use]
     fn tap_none<F>(self, f: F) -> Self
     where
         F: FnOnce();
@@ -233,6 +240,7 @@ pub trait TapResult<T, E>: Sized {
     /// let result = ok.tap_ok(|x| println!("Success: {}", x));
     /// assert_eq!(result, Ok(42));
     /// ```
+    #[must_use]
     fn tap_ok<F>(self, f: F) -> Self
     where
         F: FnOnce(&T);
@@ -248,6 +256,7 @@ pub trait TapResult<T, E>: Sized {
     /// let result = err.tap_err(|e| println!("Error: {}", e));
     /// assert_eq!(result, Err("error"));
     /// ```
+    #[must_use]
     fn tap_err<F>(self, f: F) -> Self
     where
         F: FnOnce(&E);

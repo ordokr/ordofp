@@ -19,21 +19,21 @@ use std::hint::black_box;
 /// with no call into `ordofp_core`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn probe_get<'a>(m: &'a OrdMap<String, String>, k: &str) -> Option<&'a String> {
+pub extern "Rust" fn probe_get<'a>(m: &'a OrdMap<String, String>, k: &str) -> Option<&'a String> {
     m.get(k)
 }
 
 /// `ImmutableFormState::is_touched`/`has_errors` pattern.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn probe_contains(m: &OrdMap<String, String>, k: &str) -> bool {
+pub extern "Rust" fn probe_contains(m: &OrdMap<String, String>, k: &str) -> bool {
     m.contains_key(k)
 }
 
 /// `OrdSet`<String> membership by &str (UI-style tag/flag sets).
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn probe_set_contains(s: &OrdSet<String>, k: &str) -> bool {
+pub extern "Rust" fn probe_set_contains(s: &OrdSet<String>, k: &str) -> bool {
     s.contains(k)
 }
 

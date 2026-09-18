@@ -84,7 +84,7 @@ impl<W: Unitas + Clone, A> Scriptor<W, A> {
     /// ```
     #[inline]
     pub const fn new(log: W, value: A) -> Self {
-        Scriptor { log, value }
+        Self { log, value }
     }
 
     /// Creates a Scriptor with the given log and the unit value `()`.
@@ -186,13 +186,13 @@ impl<W: Unitas + Clone, A> Scriptor<W, A> {
 
     /// Returns a reference to the value.
     #[inline]
-    pub fn value_ref(&self) -> &A {
+    pub const fn value_ref(&self) -> &A {
         &self.value
     }
 
     /// Returns a reference to the log.
     #[inline]
-    pub fn log_ref(&self) -> &W {
+    pub const fn log_ref(&self) -> &W {
         &self.log
     }
 
@@ -339,11 +339,12 @@ impl<W: Unitas + Clone, A> Scriptor<W, A> {
     /// assert_eq!(log, vec!["ORIGINAL".to_string()]);
     /// ```
     #[inline]
-    pub fn censor<F>(self, f: F) -> Scriptor<W, A>
+    #[must_use]
+    pub fn censor<F>(self, f: F) -> Self
     where
         F: FnOnce(W) -> W,
     {
-        Scriptor {
+        Self {
             log: f(self.log),
             value: self.value,
         }
@@ -353,7 +354,7 @@ impl<W: Unitas + Clone, A> Scriptor<W, A> {
 impl<W: Unitas + Clone, A: Clone + Unitas> Compositio for Scriptor<W, A> {
     #[inline]
     fn combine(&self, other: &Self) -> Self {
-        Scriptor {
+        Self {
             log: self.log.combine(&other.log),
             value: self.value.combine(&other.value),
         }
@@ -363,7 +364,7 @@ impl<W: Unitas + Clone, A: Clone + Unitas> Compositio for Scriptor<W, A> {
 impl<W: Unitas + Clone, A: Clone + Unitas> Unitas for Scriptor<W, A> {
     #[inline]
     fn empty() -> Self {
-        Scriptor {
+        Self {
             log: W::empty(),
             value: A::empty(),
         }

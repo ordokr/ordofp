@@ -16,11 +16,11 @@ pub enum Nope {
     AgeNope,
 }
 
-fn get_name(ok: bool) -> Result<&'static str, Nope> {
+const fn get_name(ok: bool) -> Result<&'static str, Nope> {
     if ok { Ok("James") } else { Err(Nope::NameNope) }
 }
 
-fn get_age(ok: bool) -> Result<usize, Nope> {
+const fn get_age(ok: bool) -> Result<usize, Nope> {
     if ok { Ok(32) } else { Err(Nope::AgeNope) }
 }
 

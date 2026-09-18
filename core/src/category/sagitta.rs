@@ -291,12 +291,14 @@ pub mod fn_arrows {
 
     /// Identity function.
     #[inline]
+    #[must_use]
     pub fn id<A: 'static>() -> BoxedFn<A, A> {
         Box::new(|a| a)
     }
 
     /// Compose two boxed functions.
     #[inline]
+    #[must_use]
     pub fn compose<A: 'static, B: 'static, C: 'static>(
         f: BoxedFn<B, C>,
         g: BoxedFn<A, B>,
@@ -315,18 +317,21 @@ pub mod fn_arrows {
 
     /// Apply arrow to first element of pair.
     #[inline]
+    #[must_use]
     pub fn first<A: 'static, B: 'static, C: 'static>(f: BoxedFn<A, B>) -> BoxedFn<(A, C), (B, C)> {
         Box::new(move |(a, c)| (f(a), c))
     }
 
     /// Apply arrow to second element of pair.
     #[inline]
+    #[must_use]
     pub fn second<A: 'static, B: 'static, C: 'static>(f: BoxedFn<B, C>) -> BoxedFn<(A, B), (A, C)> {
         Box::new(move |(a, b)| (a, f(b)))
     }
 
     /// Split - apply two arrows in parallel.
     #[inline]
+    #[must_use]
     pub fn split<A: 'static, B: 'static, C: 'static, D: 'static>(
         f: BoxedFn<A, B>,
         g: BoxedFn<C, D>,
@@ -336,6 +341,7 @@ pub mod fn_arrows {
 
     /// Left choice - apply arrow to left side of Aut.
     #[inline]
+    #[must_use]
     pub fn sinister<A: 'static, B: 'static, C: 'static>(
         f: BoxedFn<A, B>,
     ) -> BoxedFn<Aut<A, C>, Aut<B, C>> {
@@ -347,6 +353,7 @@ pub mod fn_arrows {
 
     /// Right choice - apply arrow to right side of Aut.
     #[inline]
+    #[must_use]
     pub fn dexter<A: 'static, B: 'static, C: 'static>(
         f: BoxedFn<B, C>,
     ) -> BoxedFn<Aut<A, B>, Aut<A, C>> {
@@ -358,6 +365,7 @@ pub mod fn_arrows {
 
     /// Fanin - merge two arrows that produce the same type.
     #[inline]
+    #[must_use]
     pub fn confluo<A: 'static, B: 'static, C: 'static>(
         f: BoxedFn<A, C>,
         g: BoxedFn<B, C>,
@@ -370,6 +378,7 @@ pub mod fn_arrows {
 
     /// Sum - apply different arrows to both sides of Aut.
     #[inline]
+    #[must_use]
     pub fn addo<A: 'static, B: 'static, C: 'static, D: 'static>(
         f: BoxedFn<A, C>,
         g: BoxedFn<B, D>,
@@ -382,12 +391,14 @@ pub mod fn_arrows {
 
     /// Application arrow - apply an arrow to a value.
     #[inline]
+    #[must_use]
     pub fn applicatio<A: 'static, B: 'static>() -> BoxedFn<(BoxedFn<A, B>, A), B> {
         Box::new(|(f, a): (BoxedFn<A, B>, A)| f(a))
     }
 
     /// Loop with default feedback value.
     #[inline]
+    #[must_use]
     pub fn circulus<B: 'static, C: 'static, D: Default + 'static>(
         f: BoxedFn<(B, D), (C, D)>,
     ) -> BoxedFn<B, C> {
@@ -437,20 +448,19 @@ where
 #[inline]
 pub fn coalesco<A>(aut: Aut<A, A>) -> A {
     match aut {
-        Aut::Sinister(a) => a,
-        Aut::Dexter(a) => a,
+        Aut::Sinister(a) | Aut::Dexter(a) => a,
     }
 }
 
 /// Inject a value into the left side of an Aut.
 #[inline]
-pub fn inicio_sinister<A, B>(a: A) -> Aut<A, B> {
+pub const fn inicio_sinister<A, B>(a: A) -> Aut<A, B> {
     Aut::sinister(a)
 }
 
 /// Inject a value into the right side of an Aut.
 #[inline]
-pub fn inicio_dexter<A, B>(b: B) -> Aut<A, B> {
+pub const fn inicio_dexter<A, B>(b: B) -> Aut<A, B> {
     Aut::dexter(b)
 }
 
@@ -523,7 +533,8 @@ mod tests {
     #[test]
     fn test_fn_arrows_confluo() {
         let f: BoxedFn<i32, i32> = Box::new(|x| x * 2);
-        let g: BoxedFn<&str, i32> = Box::new(|s| s.len() as i32);
+        let g: BoxedFn<&str, i32> =
+            Box::new(|s| i32::try_from(s.len()).expect("test string length fits in i32"));
         let fanin = confluo(f, g);
 
         assert_eq!(fanin(Aut::sinister(21)), 42);

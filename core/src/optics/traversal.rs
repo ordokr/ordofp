@@ -67,21 +67,18 @@ where
     where
         F::Target<S>: Applicatio<Inner = S>,
     {
-        if let Some(a) = self.preview(&s) {
-            let fb = f(a);
-            fb.map(move |b| self.review(b))
-        } else {
-            F::pure_target(s)
-        }
+        self.preview(&s).map_or_else(
+            || F::pure_target(s),
+            |a| {
+                let fb = f(a);
+                fb.map(move |b| self.review(b))
+            },
+        )
     }
 
     #[inline]
     fn modify(&self, s: S, f: impl Fn(A) -> A) -> S {
-        if let Some(val) = self.modify(&s, f) {
-            val
-        } else {
-            s
-        }
+        self.modify(&s, f).unwrap_or(s)
     }
 
     #[cfg(feature = "alloc")]

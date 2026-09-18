@@ -43,8 +43,9 @@ pub struct EffectRowDisplay {
 impl EffectRowDisplay {
     /// Create an empty row.
     #[inline]
-    pub fn empty() -> Self {
-        EffectRowDisplay {
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
             effects: Vec::new(),
             is_open: false,
             tail_var: None,
@@ -53,8 +54,9 @@ impl EffectRowDisplay {
 
     /// Create a closed row with specific effects.
     #[inline]
-    pub fn closed(effects: Vec<EffectInfo>) -> Self {
-        EffectRowDisplay {
+    #[must_use]
+    pub const fn closed(effects: Vec<EffectInfo>) -> Self {
+        Self {
             effects,
             is_open: false,
             tail_var: None,
@@ -64,7 +66,7 @@ impl EffectRowDisplay {
     /// Create an open row with a tail variable.
     #[inline]
     pub fn open(effects: Vec<EffectInfo>, tail_var: impl Into<String>) -> Self {
-        EffectRowDisplay {
+        Self {
             effects,
             is_open: true,
             tail_var: Some(tail_var.into()),
@@ -73,6 +75,7 @@ impl EffectRowDisplay {
 
     /// Add an effect to the row.
     #[inline]
+    #[must_use]
     pub fn with_effect(mut self, effect: EffectInfo) -> Self {
         self.effects.push(effect);
         self
@@ -126,7 +129,7 @@ pub struct EffectInfo {
 impl EffectInfo {
     /// Create a new effect info.
     pub fn new(name: impl Into<String>) -> Self {
-        EffectInfo {
+        Self {
             name: name.into(),
             type_params: Vec::new(),
             description: None,
@@ -135,24 +138,28 @@ impl EffectInfo {
     }
 
     /// Add a type parameter.
+    #[must_use]
     pub fn with_param(mut self, param: impl Into<String>) -> Self {
         self.type_params.push(param.into());
         self
     }
 
     /// Set the description.
+    #[must_use]
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self
     }
 
     /// Mark as a core effect.
-    pub fn core(mut self) -> Self {
+    #[must_use]
+    pub const fn core(mut self) -> Self {
         self.is_core_effect = true;
         self
     }
 
     /// Common core effects.
+    #[must_use]
     pub fn io() -> Self {
         Self::new("IO")
             .with_description("Performs input/output operations")
@@ -200,6 +207,7 @@ impl EffectInfo {
     }
 
     /// Create an [`EffectInfo`] for the `Async` core effect.
+    #[must_use]
     pub fn async_effect() -> Self {
         Self::new("Async")
             .with_description("Performs asynchronous operations")
@@ -233,7 +241,7 @@ pub struct ComputationTypeDisplay {
 impl ComputationTypeDisplay {
     /// Create a new computation type display.
     pub fn new(effects: EffectRowDisplay, return_type: impl Into<String>) -> Self {
-        ComputationTypeDisplay {
+        Self {
             effects,
             return_type: return_type.into(),
         }
@@ -241,7 +249,7 @@ impl ComputationTypeDisplay {
 
     /// Create a pure computation (no effects).
     pub fn pure(return_type: impl Into<String>) -> Self {
-        ComputationTypeDisplay {
+        Self {
             effects: EffectRowDisplay::empty(),
             return_type: return_type.into(),
         }
@@ -263,6 +271,7 @@ impl fmt::Display for ComputationTypeDisplay {
 // =============================================================================
 
 /// Format a type name for display.
+#[must_use]
 pub fn format_type_name(type_name: &str) -> String {
     // Remove common prefixes and make more readable
     let cleaned = type_name
@@ -295,6 +304,7 @@ pub fn format_type_name(type_name: &str) -> String {
 }
 
 /// Format an effect row type for display.
+#[must_use]
 pub fn format_effect_row(row_type: &str) -> String {
     // Parse and format effect row syntax
     // RowExtensio<State<S>, RowExtensio<IO, RowVacuus>> -> State<S> | IO

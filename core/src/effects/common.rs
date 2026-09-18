@@ -38,8 +38,9 @@ impl Effectus for IoEffectus {}
 
 impl IoEffectus {
     /// Create a new IO effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        IoEffectus
+        Self
     }
 }
 
@@ -75,8 +76,9 @@ impl<S: Send + Sync + 'static> Effectus for StatusEffectus<S> {}
 
 impl<S> StatusEffectus<S> {
     /// Create a new state effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        StatusEffectus {
+        Self {
             _phantom: PhantomData,
         }
     }
@@ -112,8 +114,9 @@ impl<E: Send + Sync + 'static> Effectus for ErrorEffectus<E> {}
 
 impl<E> ErrorEffectus<E> {
     /// Create a new error effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        ErrorEffectus {
+        Self {
             _phantom: PhantomData,
         }
     }
@@ -147,8 +150,9 @@ impl Effectus for AsyncEffectus {}
 
 impl AsyncEffectus {
     /// Create a new async effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        AsyncEffectus
+        Self
     }
 }
 
@@ -192,8 +196,9 @@ impl<R: Send + Sync + 'static> Effectus for ReaderEffectus<R> {}
 
 impl<R> ReaderEffectus<R> {
     /// Create a new reader effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        ReaderEffectus {
+        Self {
             _phantom: PhantomData,
         }
     }
@@ -213,8 +218,9 @@ impl<W: Send + Sync + 'static> Effectus for ScriptorEffectus<W> {}
 
 impl<W> ScriptorEffectus<W> {
     /// Create a new writer effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        ScriptorEffectus {
+        Self {
             _phantom: PhantomData,
         }
     }
@@ -232,8 +238,9 @@ impl Effectus for RandomEffectus {}
 
 impl RandomEffectus {
     /// Create a new random effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        RandomEffectus
+        Self
     }
 }
 
@@ -249,8 +256,9 @@ impl Effectus for TempusEffectus {}
 
 impl TempusEffectus {
     /// Create a new time effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        TempusEffectus
+        Self
     }
 }
 
@@ -268,8 +276,9 @@ impl<R: Send + Sync + 'static> Effectus for ResourceEffectus<R> {}
 
 impl<R> ResourceEffectus<R> {
     /// Create a new resource effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        ResourceEffectus {
+        Self {
             _phantom: PhantomData,
         }
     }
@@ -287,8 +296,9 @@ impl Effectus for PurusEffectus {}
 
 impl PurusEffectus {
     /// Create a new pure effect marker.
+    #[must_use]
     pub const fn new() -> Self {
-        PurusEffectus
+        Self
     }
 }
 

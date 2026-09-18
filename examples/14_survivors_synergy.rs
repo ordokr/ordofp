@@ -1,6 +1,6 @@
 //! Survivors Synergy Example: Deep Multi-Subsystem Integration
 //!
-//! Demonstrates the combination of OrdoFP's core survivors:
+//! Demonstrates the combination of `OrdoFP`'s core survivors:
 //! 1. Heterogeneous Field Validation (`HList` + `Validated` + `Universalis`)
 //! 2. Deep Struct Modification with Optics (`Lens` + `Validated`)
 //! 3. Batch Collection Validation (`IteratorValidateExt::validate_all`)
@@ -73,7 +73,7 @@ struct ClassSummary {
 
 impl Compositio for ClassSummary {
     fn combine(&self, other: &Self) -> Self {
-        ClassSummary {
+        Self {
             total_students: self.total_students + other.total_students,
             total_score: self.total_score + other.total_score,
             passing_students: self.passing_students + other.passing_students,
@@ -83,13 +83,13 @@ impl Compositio for ClassSummary {
 
 impl Unitas for ClassSummary {
     fn empty() -> Self {
-        ClassSummary::default()
+        Self::default()
     }
 }
 
 impl ClassSummary {
     fn from_student(s: &StudentProfile) -> Self {
-        ClassSummary {
+        Self {
             total_students: 1,
             total_score: s.score,
             passing_students: usize::from(s.score >= 60),
@@ -100,7 +100,8 @@ impl ClassSummary {
         if self.total_students == 0 {
             0.0
         } else {
-            self.total_score as f64 / self.total_students as f64
+            f64::from(self.total_score)
+                / f64::from(u32::try_from(self.total_students).expect("student count fits in u32"))
         }
     }
 }

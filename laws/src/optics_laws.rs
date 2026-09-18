@@ -4,14 +4,14 @@
 //!
 //! ## Lens laws
 //!
-//! - **GetPut**: `set(s, get(s)) == s` — writing back what you read changes nothing.
-//! - **PutGet**: `get(set(s, a)) == a` — you read what you wrote.
-//! - **PutPut**: `set(set(s, a1), a2) == set(s, a2)` — the last write wins.
+//! - **`GetPut`**: `set(s, get(s)) == s` — writing back what you read changes nothing.
+//! - **`PutGet`**: `get(set(s, a)) == a` — you read what you wrote.
+//! - **`PutPut`**: `set(set(s, a1), a2) == set(s, a2)` — the last write wins.
 //!
 //! ## Prism laws
 //!
-//! - **PreviewReview**: `preview(review(a)) == Some(a)` — a built variant matches itself.
-//! - **ReviewPreview**: if `preview(s) == Some(a)` then `review(a) == s` — a match
+//! - **`PreviewReview`**: `preview(review(a)) == Some(a)` — a built variant matches itself.
+//! - **`ReviewPreview`**: if `preview(s) == Some(a)` then `review(a) == s` — a match
 //!   loses no information beyond the variant tag.
 //!
 //! ## Usage
@@ -31,7 +31,7 @@
 
 use ordofp::optics::{Aspectus, Divisio};
 
-/// **GetPut law**: writing back the value you just read is a no-op.
+/// **`GetPut` law**: writing back the value you just read is a no-op.
 ///
 /// ```text
 /// set(s, get(s)) == s
@@ -45,21 +45,21 @@ where
     lens.set(s, lens.get(s)) == *s
 }
 
-/// **PutGet law**: you read exactly what you wrote.
+/// **`PutGet` law**: you read exactly what you wrote.
 ///
 /// ```text
 /// get(set(s, a)) == a
 /// ```
-pub fn lens_put_get<S, A, GetFn, SetFn>(lens: &Aspectus<S, A, GetFn, SetFn>, s: &S, a: A) -> bool
+pub fn lens_put_get<S, A, GetFn, SetFn>(lens: &Aspectus<S, A, GetFn, SetFn>, s: &S, a: &A) -> bool
 where
     A: Clone + PartialEq,
     GetFn: Fn(&S) -> A,
     SetFn: Fn(&S, A) -> S,
 {
-    lens.get(&lens.set(s, a.clone())) == a
+    lens.get(&lens.set(s, a.clone())) == *a
 }
 
-/// **PutPut law**: the second write completely overwrites the first.
+/// **`PutPut` law**: the second write completely overwrites the first.
 ///
 /// ```text
 /// set(set(s, a1), a2) == set(s, a2)
@@ -79,7 +79,7 @@ where
     lens.set(&lens.set(s, a1), a2.clone()) == lens.set(s, a2)
 }
 
-/// **PreviewReview law**: a freshly built variant matches itself.
+/// **`PreviewReview` law**: a freshly built variant matches itself.
 ///
 /// ```text
 /// preview(review(a)) == Some(a)
@@ -96,7 +96,7 @@ where
     prism.preview(&prism.review(a.clone())) == Some(a)
 }
 
-/// **ReviewPreview law**: matching then rebuilding reproduces the source.
+/// **`ReviewPreview` law**: matching then rebuilding reproduces the source.
 ///
 /// Holds vacuously when the prism does not match `s`.
 ///
@@ -112,10 +112,7 @@ where
     PreviewFn: Fn(&S) -> Option<A>,
     ReviewFn: Fn(A) -> S,
 {
-    match prism.preview(s) {
-        Some(a) => prism.review(a) == *s,
-        None => true,
-    }
+    prism.preview(s).is_none_or(|a| prism.review(a) == *s)
 }
 
 #[cfg(test)]
@@ -157,7 +154,7 @@ mod tests {
         }
 
         fn point_x_lens_put_get(x: i32, y: i32, a: i32) -> bool {
-            lens_put_get(&x_lens(), &Point { x, y }, a)
+            lens_put_get(&x_lens(), &Point { x, y }, &a)
         }
 
         fn point_x_lens_put_put(x: i32, y: i32, a1: i32, a2: i32) -> bool {
@@ -174,11 +171,11 @@ mod tests {
         }
     }
 
-    /// An unlawful lens (setter ignores the value) must be caught by PutGet —
+    /// An unlawful lens (setter ignores the value) must be caught by `PutGet` —
     /// the laws are only worth shipping if they can actually fail.
     #[test]
     fn unlawful_lens_fails_put_get() {
         let broken = aspectus(|p: &Point| p.x, |p: &Point, _x: i32| p.clone());
-        assert!(!lens_put_get(&broken, &Point { x: 1, y: 2 }, 42));
+        assert!(!lens_put_get(&broken, &Point { x: 1, y: 2 }, &42));
     }
 }

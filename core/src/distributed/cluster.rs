@@ -51,7 +51,7 @@ pub struct ConfiguratioGregis {
 
 impl Default for ConfiguratioGregis {
     fn default() -> Self {
-        ConfiguratioGregis {
+        Self {
             nomen: String::from(DEFAULT_CLUSTER_NAME),
             inventio: MethodusInventionis::Staticus(Vec::new()),
             intervallum_pulsationis: Duration::from_secs(5),
@@ -67,38 +67,43 @@ impl Default for ConfiguratioGregis {
 impl ConfiguratioGregis {
     /// Create a new cluster configuration with a name.
     pub fn new(nomen: impl Into<String>) -> Self {
-        ConfiguratioGregis {
+        Self {
             nomen: nomen.into(),
             ..Default::default()
         }
     }
 
     /// Set discovery method.
+    #[must_use]
     pub fn with_discovery(mut self, inventio: MethodusInventionis) -> Self {
         self.inventio = inventio;
         self
     }
 
     /// Set heartbeat interval.
-    pub fn with_heartbeat(mut self, interval: Duration) -> Self {
+    #[must_use]
+    pub const fn with_heartbeat(mut self, interval: Duration) -> Self {
         self.intervallum_pulsationis = interval;
         self
     }
 
     /// Set node timeout.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn with_timeout(mut self, timeout: Duration) -> Self {
         self.mora_nodi = timeout;
         self
     }
 
     /// Set replication factor.
-    pub fn with_replication(mut self, factor: u8) -> Self {
+    #[must_use]
+    pub const fn with_replication(mut self, factor: u8) -> Self {
         self.factor_replicationis = factor;
         self
     }
 
     /// Set consensus protocol.
-    pub fn with_consensus(mut self, protocol: ProtocollumConsensus) -> Self {
+    #[must_use]
+    pub const fn with_consensus(mut self, protocol: ProtocollumConsensus) -> Self {
         self.protocollum_consensus = protocol;
         self
     }
@@ -231,8 +236,9 @@ pub struct StatusGregis {
 impl StatusGregis {
     /// Create initial cluster state.
     #[inline]
+    #[must_use]
     pub fn new(configuratio: ConfiguratioGregis) -> Self {
-        StatusGregis {
+        Self {
             configuratio,
             nodi: Vec::with_capacity(16),
             dux: None,
@@ -255,6 +261,7 @@ impl StatusGregis {
     }
 
     /// Get node by ID.
+    #[must_use]
     pub fn get_node(&self, id: NodusIdentitas) -> Option<&InformationesNodi> {
         self.nodi.iter().find(|n| n.identitas == id)
     }
@@ -314,6 +321,7 @@ impl StatusGregis {
     }
 
     /// Check if cluster has quorum.
+    #[must_use]
     pub fn has_quorum(&self) -> bool {
         let total = self.nodi.len();
         let healthy = self.nodi.iter().filter(|n| n.is_healthy()).count();
@@ -340,11 +348,11 @@ pub enum SalusGregis {
 impl fmt::Display for SalusGregis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SalusGregis::Unknown => write!(f, "unknown"),
-            SalusGregis::Sanus => write!(f, "healthy"),
-            SalusGregis::Degradatus => write!(f, "degraded"),
-            SalusGregis::Criticus => write!(f, "critical"),
-            SalusGregis::Mortuus => write!(f, "dead"),
+            Self::Unknown => write!(f, "unknown"),
+            Self::Sanus => write!(f, "healthy"),
+            Self::Degradatus => write!(f, "degraded"),
+            Self::Criticus => write!(f, "critical"),
+            Self::Mortuus => write!(f, "dead"),
         }
     }
 }
@@ -368,8 +376,9 @@ pub struct AdministratorGregis {
 
 impl AdministratorGregis {
     /// Create a new cluster manager.
+    #[must_use]
     pub fn new(nodus_localis: NodusIdentitas, configuratio: ConfiguratioGregis) -> Self {
-        AdministratorGregis {
+        Self {
             nodus_localis,
             status: StatusGregis::new(configuratio),
             inventor: None,
@@ -377,17 +386,20 @@ impl AdministratorGregis {
     }
 
     /// Set the discovery provider.
+    #[must_use]
     pub fn with_discovery(mut self, inventor: Arc<dyn InventorNodorum>) -> Self {
         self.inventor = Some(inventor);
         self
     }
 
     /// Check if this node is the leader.
+    #[must_use]
     pub fn is_leader(&self) -> bool {
         self.status.dux == Some(self.nodus_localis)
     }
 
     /// Get the current leader.
+    #[must_use]
     pub fn leader(&self) -> Option<&InformationesNodi> {
         self.status.dux.and_then(|id| self.status.get_node(id))
     }
@@ -429,6 +441,7 @@ impl AdministratorGregis {
     }
 
     /// Select nodes for a computation.
+    #[must_use]
     pub fn select_nodes(&self, required_effects: &[u64], count: usize) -> Vec<&InformationesNodi> {
         let total = self.status.nodi.len();
         let mut candidates: Vec<_> = Vec::with_capacity(total);
@@ -539,14 +552,14 @@ pub enum ErrorGregis {
 impl fmt::Display for ErrorGregis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorGregis::Inventio(msg) => write!(f, "Discovery error: {msg}"),
-            ErrorGregis::Consensus(msg) => write!(f, "Consensus error: {msg}"),
-            ErrorGregis::Rete(msg) => write!(f, "Network error: {msg}"),
-            ErrorGregis::Configuratio(msg) => write!(f, "Configuration error: {msg}"),
-            ErrorGregis::NodusNonInventus(id) => write!(f, "Node not found: {id:?}"),
-            ErrorGregis::SineQuorum => write!(f, "No quorum"),
-            ErrorGregis::IamConiunctus => write!(f, "Already joined cluster"),
-            ErrorGregis::NonConiunctus => write!(f, "Not joined to cluster"),
+            Self::Inventio(msg) => write!(f, "Discovery error: {msg}"),
+            Self::Consensus(msg) => write!(f, "Consensus error: {msg}"),
+            Self::Rete(msg) => write!(f, "Network error: {msg}"),
+            Self::Configuratio(msg) => write!(f, "Configuration error: {msg}"),
+            Self::NodusNonInventus(id) => write!(f, "Node not found: {id:?}"),
+            Self::SineQuorum => write!(f, "No quorum"),
+            Self::IamConiunctus => write!(f, "Already joined cluster"),
+            Self::NonConiunctus => write!(f, "Not joined to cluster"),
         }
     }
 }
@@ -563,7 +576,10 @@ mod tests {
     fn test_node(id: u64) -> InformationesNodi {
         InformationesNodi {
             identitas: NodusIdentitas::new(0, id),
-            inscriptio: InscriptioNodi::new("localhost", 8080 + id as u16),
+            inscriptio: InscriptioNodi::new(
+                "localhost",
+                8080 + u16::try_from(id).expect("test node id fits in u16"),
+            ),
             munus: MunusNodi::Executor,
             status: StatusNodi::Sanus,
             facultates: FacultatesNodi::default(),

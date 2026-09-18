@@ -88,9 +88,9 @@ pub enum IoComputation<A> {
 
 impl<A: 'static> IoComputation<A> {
     /// Create a new IO computation from a function.
-    #[inline(always)]
+    #[inline]
     pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
-        IoComputation::Perform(Box::new(f))
+        Self::Perform(Box::new(f))
     }
 
     /// Run the IO computation, performing side effects.
@@ -98,31 +98,31 @@ impl<A: 'static> IoComputation<A> {
     /// # Safety
     ///
     /// This actually performs I/O operations. Only call at program boundaries.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> A {
         match self {
-            IoComputation::Pure(a) => a,
-            IoComputation::Perform(f) => f(),
+            Self::Pure(a) => a,
+            Self::Perform(f) => f(),
         }
     }
 
     /// Pure value in IO context - NO HEAP ALLOCATION.
-    #[inline(always)]
-    pub fn pure(value: A) -> Self {
-        IoComputation::Pure(value)
+    #[inline]
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: 'static, F: FnOnce(A) -> B + 'static>(self, f: F) -> IoComputation<B> {
         match self {
-            IoComputation::Pure(a) => IoComputation::Pure(f(a)),
-            IoComputation::Perform(run_fn) => IoComputation::Perform(Box::new(move || f(run_fn()))),
+            Self::Pure(a) => IoComputation::Pure(f(a)),
+            Self::Perform(run_fn) => IoComputation::Perform(Box::new(move || f(run_fn()))),
         }
     }
 
     /// Chain two IO computations.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B: 'static, F: FnOnce(A) -> IoComputation<B> + 'static>(
         self,
         f: F,
@@ -134,14 +134,14 @@ impl<A: 'static> IoComputation<A> {
     }
 
     /// Sequence, discarding the first result.
-    #[inline(always)]
+    #[inline]
     pub fn then<B: 'static>(self, next: IoComputation<B>) -> IoComputation<B> {
         self.and_then(move |_| next)
     }
 
     /// Sequence, discarding the second result.
-    #[inline(always)]
-    pub fn before<B: 'static>(self, next: IoComputation<B>) -> IoComputation<A> {
+    #[inline]
+    pub fn before<B: 'static>(self, next: IoComputation<B>) -> Self {
         self.and_then(move |a| next.map(move |_| a))
     }
 }
@@ -259,7 +259,7 @@ mod tests {
 
         let counter = Rc::new(Cell::new(0));
         let counter1 = counter.clone();
-        let counter2 = counter.clone();
+        let counter2 = counter;
 
         let comp = IoComputation::new(move || {
             counter1.set(counter1.get() + 1);

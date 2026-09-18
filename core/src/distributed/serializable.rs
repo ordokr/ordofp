@@ -27,8 +27,9 @@ pub struct NodusId(pub u64);
 impl NodusId {
     /// Create a new node ID.
     #[inline]
+    #[must_use]
     pub const fn new(id: u64) -> Self {
-        NodusId(id)
+        Self(id)
     }
 
     /// Generate a new unique ID.
@@ -36,7 +37,7 @@ impl NodusId {
     pub fn generate() -> Self {
         use core::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
-        NodusId(COUNTER.fetch_add(1, Ordering::SeqCst))
+        Self(COUNTER.fetch_add(1, Ordering::SeqCst))
     }
 }
 
@@ -73,7 +74,7 @@ pub struct IndiciumSumptus {
 
 impl Default for IndiciumSumptus {
     fn default() -> Self {
-        IndiciumSumptus {
+        Self {
             cycli_cpu: 1,
             bytes_memoriae: 0,
             parallelizabilis: true,
@@ -113,70 +114,70 @@ pub enum Expressio {
     VariabilisNominatus(String),
 
     /// Function composition: f ∘ g
-    Compositio(Box<Expressio>, Box<Expressio>),
+    Compositio(Box<Self>, Box<Self>),
 
     /// Lambda abstraction: λx. body
     Lambda {
         /// Parameter name (for debugging).
         parametrum: Option<String>,
         /// Body expression.
-        corpus: Box<Expressio>,
+        corpus: Box<Self>,
     },
 
     /// Function application: f(x)
-    Applicatio(Box<Expressio>, Box<Expressio>),
+    Applicatio(Box<Self>, Box<Self>),
 
     /// Arithmetic operation.
-    Arithmetica(OperatioArithmetica, Box<Expressio>, Box<Expressio>),
+    Arithmetica(OperatioArithmetica, Box<Self>, Box<Self>),
 
     /// Unary arithmetic operation.
-    ArithmeticaUnaria(OperatioUnariaArithmetica, Box<Expressio>),
+    ArithmeticaUnaria(OperatioUnariaArithmetica, Box<Self>),
 
     /// Comparison operation.
-    Comparatio(OperatioComparationis, Box<Expressio>, Box<Expressio>),
+    Comparatio(OperatioComparationis, Box<Self>, Box<Self>),
 
     /// Logical operation.
-    Logica(OperatioLogica, Box<Expressio>, Box<Expressio>),
+    Logica(OperatioLogica, Box<Self>, Box<Self>),
 
     /// Unary logical operation.
-    LogicaUnaria(OperatioUnariaLogica, Box<Expressio>),
+    LogicaUnaria(OperatioUnariaLogica, Box<Self>),
 
     /// Conditional: if cond then e1 else e2
     Condicio {
         /// Condition expression; expected to evaluate to a boolean.
-        condicio: Box<Expressio>,
+        condicio: Box<Self>,
         /// Expression taken when the condition holds.
-        tunc: Box<Expressio>,
+        tunc: Box<Self>,
         /// Expression taken when the condition does not hold.
-        aliter: Box<Expressio>,
+        aliter: Box<Self>,
     },
 
     /// Field access on a record.
-    Ager(Box<Expressio>, String),
+    Ager(Box<Self>, String),
 
     /// Tuple/array projection by index.
-    Proiectio(Box<Expressio>, usize),
+    Proiectio(Box<Self>, usize),
 
     /// Tuple construction.
-    Tupla(Vec<Expressio>),
+    Tupla(Vec<Self>),
 
     /// Record construction.
-    Recordum(Vec<(String, Expressio)>),
+    Recordum(Vec<(String, Self)>),
 
     /// Let binding: let x = e1 in e2
     Ligatio {
         /// Name under which the bound value is visible inside the body.
         nomen: String,
         /// Expression producing the bound value.
-        valor: Box<Expressio>,
+        valor: Box<Self>,
         /// Body expression in which the binding is in scope.
-        corpus: Box<Expressio>,
+        corpus: Box<Self>,
     },
 
     /// Match expression (pattern matching).
     Conformatio {
         /// Scrutinee: the expression whose value is matched against the branches.
-        scrutinium: Box<Expressio>,
+        scrutinium: Box<Self>,
         /// Branches, tried in order; the first whose pattern (and guard,
         /// if present) matches supplies the result.
         rami: Vec<RamusConformationis>,
@@ -204,13 +205,13 @@ pub enum Exemplar {
     /// Literal constant.
     Constans(ValorConstans),
     /// Tuple pattern.
-    Tupla(Vec<Exemplar>),
+    Tupla(Vec<Self>),
     /// Constructor pattern.
     Constructor {
         /// Constructor name to match (e.g. an enum variant name).
         nomen: String,
         /// Sub-patterns matched positionally against the constructor's arguments.
-        parametra: Vec<Exemplar>,
+        parametra: Vec<Self>,
     },
 }
 
@@ -267,30 +268,34 @@ pub enum ValorConstans {
 impl ValorConstans {
     /// Create f32 from value.
     #[inline]
-    pub fn from_f32(v: f32) -> Self {
-        ValorConstans::F32(v.to_bits())
+    #[must_use]
+    pub const fn from_f32(v: f32) -> Self {
+        Self::F32(v.to_bits())
     }
 
     /// Create f64 from value.
     #[inline]
-    pub fn from_f64(v: f64) -> Self {
-        ValorConstans::F64(v.to_bits())
+    #[must_use]
+    pub const fn from_f64(v: f64) -> Self {
+        Self::F64(v.to_bits())
     }
 
     /// Get f32 value.
     #[inline]
-    pub fn as_f32(&self) -> Option<f32> {
+    #[must_use]
+    pub const fn as_f32(&self) -> Option<f32> {
         match self {
-            ValorConstans::F32(bits) => Some(f32::from_bits(*bits)),
+            Self::F32(bits) => Some(f32::from_bits(*bits)),
             _ => None,
         }
     }
 
     /// Get f64 value.
     #[inline]
-    pub fn as_f64(&self) -> Option<f64> {
+    #[must_use]
+    pub const fn as_f64(&self) -> Option<f64> {
         match self {
-            ValorConstans::F64(bits) => Some(f64::from_bits(*bits)),
+            Self::F64(bits) => Some(f64::from_bits(*bits)),
             _ => None,
         }
     }
@@ -419,7 +424,7 @@ pub enum NodusSerializabilis {
     /// Map operation.
     Mappa {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Function applied to each element.
         functio: Expressio,
         /// Node metadata (name, source location, cost hints).
@@ -429,7 +434,7 @@ pub enum NodusSerializabilis {
     /// Filter operation.
     Filtrum {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Predicate; elements for which it does not hold are dropped.
         praedicatum: Expressio,
         /// Node metadata (name, source location, cost hints).
@@ -439,7 +444,7 @@ pub enum NodusSerializabilis {
     /// Combined filter and map.
     FiltrumMappa {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Fused select-and-transform applied to each element.
         functio: Expressio,
         /// Node metadata (name, source location, cost hints).
@@ -449,7 +454,7 @@ pub enum NodusSerializabilis {
     /// Stateful scan.
     Lustrum {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Initial accumulator state.
         initium: ValorConstans,
         /// State-transition function combining the accumulator with each
@@ -462,7 +467,7 @@ pub enum NodusSerializabilis {
     /// `FlatMap` operation.
     MappaPlana {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Function mapping each element to a sub-stream whose elements are
         /// flattened into the output.
         functio: Expressio,
@@ -473,7 +478,7 @@ pub enum NodusSerializabilis {
     /// Take N elements.
     Cape {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Maximum number of elements passed through before the stream ends.
         numerus: usize,
     },
@@ -481,7 +486,7 @@ pub enum NodusSerializabilis {
     /// Skip N elements.
     Omitte {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Number of leading elements to discard.
         numerus: usize,
     },
@@ -490,7 +495,7 @@ pub enum NodusSerializabilis {
     /// Fold operation.
     Plica {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Initial accumulator value.
         initium: ValorConstans,
         /// Folding function combining the accumulator with each element;
@@ -503,7 +508,7 @@ pub enum NodusSerializabilis {
     /// Reduce operation.
     Reductio {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Combining function applied pairwise over the elements, using the
         /// first element as the seed (no separate initial value).
         functio: Expressio,
@@ -514,13 +519,13 @@ pub enum NodusSerializabilis {
     /// Count elements.
     Numera {
         /// Upstream node whose elements are counted.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
     },
 
     /// Aggregate operation (sum, product, min, max).
     Aggregatio {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Which built-in aggregate to compute.
         operatio: OperatioAggregationis,
     },
@@ -529,9 +534,9 @@ pub enum NodusSerializabilis {
     /// Zip two streams.
     Iunge {
         /// Left input; its elements form the first component of each pair.
-        sinister: Box<NodusSerializabilis>,
+        sinister: Box<Self>,
         /// Right input; its elements form the second component of each pair.
-        dexter: Box<NodusSerializabilis>,
+        dexter: Box<Self>,
         /// Node metadata (name, source location, cost hints).
         meta: MetadataNodi,
     },
@@ -539,9 +544,9 @@ pub enum NodusSerializabilis {
     /// Chain two streams.
     Catena {
         /// Stream drained first.
-        primus: Box<NodusSerializabilis>,
+        primus: Box<Self>,
         /// Stream appended after the first is exhausted.
-        secundus: Box<NodusSerializabilis>,
+        secundus: Box<Self>,
         /// Node metadata (name, source location, cost hints).
         meta: MetadataNodi,
     },
@@ -550,7 +555,7 @@ pub enum NodusSerializabilis {
     /// Group by key.
     GregaPer {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Key-extraction function; elements with equal keys are grouped
         /// together.
         clavis: Expressio,
@@ -561,7 +566,7 @@ pub enum NodusSerializabilis {
     /// Chunk into fixed size.
     Fragmentum {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Number of elements per chunk.
         magnitudo: usize,
     },
@@ -569,7 +574,7 @@ pub enum NodusSerializabilis {
     /// Sliding window.
     Fenestra {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Window length, in elements.
         magnitudo: usize,
         /// Stride between successive window start positions, in elements.
@@ -580,9 +585,9 @@ pub enum NodusSerializabilis {
     /// Parallel execution.
     Parallela {
         /// First branch, executed concurrently with the second.
-        sinister: Box<NodusSerializabilis>,
+        sinister: Box<Self>,
         /// Second branch, executed concurrently with the first.
-        dexter: Box<NodusSerializabilis>,
+        dexter: Box<Self>,
         /// Node metadata (name, source location, cost hints).
         meta: MetadataNodi,
     },
@@ -590,10 +595,10 @@ pub enum NodusSerializabilis {
     /// Race: first to complete wins.
     Certamen {
         /// First competing branch.
-        sinister: Box<NodusSerializabilis>,
+        sinister: Box<Self>,
         /// Second competing branch; whichever completes first supplies the
         /// result.
-        dexter: Box<NodusSerializabilis>,
+        dexter: Box<Self>,
         /// Node metadata (name, source location, cost hints).
         meta: MetadataNodi,
     },
@@ -602,11 +607,11 @@ pub enum NodusSerializabilis {
     /// Conditional branch.
     Ramus {
         /// Node whose result selects which branch runs.
-        condicio: Box<NodusSerializabilis>,
+        condicio: Box<Self>,
         /// Branch taken when the condition holds.
-        tunc: Box<NodusSerializabilis>,
+        tunc: Box<Self>,
         /// Branch taken when the condition does not hold.
-        aliter: Box<NodusSerializabilis>,
+        aliter: Box<Self>,
         /// Node metadata (name, source location, cost hints).
         meta: MetadataNodi,
     },
@@ -614,7 +619,7 @@ pub enum NodusSerializabilis {
     /// Loop.
     Circuitus {
         /// Body executed on each iteration.
-        corpus: Box<NodusSerializabilis>,
+        corpus: Box<Self>,
         /// Termination rule deciding how many iterations run.
         condicio: CondicioCircuitus,
         /// Node metadata (name, source location, cost hints).
@@ -625,7 +630,7 @@ pub enum NodusSerializabilis {
     /// Perform effect.
     Effice {
         /// Upstream node supplying the input elements.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Identifier of the effect to perform; corresponds to
         /// `EffectusDistributus::EFFECTUS_ID` in the distributed effect
         /// system.
@@ -639,7 +644,7 @@ pub enum NodusSerializabilis {
     /// Handle effects.
     Tracta {
         /// Upstream node whose effects are handled.
-        fons: Box<NodusSerializabilis>,
+        fons: Box<Self>,
         /// Handler installed over the source; intercepts effects whose ID it
         /// declares.
         tractator: TractatorSerializabilis,
@@ -649,13 +654,13 @@ pub enum NodusSerializabilis {
 
     // === Optimization Hints ===
     /// Mark for fusion.
-    Fusio(Box<NodusSerializabilis>),
+    Fusio(Box<Self>),
 
     /// Mark for vectorization.
-    Vectoriza(Box<NodusSerializabilis>),
+    Vectoriza(Box<Self>),
 
     /// Mark for GPU.
-    GpuIndica(Box<NodusSerializabilis>),
+    GpuIndica(Box<Self>),
 }
 
 /// Aggregation operation type.
@@ -754,8 +759,9 @@ pub struct Ambitus {
 impl Ambitus {
     /// Create a new empty environment.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        Ambitus {
+        Self {
             variabiles: Vec::with_capacity(8),
             nominati: Vec::with_capacity(8),
         }
@@ -775,6 +781,7 @@ impl Ambitus {
 
     /// Get a variable by index.
     #[inline]
+    #[must_use]
     pub fn get(&self, index: usize) -> Option<&ValorConstans> {
         let len = self.variabiles.len();
         if index < len {
@@ -792,6 +799,7 @@ impl Ambitus {
 
     /// Lookup a named variable.
     #[inline]
+    #[must_use]
     pub fn lookup(&self, nomen: &str) -> Option<&ValorConstans> {
         for (n, v) in self.nominati.iter().rev() {
             if n == nomen {
@@ -831,22 +839,22 @@ pub enum ErrorEvaluationis {
 impl fmt::Display for ErrorEvaluationis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorEvaluationis::VariabilisNonInventa(name) => {
+            Self::VariabilisNonInventa(name) => {
                 write!(f, "Variable not found: {name}")
             }
-            ErrorEvaluationis::TypusDiscrepans {
+            Self::TypusDiscrepans {
                 expectatus,
                 inventus,
             } => {
                 write!(f, "Type mismatch: expected {expectatus}, found {inventus}")
             }
-            ErrorEvaluationis::DivisioPerNullum => {
+            Self::DivisioPerNullum => {
                 write!(f, "Division by zero")
             }
-            ErrorEvaluationis::ConformatioDefecit => {
+            Self::ConformatioDefecit => {
                 write!(f, "Pattern match failed")
             }
-            ErrorEvaluationis::OperatioInvalida(msg) => {
+            Self::OperatioInvalida(msg) => {
                 write!(f, "Invalid operation: {msg}")
             }
         }

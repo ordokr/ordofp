@@ -63,7 +63,7 @@ impl<T> JoinManubrium<T> {
     where
         F: Future<Output = Result<T, JoinError>> + Send + 'static,
     {
-        JoinManubrium {
+        Self {
             inner: Box::pin(fut),
         }
     }
@@ -74,18 +74,19 @@ impl<T> JoinManubrium<T> {
     where
         T: Send + 'static,
     {
-        JoinManubrium {
+        Self {
             inner: Box::pin(async move { Ok(value) }),
         }
     }
 
     /// Create a join handle that immediately returns an error.
     #[inline]
+    #[must_use]
     pub fn error(err: JoinError) -> Self
     where
         T: Send + 'static,
     {
-        JoinManubrium {
+        Self {
             inner: Box::pin(async move { Err(err) }),
         }
     }
@@ -118,9 +119,9 @@ pub enum JoinError {
 impl core::fmt::Display for JoinError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            JoinError::Panic(msg) => write!(f, "task panicked: {msg}"),
-            JoinError::Cancelled => write!(f, "task was cancelled"),
-            JoinError::Other(msg) => write!(f, "join error: {msg}"),
+            Self::Panic(msg) => write!(f, "task panicked: {msg}"),
+            Self::Cancelled => write!(f, "task was cancelled"),
+            Self::Other(msg) => write!(f, "join error: {msg}"),
         }
     }
 }
@@ -270,13 +271,15 @@ impl RuntimeGenerare for TokioRuntime {
 /// what tokio's `JoinError::to_string()` does for `&str`/`String` payloads.
 #[cfg(feature = "smol")]
 fn smol_panic_message(payload: &(dyn core::any::Any + Send)) -> alloc::string::String {
-    if let Some(s) = payload.downcast_ref::<&str>() {
-        alloc::string::String::from(*s)
-    } else if let Some(s) = payload.downcast_ref::<alloc::string::String>() {
-        s.clone()
-    } else {
-        alloc::string::String::from("smol task panicked")
-    }
+    payload.downcast_ref::<&str>().map_or_else(
+        || {
+            payload.downcast_ref::<alloc::string::String>().map_or_else(
+                || alloc::string::String::from("smol task panicked"),
+                core::clone::Clone::clone,
+            )
+        },
+        |s| alloc::string::String::from(*s),
+    )
 }
 
 /// smol runtime implementation.

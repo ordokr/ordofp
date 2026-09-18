@@ -80,8 +80,8 @@ impl<T, P> Refined<T, P> {
     /// # Latin Etymology
     /// *Sine examine* means "without examination".
     #[inline]
-    pub unsafe fn sine_examine(value: T) -> Self {
-        Refined {
+    pub const unsafe fn sine_examine(value: T) -> Self {
+        Self {
             value,
             _predicate: PhantomData,
         }
@@ -89,7 +89,7 @@ impl<T, P> Refined<T, P> {
 
     /// Get the underlying value.
     #[inline]
-    pub fn value(&self) -> &T {
+    pub const fn value(&self) -> &T {
         &self.value
     }
 
@@ -422,7 +422,7 @@ impl<T: Add<Output = T> + Clone> Add for Refined<T, Positivus>
 where
     Positivus: Praedicatum<T>,
 {
-    type Output = Refined<T, Positivus>;
+    type Output = Self;
 
     /// # Panics
     ///
@@ -436,7 +436,7 @@ where
             "Overflow in Refined addition: result does not satisfy predicate"
         );
         // SAFETY: We explicitly checked the predicate above.
-        unsafe { Refined::sine_examine(result) }
+        unsafe { Self::sine_examine(result) }
     }
 }
 
@@ -495,7 +495,7 @@ impl<T: MultiplicatioTuta + Clone> Mul for Refined<T, Positivus>
 where
     Positivus: Praedicatum<T>,
 {
-    type Output = Refined<T, Positivus>;
+    type Output = Self;
 
     /// # Panics
     ///
@@ -513,7 +513,7 @@ where
             "Refined multiplication: result does not satisfy predicate"
         );
         // SAFETY: We explicitly checked the predicate above.
-        unsafe { Refined::sine_examine(result) }
+        unsafe { Self::sine_examine(result) }
     }
 }
 

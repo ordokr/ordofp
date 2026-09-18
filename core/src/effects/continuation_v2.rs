@@ -140,7 +140,7 @@ impl<A: 'static, B: 'static> Continuatio<A, B, Semel> {
     where
         F: FnOnce(A) -> B + Send + 'static,
     {
-        Continuatio {
+        Self {
             inner: ContinuatioInner::Once(Box::new(f)),
             _multiplicity: PhantomData,
         }
@@ -179,7 +179,7 @@ impl<A: 'static, B: 'static> Continuatio<A, B, Affinis> {
     where
         F: FnOnce(A) -> B + Send + 'static,
     {
-        Continuatio {
+        Self {
             inner: ContinuatioInner::Once(Box::new(f)),
             _multiplicity: PhantomData,
         }
@@ -215,7 +215,7 @@ impl<A: 'static, B: 'static> Continuatio<A, B, Pluries> {
     where
         F: Fn(A) -> B + Send + Sync + 'static,
     {
-        Continuatio {
+        Self {
             inner: ContinuatioInner::Multi(Arc::new(f)),
             _multiplicity: PhantomData,
         }
@@ -255,7 +255,7 @@ impl<A, B> Clone for Continuatio<A, B, Pluries> {
     #[inline]
     fn clone(&self) -> Self {
         match &self.inner {
-            ContinuatioInner::Multi(arc) => Continuatio {
+            ContinuatioInner::Multi(arc) => Self {
                 inner: ContinuatioInner::Multi(Arc::clone(arc)),
                 _multiplicity: PhantomData,
             },
@@ -288,6 +288,7 @@ impl<A: 'static, B: 'static> Continuatio<A, B, Semel> {
     ///
     /// A linear continuation can always be treated as affine.
     #[inline]
+    #[must_use]
     pub fn to_affinis(self) -> Continuatio<A, B, Affinis> {
         Continuatio {
             inner: self.inner,
@@ -422,20 +423,20 @@ pub enum TractatorResultMulti<E: Effectus, A, B, M: Usage> {
 impl<E: Effectus, A, B, M: Usage> TractatorResultMulti<E, A, B, M> {
     /// Create a completed result.
     #[inline]
-    pub fn complete(value: A) -> Self {
-        TractatorResultMulti::Complete(value)
+    pub const fn complete(value: A) -> Self {
+        Self::Complete(value)
     }
 
     /// Check if the result is complete.
     #[inline]
-    pub fn is_complete(&self) -> bool {
-        matches!(self, TractatorResultMulti::Complete(_))
+    pub const fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(_))
     }
 
     /// Check if the result is suspended.
     #[inline]
-    pub fn is_suspended(&self) -> bool {
-        matches!(self, TractatorResultMulti::Suspended { .. })
+    pub const fn is_suspended(&self) -> bool {
+        matches!(self, Self::Suspended { .. })
     }
 }
 
@@ -446,7 +447,7 @@ impl<E: Effectus, A: 'static, B: 'static> TractatorResultMulti<E, A, B, Semel> {
     where
         F: FnOnce(B) -> A + Send + 'static,
     {
-        TractatorResultMulti::Suspended {
+        Self::Suspended {
             effect,
             continuation: Continuatio::semel(f),
         }
@@ -460,7 +461,7 @@ impl<E: Effectus, A: 'static, B: 'static> TractatorResultMulti<E, A, B, Pluries>
     where
         F: Fn(B) -> A + Send + Sync + 'static,
     {
-        TractatorResultMulti::Suspended {
+        Self::Suspended {
             effect,
             continuation: Continuatio::pluries(f),
         }
@@ -487,13 +488,14 @@ impl<A: Clone + 'static, B: 'static> ChoicePoint<A, B> {
     where
         F: Fn(A) -> B + Send + Sync + 'static,
     {
-        ChoicePoint {
+        Self {
             continuation: Continuatio::pluries(f),
             choices,
         }
     }
 
     /// Explore all choices, collecting results.
+    #[must_use]
     pub fn explore_all(self) -> alloc::vec::Vec<B> {
         self.choices
             .into_iter()
@@ -564,14 +566,14 @@ pub enum TractatorResult<E: Effectus, A, B> {
 impl<E: Effectus, A, B> TractatorResult<E, A, B> {
     /// Create a completed result.
     #[inline]
-    pub fn complete(value: A) -> Self {
-        TractatorResult::Complete(value)
+    pub const fn complete(value: A) -> Self {
+        Self::Complete(value)
     }
 
     /// Create a suspended result.
     #[inline]
-    pub fn suspended(effect: E, continuation: ContinuatioSemel<B, A>) -> Self {
-        TractatorResult::Suspended {
+    pub const fn suspended(effect: E, continuation: ContinuatioSemel<B, A>) -> Self {
+        Self::Suspended {
             effect,
             continuation,
         }
@@ -579,14 +581,14 @@ impl<E: Effectus, A, B> TractatorResult<E, A, B> {
 
     /// Check if the result is complete.
     #[inline]
-    pub fn is_complete(&self) -> bool {
-        matches!(self, TractatorResult::Complete(_))
+    pub const fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(_))
     }
 
     /// Check if the result is suspended.
     #[inline]
-    pub fn is_suspended(&self) -> bool {
-        matches!(self, TractatorResult::Suspended { .. })
+    pub const fn is_suspended(&self) -> bool {
+        matches!(self, Self::Suspended { .. })
     }
 
     /// Map over a completed result.
@@ -597,8 +599,8 @@ impl<E: Effectus, A, B> TractatorResult<E, A, B> {
         B: 'static,
     {
         match self {
-            TractatorResult::Complete(a) => TractatorResult::Complete(f(a)),
-            TractatorResult::Suspended {
+            Self::Complete(a) => TractatorResult::Complete(f(a)),
+            Self::Suspended {
                 effect,
                 continuation,
             } => TractatorResult::Suspended {
@@ -699,7 +701,7 @@ mod tests {
         assert_eq!(result1, 43); // (21 * 2) + 1
         assert_eq!(result2, 21); // (10 * 2) + 1
 
-        let cloned = mapped.clone();
+        let cloned = mapped;
         assert_eq!(cloned.resume(0), 1);
     }
 
@@ -713,7 +715,7 @@ mod tests {
         assert_eq!(pre.resume(20), 42); // (20 + 1) * 2
         assert_eq!(pre.resume(0), 2); // (0 + 1) * 2
 
-        let cloned = pre.clone();
+        let cloned = pre;
         assert_eq!(cloned.resume(4), 10);
     }
 
@@ -767,7 +769,7 @@ mod tests {
             TractatorResultMulti::Suspended { continuation, .. } => {
                 assert_eq!(continuation.resume(21), 42);
             }
-            _ => panic!("Expected Suspended"),
+            TractatorResultMulti::Complete(_) => panic!("Expected Suspended"),
         }
     }
 }

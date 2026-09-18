@@ -8,6 +8,8 @@ use std::cell::RefCell;
 #[test]
 #[cfg(feature = "async")]
 fn futurus_should_be_send_but_not_sync() {
+    fn assert_send<T: Send>(_: &T) {}
+
     // RefCell is Send but !Sync
     let cell = RefCell::new(42);
 
@@ -19,8 +21,6 @@ fn futurus_should_be_send_but_not_sync() {
 
     // Futurus must be Send
     let futurus = Futurus::new(future);
-
-    fn assert_send<T: Send>(_: &T) {}
 
     // This should compile fine
     assert_send(&futurus);

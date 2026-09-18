@@ -26,6 +26,19 @@ use ordofp_core::vernacular::{
 };
 
 fn main() {
+    #[derive(Clone, Debug)]
+    struct Person {
+        name: String,
+        age: u32,
+    }
+
+    // Create a prism using English 'prism' function (vs 'divisio')
+    #[derive(Clone, Debug, PartialEq)]
+    enum Shape {
+        Circle(f64),
+        Rectangle(f64, f64),
+    }
+
     println!("=== OrdoFP Vernacular API Examples ===\n");
 
     // Example 1: HList with English aliases
@@ -41,12 +54,6 @@ fn main() {
     // Example 2: Optics with English names
     println!("\n2. Optics (Lens, Prism, Iso)");
     println!("----------------------------");
-
-    #[derive(Clone, Debug)]
-    struct Person {
-        name: String,
-        age: u32,
-    }
 
     // Create a lens using English 'lens' function (vs 'aspectus')
     // Type inference handles the closure types
@@ -64,18 +71,11 @@ fn main() {
     let bob = name_lens.set(&alice, "Bob".to_string());
     println!("   After set: {}", bob.name);
 
-    // Create a prism using English 'prism' function (vs 'divisio')
-    #[derive(Clone, Debug, PartialEq)]
-    enum Shape {
-        Circle(f64),
-        Rectangle(f64, f64),
-    }
-
     // Type inference handles the closure types
     let circle_prism = prism(
         |s: &Shape| match s {
             Shape::Circle(r) => Some(*r),
-            _ => None,
+            Shape::Rectangle(..) => None,
         },
         Shape::Circle,
     );

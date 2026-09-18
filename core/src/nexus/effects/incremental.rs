@@ -98,19 +98,21 @@ pub struct InputId {
 impl InputId {
     /// Create a new input ID.
     pub fn new(name: impl Into<String>) -> Self {
-        InputId {
+        Self {
             name: name.into(),
             generation: 0,
         }
     }
 
     /// Get the input name.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Get the generation number.
-    pub fn generation(&self) -> u64 {
+    #[must_use]
+    pub const fn generation(&self) -> u64 {
         self.generation
     }
 }
@@ -125,10 +127,11 @@ pub struct MemoKey {
 impl MemoKey {
     /// Create a new memo key.
     pub fn new(name: impl Into<String>) -> Self {
-        MemoKey { name: name.into() }
+        Self { name: name.into() }
     }
 
     /// Get the memo name.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -149,7 +152,7 @@ struct Dependency {
 
 impl Dependency {
     /// Check if this dependency is still valid.
-    fn is_valid(&self, current_generation: u64) -> bool {
+    const fn is_valid(&self, current_generation: u64) -> bool {
         self.recorded_generation == current_generation
     }
 }
@@ -197,8 +200,9 @@ pub struct IncrementalStats {
 
 impl IncrementalContext {
     /// Create a new incremental context.
+    #[must_use]
     pub fn new() -> Self {
-        IncrementalContext {
+        Self {
             inputs: BTreeMap::new(),
             generations: BTreeMap::new(),
             cache: BTreeMap::new(),
@@ -323,7 +327,8 @@ impl IncrementalContext {
     }
 
     /// Get computation statistics.
-    pub fn stats(&self) -> &IncrementalStats {
+    #[must_use]
+    pub const fn stats(&self) -> &IncrementalStats {
         &self.stats
     }
 
@@ -333,11 +338,13 @@ impl IncrementalContext {
     }
 
     /// Get the number of cached entries.
+    #[must_use]
     pub fn cache_size(&self) -> usize {
         self.cache.len()
     }
 
     /// Get the number of tracked inputs.
+    #[must_use]
     pub fn input_count(&self) -> usize {
         self.inputs.len()
     }
@@ -366,7 +373,7 @@ impl<A: 'static> IncrementalComputation<A> {
     /// Create a new incremental computation.
     #[inline]
     pub fn new<F: FnOnce(&mut IncrementalContext) -> A + 'static>(f: F) -> Self {
-        IncrementalComputation {
+        Self {
             compute: Box::new(f),
         }
     }
@@ -382,7 +389,7 @@ impl<A: 'static> IncrementalComputation<A> {
     where
         A: Clone,
     {
-        IncrementalComputation::new(move |_| value)
+        Self::new(move |_| value)
     }
 
     /// Map over the result.
@@ -410,6 +417,7 @@ impl<A: 'static> IncrementalComputation<A> {
 // =============================================================================
 
 /// Create an incremental computation that reads an input.
+#[must_use]
 pub fn read_input<T: Clone + 'static>(id: InputId) -> IncrementalComputation<Option<T>> {
     IncrementalComputation::new(move |ctx| ctx.read_input::<T>(&id))
 }

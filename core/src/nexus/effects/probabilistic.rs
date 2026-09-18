@@ -103,8 +103,9 @@ pub struct SimpleRng {
 
 impl SimpleRng {
     /// Create a new RNG with a seed.
-    pub fn new(seed: u64) -> Self {
-        SimpleRng {
+    #[must_use]
+    pub const fn new(seed: u64) -> Self {
+        Self {
             state: seed.wrapping_add(1),
         }
     }
@@ -115,7 +116,7 @@ impl SimpleRng {
     /// replaces the previous glibc-LCG-constants-mod-2^64 generator whose
     /// low seeds produced degenerate first draws. Not cryptographic.
     #[inline]
-    pub fn next_u64(&mut self) -> u64 {
+    pub const fn next_u64(&mut self) -> u64 {
         self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.state;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -124,9 +125,21 @@ impl SimpleRng {
     }
 
     /// Uniform in [0, 1): 53 mantissa bits, so 1.0 is unreachable.
+    ///
+    /// # Panics
+    ///
+    /// Never panics: the narrowed halves are provably in range (a 53-bit
+    /// value shifted/masked to 32 bits), so the conversions are infallible.
     #[inline]
     pub fn next_f64(&mut self) -> f64 {
-        (self.next_u64() >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
+        let mantissa = self.next_u64() >> 11; // 53 random bits (< 2^53)
+        // Reassemble exactly through 32-bit halves: every step is exact
+        // (integers below 2^53 are exactly representable), so this equals
+        // `(mantissa as f64)` bit-for-bit without a lossy cast.
+        let scaled = f64::from(u32::try_from(mantissa >> 32).expect("53-bit value fits in u32"))
+            * 4_294_967_296.0
+            + f64::from(u32::try_from(mantissa & 0xFFFF_FFFF).expect("masked to 32 bits"));
+        scaled * (1.0 / 9_007_199_254_740_992.0)
     }
 
     /// Generate a random f64 in [low, high).
@@ -143,7 +156,7 @@ impl SimpleRng {
 impl Default for SimpleRng {
     fn default() -> Self {
         // Default seed based on a fixed value for reproducibility
-        SimpleRng::new(42)
+        Self::new(42)
     }
 }
 
@@ -174,16 +187,18 @@ pub struct Bernoulli {
 
 impl Bernoulli {
     /// Create a Bernoulli distribution.
+    #[must_use]
     pub fn new(p: f64) -> Self {
         debug_assert!((0.0..=1.0).contains(&p), "p must be in [0, 1]");
-        Bernoulli {
+        Self {
             p: p.clamp(0.0, 1.0),
         }
     }
 
     /// Fair coin (p = 0.5).
-    pub fn fair() -> Self {
-        Bernoulli { p: 0.5 }
+    #[must_use]
+    pub const fn fair() -> Self {
+        Self { p: 0.5 }
     }
 }
 
@@ -214,14 +229,16 @@ pub struct Uniform {
 
 impl Uniform {
     /// Create a uniform distribution.
+    #[must_use]
     pub fn new(low: f64, high: f64) -> Self {
         debug_assert!(low < high, "low must be less than high");
-        Uniform { low, high }
+        Self { low, high }
     }
 
     /// Standard uniform [0, 1).
-    pub fn standard() -> Self {
-        Uniform {
+    #[must_use]
+    pub const fn standard() -> Self {
+        Self {
             low: 0.0,
             high: 1.0,
         }
@@ -255,17 +272,19 @@ pub struct Normal {
 
 impl Normal {
     /// Create a normal distribution.
+    #[must_use]
     pub fn new(mu: f64, sigma: f64) -> Self {
         debug_assert!(sigma > 0.0, "sigma must be positive");
-        Normal {
+        Self {
             mu,
             sigma: sigma.abs(),
         }
     }
 
     /// Standard normal (mu=0, sigma=1).
-    pub fn standard() -> Self {
-        Normal {
+    #[must_use]
+    pub const fn standard() -> Self {
+        Self {
             mu: 0.0,
             sigma: 1.0,
         }
@@ -305,6 +324,7 @@ impl Categorical {
     ///
     /// Panics if `probs` is empty, contains a negative or non-finite value,
     /// or sums to zero.
+    #[must_use]
     pub fn new(probs: &[f64]) -> Self {
         assert!(
             !probs.is_empty(),
@@ -316,18 +336,19 @@ impl Categorical {
             "Categorical::new: probs must be finite, non-negative, with positive sum (got {probs:?})"
         );
         let normalized: Vec<f64> = probs.iter().map(|p| p / sum).collect();
-        Categorical { probs: normalized }
+        Self { probs: normalized }
     }
 
     /// Uniform categorical over n outcomes.
     ///
     /// # Panics
     ///
-    /// Panics if `n` is 0.
+    /// Panics if `n` is 0 or exceeds `u32::MAX`.
+    #[must_use]
     pub fn uniform(n: usize) -> Self {
         assert!(n > 0, "Categorical::uniform: n must be > 0");
-        let p = 1.0 / n as f64;
-        Categorical {
+        let p = 1.0 / f64::from(u32::try_from(n).expect("category count fits in u32"));
+        Self {
             probs: (0..n).map(|_| p).collect(),
         }
     }
@@ -373,9 +394,10 @@ pub struct Exponential {
 
 impl Exponential {
     /// Create an exponential distribution.
+    #[must_use]
     pub fn new(rate: f64) -> Self {
         debug_assert!(rate > 0.0, "rate must be positive");
-        Exponential { rate }
+        Self { rate }
     }
 }
 
@@ -410,7 +432,7 @@ pub struct ProbComputation<A> {
 impl<A: 'static> ProbComputation<A> {
     /// Create a new probabilistic computation.
     pub fn new<F: FnOnce(&mut ProbContext) -> A + 'static>(f: F) -> Self {
-        ProbComputation {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -425,7 +447,7 @@ impl<A: 'static> ProbComputation<A> {
     where
         A: Clone,
     {
-        ProbComputation::new(move |_| value)
+        Self::new(move |_| value)
     }
 
     /// Map over the result.
@@ -466,8 +488,9 @@ pub struct ProbContext {
 
 impl ProbContext {
     /// Create a new context with a seed.
-    pub fn new(seed: u64) -> Self {
-        ProbContext {
+    #[must_use]
+    pub const fn new(seed: u64) -> Self {
+        Self {
             rng: SimpleRng::new(seed),
             log_weight: 0.0,
             rejected: false,
@@ -501,7 +524,8 @@ impl ProbContext {
     }
 
     /// Check if current trace is valid (not rejected).
-    pub fn is_valid(&self) -> bool {
+    #[must_use]
+    pub const fn is_valid(&self) -> bool {
         !self.rejected && self.log_weight.is_finite()
     }
 
@@ -509,7 +533,8 @@ impl ProbContext {
     ///
     /// Returns `f64::NEG_INFINITY` if the trace was rejected (equivalent to
     /// a zero weight, but without the over/underflow cliff of `exp()`).
-    pub fn log_weight(&self) -> f64 {
+    #[must_use]
+    pub const fn log_weight(&self) -> f64 {
         if self.is_valid() {
             self.log_weight
         } else {
@@ -520,7 +545,7 @@ impl ProbContext {
 
 impl Default for ProbContext {
     fn default() -> Self {
-        ProbContext::new(42)
+        Self::new(42)
     }
 }
 
@@ -550,6 +575,7 @@ impl<A: Clone> InferenceResult<A> {
     /// of non-NaN weights this is ordinary numeric ordering; a NaN weight
     /// (which would previously have panicked) is ordered per IEEE 754
     /// totalOrder, where positive NaN sorts above every other value.
+    #[must_use]
     pub fn mode(&self) -> Option<A> {
         self.samples
             .iter()
@@ -564,6 +590,10 @@ impl<A: Clone> InferenceResult<A> {
     /// not silently collapse to `NaN` (weight overflow, log-weight > ~709.8)
     /// or `0.0` (weight underflow, log-weight < ~-745) the way materializing
     /// `exp(log_weight)` directly would.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the sample count exceeds `u32::MAX`.
     pub fn mean(&self) -> f64
     where
         A: Into<f64> + Clone,
@@ -581,7 +611,8 @@ impl<A: Clone> InferenceResult<A> {
             if n == 0 {
                 return 0.0;
             }
-            return self.samples.iter().cloned().map(Into::into).sum::<f64>() / n as f64;
+            return self.samples.iter().cloned().map(Into::into).sum::<f64>()
+                / f64::from(u32::try_from(n).expect("sample count fits in u32"));
         }
         let mut num = 0.0;
         let mut den = 0.0;
@@ -602,11 +633,30 @@ impl<A: Clone> InferenceResult<A> {
     }
 
     /// Get acceptance rate.
+    ///
+    /// # Panics
+    ///
+    /// Never panics: the narrowed counters are provably below 2^53 on the
+    /// taken branch, so the internal conversions are infallible.
+    #[must_use]
     pub fn acceptance_rate(&self) -> f64 {
         if self.total == 0 {
             0.0
         } else {
-            self.accepted as f64 / self.total as f64
+            // Exact below 2^53 samples; saturates beyond. Reassembled
+            // through 32-bit halves: every step is exact.
+            let to_f64 = |v: u64| {
+                if v < 9_007_199_254_740_992 {
+                    f64::from(u32::try_from(v >> 32).expect("53-bit value fits in u32"))
+                        * 4_294_967_296.0
+                        + f64::from(u32::try_from(v & 0xFFFF_FFFF).expect("masked to 32 bits"))
+                } else {
+                    9_007_199_254_740_992.0
+                }
+            };
+            let accepted = u64::try_from(self.accepted).expect("usize sample count fits in u64");
+            let total = u64::try_from(self.total).expect("usize sample count fits in u64");
+            to_f64(accepted) / to_f64(total)
         }
     }
 }
@@ -691,6 +741,7 @@ where
 }
 
 /// Add a score to the trace (creates a computation).
+#[must_use]
 pub fn score(log_prob: f64) -> ProbComputation<()> {
     ProbComputation::new(move |ctx| ctx.score(log_prob))
 }
@@ -710,7 +761,7 @@ mod tests {
     use alloc::vec;
 
     /// M4 regression: glibc LCG constants used mod 2^64 made the first draw
-    /// from seed 42 equal 2.57e-9 every time, and next_f64 could return 1.0.
+    /// from seed 42 equal 2.57e-9 every time, and `next_f64` could return 1.0.
     #[test]
     fn rng_first_draw_not_degenerate() {
         let mut rng = SimpleRng::new(42);
@@ -758,7 +809,7 @@ mod tests {
         let x2 = rng.next_f64();
         assert!((0.0..1.0).contains(&x1));
         assert!((0.0..1.0).contains(&x2));
-        assert_ne!(x1, x2);
+        assert_ne!(x1.to_bits(), x2.to_bits());
     }
 
     #[test]
@@ -976,9 +1027,9 @@ mod tests {
         assert!((mean - 2.0).abs() < 0.001);
     }
 
-    /// H7 regression: mode() must select deterministically (and without
+    /// H7 regression: `mode()` must select deterministically (and without
     /// panicking) when a non-finite log-weight is present. `+inf` can only
-    /// reach `InferenceResult` via direct construction (importance_sample's
+    /// reach `InferenceResult` via direct construction (`importance_sample`'s
     /// `ProbContext::is_valid` rejects non-finite log-weights before they are
     /// collected), but `mode()` must still handle it correctly rather than
     /// relying on that invariant.
@@ -1023,8 +1074,8 @@ mod tests {
         assert!((ctx.log_weight - (-1.0)).abs() < 0.001);
     }
 
-    /// H7 regression: many observations drive log-weights below exp()'s
-    /// underflow point (f64::MIN_POSITIVE's subnormal floor is ~exp(-744.44));
+    /// H7 regression: many observations drive log-weights below `exp()`'s
+    /// underflow point (`f64::MIN_POSITIVE`'s subnormal floor is ~exp(-744.44));
     /// the posterior mean must survive.
     #[test]
     fn importance_sampling_survives_many_observations() {

@@ -21,16 +21,17 @@ pub trait FastMonoid: Clone {
     fn empty() -> Self;
 
     /// Combine two values (consuming self for efficiency).
+    #[must_use]
     fn combine(self, other: Self) -> Self;
 }
 
 impl FastMonoid for alloc::string::String {
-    #[inline(always)]
+    #[inline]
     fn empty() -> Self {
-        alloc::string::String::new()
+        Self::new()
     }
 
-    #[inline(always)]
+    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.push_str(&other);
         self
@@ -38,12 +39,12 @@ impl FastMonoid for alloc::string::String {
 }
 
 impl<T: Clone> FastMonoid for alloc::vec::Vec<T> {
-    #[inline(always)]
+    #[inline]
     fn empty() -> Self {
-        alloc::vec::Vec::new()
+        Self::new()
     }
 
-    #[inline(always)]
+    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -70,7 +71,7 @@ pub struct PureWriter<W, A>(pub A, PhantomData<W>);
 
 impl<W: FastMonoid, A> WriterOp<W> for PureWriter<W, A> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> (A, W) {
         (self.0, W::empty())
     }
@@ -81,7 +82,7 @@ pub struct TellWriter<W>(pub W);
 
 impl<W: FastMonoid> WriterOp<W> for TellWriter<W> {
     type Output = ();
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> ((), W) {
         ((), self.0)
     }
@@ -94,7 +95,7 @@ impl<W: FastMonoid, Op: WriterOp<W>, B, F: FnOnce(Op::Output) -> B> WriterOp<W>
     for MapWriter<Op, F>
 {
     type Output = B;
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> (B, W) {
         let (a, w) = self.0.run_writer();
         ((self.1)(a), w)
@@ -108,7 +109,7 @@ impl<W: FastMonoid, Op1: WriterOp<W>, Op2: WriterOp<W>, F: FnOnce(Op1::Output) -
     for AndThenWriter<Op1, F>
 {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> (Op2::Output, W) {
         let (a, w1) = self.0.run_writer();
         let (b, w2) = (self.1)(a).run_writer();
@@ -121,7 +122,7 @@ pub struct ThenWriter<Op1, Op2>(pub Op1, pub Op2);
 
 impl<W: FastMonoid, Op1: WriterOp<W>, Op2: WriterOp<W>> WriterOp<W> for ThenWriter<Op1, Op2> {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> (Op2::Output, W) {
         let (_, w1) = self.0.run_writer();
         let (b, w2) = self.1.run_writer();
@@ -134,7 +135,7 @@ pub struct ListenWriter<Op>(pub Op);
 
 impl<W: FastMonoid, Op: WriterOp<W>> WriterOp<W> for ListenWriter<Op> {
     type Output = (Op::Output, W);
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> ((Op::Output, W), W) {
         let (a, w) = self.0.run_writer();
         ((a, w.clone()), w)
@@ -146,7 +147,7 @@ pub struct CensorWriter<Op, F>(pub Op, pub F);
 
 impl<W: FastMonoid, Op: WriterOp<W>, F: FnOnce(W) -> W> WriterOp<W> for CensorWriter<Op, F> {
     type Output = Op::Output;
-    #[inline(always)]
+    #[inline]
     fn run_writer(self) -> (Op::Output, W) {
         let (a, w) = self.0.run_writer();
         (a, (self.1)(w))
@@ -156,13 +157,13 @@ impl<W: FastMonoid, Op: WriterOp<W>, F: FnOnce(W) -> W> WriterOp<W> for CensorWr
 /// Extension trait for chaining writer operations.
 pub trait WriterOpExt<W: FastMonoid>: WriterOp<W> + Sized {
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     fn map_writer<B, F: FnOnce(Self::Output) -> B>(self, f: F) -> MapWriter<Self, F> {
         MapWriter(self, f)
     }
 
     /// Chain with another operation.
-    #[inline(always)]
+    #[inline]
     fn and_then_writer<Op2: WriterOp<W>, F: FnOnce(Self::Output) -> Op2>(
         self,
         f: F,
@@ -171,19 +172,19 @@ pub trait WriterOpExt<W: FastMonoid>: WriterOp<W> + Sized {
     }
 
     /// Sequence, discarding first result.
-    #[inline(always)]
+    #[inline]
     fn then_writer<Op2: WriterOp<W>>(self, next: Op2) -> ThenWriter<Self, Op2> {
         ThenWriter(self, next)
     }
 
     /// Listen to the log.
-    #[inline(always)]
+    #[inline]
     fn listen_writer(self) -> ListenWriter<Self> {
         ListenWriter(self)
     }
 
     /// Modify the log.
-    #[inline(always)]
+    #[inline]
     fn censor_writer<F: FnOnce(W) -> W>(self, f: F) -> CensorWriter<Self, F> {
         CensorWriter(self, f)
     }
@@ -196,14 +197,14 @@ impl<W: FastMonoid, Op: WriterOp<W>> WriterOpExt<W> for Op {}
 // =============================================================================
 
 /// Create a pure writer operation.
-#[inline(always)]
-pub fn pure_writer<W: FastMonoid, A>(a: A) -> PureWriter<W, A> {
+#[inline]
+pub const fn pure_writer<W: FastMonoid, A>(a: A) -> PureWriter<W, A> {
     PureWriter(a, PhantomData)
 }
 
 /// Create a tell writer operation.
-#[inline(always)]
-pub fn tell_writer<W: FastMonoid>(w: W) -> TellWriter<W> {
+#[inline]
+pub const fn tell_writer<W: FastMonoid>(w: W) -> TellWriter<W> {
     TellWriter(w)
 }
 

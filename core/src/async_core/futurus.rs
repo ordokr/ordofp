@@ -132,15 +132,15 @@ impl<T> Futurus<T> {
     /// let _ = fut;
     /// ```
     #[inline]
-    pub fn purus(value: T) -> Self {
-        Futurus {
+    pub const fn purus(value: T) -> Self {
+        Self {
             inner: FuturusInner::Purus(Some(value)),
         }
     }
 
     /// Alias for `purus` using English naming.
     #[inline]
-    pub fn pure(value: T) -> Self {
+    pub const fn pure(value: T) -> Self {
         Self::purus(value)
     }
 
@@ -164,7 +164,7 @@ impl<T> Futurus<T> {
     where
         F: Future<Output = T> + Send + 'static,
     {
-        Futurus {
+        Self {
             inner: FuturusInner::Effectus(Box::pin(future)),
         }
     }
@@ -187,7 +187,7 @@ impl<T> Futurus<T> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: Future<Output = T> + Send + 'static,
     {
-        Futurus {
+        Self {
             inner: FuturusInner::Effectus(Box::pin(async move { f().await })),
         }
     }
@@ -439,7 +439,8 @@ impl<T: Send + 'static> Futurus<T> {
 
     /// Sequence two Futurus, keeping the result of the first.
     #[inline]
-    pub fn skip<B>(self, other: Futurus<B>) -> Futurus<T>
+    #[must_use]
+    pub fn skip<B>(self, other: Futurus<B>) -> Self
     where
         B: Send + 'static,
         T: Unpin,
@@ -479,10 +480,10 @@ impl<T: Unpin> Future for Futurus<T> {
         match inner {
             FuturusInner::Purus(opt) => {
                 // Take the value out of the Option
-                match opt.take() {
-                    Some(value) => Poll::Ready(value),
-                    None => panic!("Futurus::Purus polled after completion"),
-                }
+                opt.take().map_or_else(
+                    || panic!("Futurus::Purus polled after completion"),
+                    |value| Poll::Ready(value),
+                )
             }
             FuturusInner::Effectus(fut) => {
                 // Poll the inner future
@@ -516,7 +517,7 @@ impl<T: Send + 'static> Futurus<Futurus<T>> {
 
 impl<T: Default> Default for Futurus<T> {
     fn default() -> Self {
-        Futurus::purus(T::default())
+        Self::purus(T::default())
     }
 }
 
@@ -545,7 +546,7 @@ impl<T: core::fmt::Debug> core::fmt::Debug for Futurus<T> {
 impl<T> From<T> for Futurus<T> {
     #[inline]
     fn from(value: T) -> Self {
-        Futurus::purus(value)
+        Self::purus(value)
     }
 }
 

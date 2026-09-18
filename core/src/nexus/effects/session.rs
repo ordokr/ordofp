@@ -180,7 +180,7 @@ impl<P1: Protocol, P2: Protocol> Protocol for Select<P1, P2> {
 }
 
 impl Protocol for End {
-    type Dual = End;
+    type Dual = Self;
 }
 
 // =============================================================================
@@ -222,8 +222,9 @@ impl<P: Protocol> Session<P> {
     ///
     /// In practice, sessions are created by connecting two endpoints.
     #[inline]
-    pub fn new() -> Self {
-        Session {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _protocol: PhantomData,
         }
     }
@@ -268,6 +269,7 @@ impl<T, P: Protocol> Session<Receive<T, P>> {
     ///
     /// Type-level only: returns `T::default()` rather than blocking on a
     /// channel receive.
+    #[must_use]
     pub fn receive(self) -> (T, Session<P>)
     where
         T: Default,
@@ -282,7 +284,7 @@ impl<T, P: Protocol> Session<Receive<T, P>> {
     }
 
     /// Receive with a provided value (for testing).
-    pub fn receive_with(self, value: T) -> (T, Session<P>) {
+    pub const fn receive_with(self, value: T) -> (T, Session<P>) {
         (
             value,
             Session {
@@ -300,7 +302,8 @@ impl<P1: Protocol, P2: Protocol> Session<Offer<P1, P2>> {
     /// # Note
     ///
     /// This is a placeholder. In practice, would receive a selection message.
-    pub fn offer(self) -> Either<Session<P1>, Session<P2>> {
+    #[must_use]
+    pub const fn offer(self) -> Either<Session<P1>, Session<P2>> {
         // Placeholder: always select left
         Either::Left(Session {
             _protocol: PhantomData,
@@ -308,14 +311,16 @@ impl<P1: Protocol, P2: Protocol> Session<Offer<P1, P2>> {
     }
 
     /// Offer with a pre-determined choice (for testing).
-    pub fn offer_left(self) -> Session<P1> {
+    #[must_use]
+    pub const fn offer_left(self) -> Session<P1> {
         Session {
             _protocol: PhantomData,
         }
     }
 
     /// Offer with a pre-determined choice (for testing).
-    pub fn offer_right(self) -> Session<P2> {
+    #[must_use]
+    pub const fn offer_right(self) -> Session<P2> {
         Session {
             _protocol: PhantomData,
         }
@@ -324,7 +329,8 @@ impl<P1: Protocol, P2: Protocol> Session<Offer<P1, P2>> {
 
 impl<P1: Protocol, P2: Protocol> Session<Select<P1, P2>> {
     /// Select the left branch.
-    pub fn select_left(self) -> Session<P1> {
+    #[must_use]
+    pub const fn select_left(self) -> Session<P1> {
         // Type-level only: no selection message is sent.
         Session {
             _protocol: PhantomData,
@@ -332,7 +338,8 @@ impl<P1: Protocol, P2: Protocol> Session<Select<P1, P2>> {
     }
 
     /// Select the right branch.
-    pub fn select_right(self) -> Session<P2> {
+    #[must_use]
+    pub const fn select_right(self) -> Session<P2> {
         // Type-level only: no selection message is sent.
         Session {
             _protocol: PhantomData,
@@ -344,7 +351,7 @@ impl Session<End> {
     /// Close the session.
     ///
     /// Only callable when protocol is complete (at `End` state).
-    pub fn close(self) {
+    pub const fn close(self) {
         // Session terminated
     }
 }
@@ -366,28 +373,28 @@ pub enum Either<L, R> {
 
 impl<L, R> Either<L, R> {
     /// Check if this is the left variant.
-    pub fn is_left(&self) -> bool {
-        matches!(self, Either::Left(_))
+    pub const fn is_left(&self) -> bool {
+        matches!(self, Self::Left(_))
     }
 
     /// Check if this is the right variant.
-    pub fn is_right(&self) -> bool {
-        matches!(self, Either::Right(_))
+    pub const fn is_right(&self) -> bool {
+        matches!(self, Self::Right(_))
     }
 
     /// Extract the left value, panicking if right.
     pub fn unwrap_left(self) -> L {
         match self {
-            Either::Left(l) => l,
-            Either::Right(_) => crate::cold_panic!("called unwrap_left on Right"),
+            Self::Left(l) => l,
+            Self::Right(_) => crate::cold_panic!("called unwrap_left on Right"),
         }
     }
 
     /// Extract the right value, panicking if left.
     pub fn unwrap_right(self) -> R {
         match self {
-            Either::Right(r) => r,
-            Either::Left(_) => crate::cold_panic!("called unwrap_right on Left"),
+            Self::Right(r) => r,
+            Self::Left(_) => crate::cold_panic!("called unwrap_right on Left"),
         }
     }
 }
@@ -427,7 +434,7 @@ impl<L, R> Either<L, R> {
 ///
 /// assert_dual::<Client, Client>(); // Compile error!
 /// ```
-pub fn assert_dual<P1: Protocol, P2: Protocol>()
+pub const fn assert_dual<P1: Protocol, P2: Protocol>()
 where
     P1::Dual: SameType<P2>,
 {
@@ -489,11 +496,12 @@ impl<P: Protocol, A: 'static> SessionComputation<P, A> {
     where
         F: FnOnce(Session<P>) -> (A, Session<End>) + 'static,
     {
-        SessionComputation { run: Box::new(f) }
+        Self { run: Box::new(f) }
     }
 
     /// Run the computation with a session.
     #[inline]
+    #[must_use]
     pub fn run(self, session: Session<P>) -> (A, Session<End>) {
         (self.run)(session)
     }
@@ -696,9 +704,6 @@ mod tests {
         type CalcClient = Send<i32, Send<i32, Receive<i32, End>>>;
         type CalcServer = Receive<i32, Receive<i32, Send<i32, End>>>;
 
-        // Verify duality
-        assert_dual::<CalcClient, CalcServer>();
-
         // Simulate client
         fn run_client(session: Session<CalcClient>, a: i32, b: i32) -> i32 {
             let session = session.send(a);
@@ -715,6 +720,9 @@ mod tests {
             let session = session.send(a + b);
             session.close();
         }
+
+        // Verify duality
+        assert_dual::<CalcClient, CalcServer>();
 
         // Run client
         let client_session = Session::new();

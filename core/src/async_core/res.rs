@@ -125,7 +125,7 @@ impl<A> Res<A> {
         Acq: FnOnce() -> A + Send + 'static,
         Rel: FnOnce(A) + Send + 'static,
     {
-        Res {
+        Self {
             acquire: Box::new(acquire),
             release: Box::new(release),
         }
@@ -140,7 +140,7 @@ impl<A> Res<A> {
     where
         A: Send + 'static,
     {
-        Res {
+        Self {
             acquire: Box::new(move || value),
             release: Box::new(|_| {}),
         }
@@ -227,7 +227,7 @@ impl<A> Res<A> {
         A: 'static,
         B: Send + 'static,
     {
-        let Res { acquire, release } = self;
+        let Self { acquire, release } = self;
         Res {
             acquire: Box::new(move || f((acquire)())),
             release: Box::new(move |b| (release)(g(b))),
@@ -239,6 +239,7 @@ impl<A> Res<A> {
 ///
 /// Both are acquired in order, and released in reverse order.
 #[inline]
+#[must_use]
 pub fn zip_res<A, B>(ra: Res<A>, rb: Res<B>) -> Res<(A, B)>
 where
     A: Send + 'static,
@@ -269,6 +270,7 @@ where
 
 /// Combine multiple resources.
 #[inline]
+#[must_use]
 pub fn zip_all_res<A>(resources: Vec<Res<A>>) -> Res<Vec<A>>
 where
     A: Send + 'static,
@@ -362,7 +364,7 @@ impl<A> ResAsync<A> {
         Rel: FnOnce(A) -> RelFut + Send + 'static,
         RelFut: Future<Output = ()> + Send + 'static,
     {
-        ResAsync {
+        Self {
             acquire: Box::new(move || Box::pin(acquire())),
             _release: Box::new(move |a| Box::pin(release(a))),
         }
@@ -374,7 +376,7 @@ impl<A> ResAsync<A> {
     where
         A: Send + 'static,
     {
-        ResAsync {
+        Self {
             acquire: Box::new(move || Box::pin(async move { value })),
             _release: Box::new(|_| Box::pin(async {})),
         }
@@ -382,12 +384,13 @@ impl<A> ResAsync<A> {
 
     /// Create from a synchronous resource.
     #[inline]
+    #[must_use]
     pub fn from_sync(res: Res<A>) -> Self
     where
         A: Send + 'static,
     {
         let Res { acquire, release } = res;
-        ResAsync {
+        Self {
             acquire: Box::new(move || Box::pin(async move { (acquire)() })),
             _release: Box::new(move |a| Box::pin(async move { (release)(a) })),
         }
@@ -621,7 +624,7 @@ impl<A> Piscina<A> {
         C: Fn() -> A + Send + Sync + 'static,
         D: Fn(A) + Send + Sync + 'static,
     {
-        Piscina {
+        Self {
             create: Box::new(create),
             destroy: Box::new(destroy),
             max_size,
@@ -631,12 +634,14 @@ impl<A> Piscina<A> {
 
     /// Get the maximum pool size.
     #[inline]
-    pub fn max_size(&self) -> usize {
+    #[must_use]
+    pub const fn max_size(&self) -> usize {
         self.max_size
     }
 
     /// Create a new resource (for pool implementations).
     #[inline]
+    #[must_use]
     pub fn create_resource(&self) -> A {
         (self.create)()
     }
@@ -827,7 +832,13 @@ mod tests {
         // the same allocation, not merely an equal-looking copy (an `Arc`
         // wouldn't distinguish this, since `Arc::clone` shares its pointee's
         // address too).
-        struct Marker(#[allow(dead_code)] u64); // payload keeps the Box non-ZST; only its address is read
+        struct Marker(
+            #[allow(
+                dead_code,
+                reason = "payload keeps the Box non-ZST; only its address is read"
+            )]
+            u64,
+        );
 
         // Busy-poll a future to completion; nothing here ever returns
         // `Pending`, so this always terminates.

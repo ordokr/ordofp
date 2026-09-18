@@ -83,7 +83,7 @@ pub struct Eff<R: EffectRow, A> {
 }
 
 /// Internal representation of Eff, specialized per effect row pattern.
-pub(crate) enum EffInner<R: EffectRow, A> {
+pub enum EffInner<R: EffectRow, A> {
     /// Pure value (no effects).
     Pure(A),
     /// Lazy thunk for deferred computation.
@@ -91,14 +91,14 @@ pub(crate) enum EffInner<R: EffectRow, A> {
 }
 
 /// A lazily evaluated computation.
-pub(crate) struct LazyThunk<R: EffectRow, A> {
+pub struct LazyThunk<R: EffectRow, A> {
     /// The thunk that produces the value.
     thunk: Option<Box<dyn FnOnce() -> Eff<R, A>>>,
 }
 
 impl<R: EffectRow, A> LazyThunk<R, A> {
     fn new<F: FnOnce() -> Eff<R, A> + 'static>(f: F) -> Self {
-        LazyThunk {
+        Self {
             thunk: Some(Box::new(f)),
         }
     }
@@ -116,9 +116,9 @@ impl<A> Eff<Pure, A> {
     /// Create a pure computation.
     ///
     /// This is the most efficient representation - just the value itself.
-    #[inline(always)]
+    #[inline]
     pub const fn pure(value: A) -> Self {
-        Eff {
+        Self {
             inner: EffInner::<Pure, A>::Pure(value),
             _marker: PhantomData,
         }
@@ -127,7 +127,7 @@ impl<A> Eff<Pure, A> {
     /// Run a pure computation, extracting the value.
     ///
     /// Since pure computations have no effects, we can run them directly.
-    #[inline(always)]
+    #[inline]
     pub fn run_pure(self) -> A {
         match self.inner {
             EffInner::Pure(a) => a,
@@ -168,9 +168,9 @@ impl<R: EffectRow, A> Eff<R, A> {
     /// assert_eq!(result, 42);
     /// assert_eq!(state, 0); // state was never touched
     /// ```
-    #[inline(always)]
-    pub fn from_value(value: A) -> Self {
-        Eff {
+    #[inline]
+    pub const fn from_value(value: A) -> Self {
+        Self {
             inner: EffInner::<R, A>::Pure(value),
             _marker: PhantomData,
         }
@@ -193,8 +193,8 @@ impl<R: EffectRow, A> Eff<R, A> {
     /// let comp: Eff<Pure, i32> = Eff::lazy(|| Eff::from_value(42));
     /// assert_eq!(comp.run_pure(), 42);
     /// ```
-    pub fn lazy<F: FnOnce() -> Eff<R, A> + 'static>(f: F) -> Self {
-        Eff {
+    pub fn lazy<F: FnOnce() -> Self + 'static>(f: F) -> Self {
+        Self {
             inner: EffInner::<R, A>::Lazy(LazyThunk::new(f)),
             _marker: PhantomData,
         }
@@ -276,9 +276,9 @@ impl<R: EffectRow + 'static, A: 'static> Eff<R, A> {
     /// Lift a pure value into Eff.
     ///
     /// This is equivalent to `pure` but works for any effect row.
-    #[inline(always)]
-    pub fn lift(value: A) -> Self {
-        Eff::from_value(value)
+    #[inline]
+    pub const fn lift(value: A) -> Self {
+        Self::from_value(value)
     }
 }
 
@@ -353,9 +353,10 @@ impl<R: EffectRow + 'static, A: 'static> Eff<R, A> {
     /// let flat: Eff<Pure, Wrapped> = comp.flatten();
     /// assert_eq!(flat.run_pure().0, 42);
     /// ```
-    pub fn flatten(self) -> Eff<R, A>
+    #[must_use]
+    pub fn flatten(self) -> Self
     where
-        A: Into<Eff<R, A>>,
+        A: Into<Self>,
     {
         self.and_then(core::convert::Into::into)
     }
@@ -410,6 +411,7 @@ pub type StateEff = Row<{ super::row::STATE_BIT }>;
 /// **Stub:** the returned computation always panics when forced — the handler
 /// infrastructure that would interpret `get` does not exist yet. Use
 /// `effects::state::StatefulComputation` for working state effects.
+#[must_use]
 pub fn get<S: Clone + 'static>() -> Eff<StateEff, S> {
     Eff::lazy(|| {
         // This would be implemented with proper handler infrastructure
@@ -540,6 +542,7 @@ pub type ReaderEff = Row<{ super::row::READER_BIT }>;
 /// **Stub:** the returned computation always panics when forced — the handler
 /// infrastructure that would interpret `ask` does not exist yet. Use
 /// `effects::reader::ReaderComputation` for working reader effects.
+#[must_use]
 pub fn ask<E: Clone + 'static>() -> Eff<ReaderEff, E> {
     Eff::lazy(|| crate::cold_panic!("ask() requires proper handler - use Reader handler"))
 }
@@ -621,7 +624,7 @@ pub type ErrorEff = Row<{ super::row::ERROR_BIT }>;
 /// let comp: Eff<ErrorEff, i32> = ok::<String, i32>(42);
 /// assert_eq!(run_error::<String, i32>(comp), Ok(42));
 /// ```
-pub fn ok<E: 'static, A: 'static>(value: A) -> Eff<ErrorEff, A> {
+pub const fn ok<E: 'static, A: 'static>(value: A) -> Eff<ErrorEff, A> {
     Eff::from_value(value)
 }
 

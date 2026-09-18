@@ -8,12 +8,7 @@
 use ordofp::prelude::*;
 use ordofp::typeclasses::Apply;
 
-fn main() {
-    println!("--- Example 06: Functors, Applicatives, and Monads ---\n");
-
-    // =========================================
-    // Part 1: Functor - Mapping over containers
-    // =========================================
+fn part1_functor() {
     println!("=== Part 1: Functor (map) ===");
 
     // Option as Functor
@@ -40,10 +35,9 @@ fn main() {
     println!("Vec: [1,2,3,4,5].map(x * x) = {squared:?}");
 
     println!();
+}
 
-    // =========================================
-    // Part 2: Applicative - Applying wrapped functions
-    // =========================================
+fn part2_applicative() {
     println!("=== Part 2: Applicative (apply) ===");
 
     // Option: apply a wrapped function
@@ -68,16 +62,15 @@ fn main() {
     println!("Option::pure_target(42) = {pure_opt:?}");
 
     println!();
+}
 
-    // =========================================
-    // Part 3: Monad - Chaining operations
-    // =========================================
-    println!("=== Part 3: Monad (flat_map) ===");
-
+fn part3_monad() {
     // Safe division that returns Option
-    fn safe_divide(a: i32, b: i32) -> Option<i32> {
+    const fn safe_divide(a: i32, b: i32) -> Option<i32> {
         if b == 0 { None } else { Some(a / b) }
     }
+
+    println!("=== Part 3: Monad (flat_map) ===");
 
     // Chain operations that might fail
     let result = Some(100)
@@ -99,12 +92,9 @@ fn main() {
     println!("Vec: [1,2,3].flat_map(|x| [x, x*10, x*100]) = {expanded:?}");
 
     println!();
+}
 
-    // =========================================
-    // Part 4: Practical Example - Data Pipeline
-    // =========================================
-    println!("=== Part 4: Practical Data Pipeline ===");
-
+fn part4_pipeline() {
     #[derive(Debug, Clone)]
     struct User {
         id: i32,
@@ -143,6 +133,8 @@ fn main() {
         }
     }
 
+    println!("=== Part 4: Practical Data Pipeline ===");
+
     // Chain the lookups monadically
     let alice_profile = find_user(1).flat_map(|u| find_profile(&u));
     println!("Alice's profile: {alice_profile:?}");
@@ -154,10 +146,9 @@ fn main() {
     println!("Unknown user's profile: {unknown_profile:?}");
 
     println!();
+}
 
-    // =========================================
-    // Part 5: Monad Laws Demonstration
-    // =========================================
+fn part5_monad_laws() {
     println!("=== Part 5: Monad Laws ===");
 
     let a = 5;
@@ -199,4 +190,33 @@ fn main() {
     );
 
     println!("\n=== All examples completed! ===");
+}
+
+fn main() {
+    println!("--- Example 06: Functors, Applicatives, and Monads ---\n");
+
+    // =========================================
+    // Part 1: Functor - Mapping over containers
+    // =========================================
+    part1_functor();
+
+    // =========================================
+    // Part 2: Applicative - Applying wrapped functions
+    // =========================================
+    part2_applicative();
+
+    // =========================================
+    // Part 3: Monad - Chaining operations
+    // =========================================
+    part3_monad();
+
+    // =========================================
+    // Part 4: Practical Example - Data Pipeline
+    // =========================================
+    part4_pipeline();
+
+    // =========================================
+    // Part 5: Monad Laws Demonstration
+    // =========================================
+    part5_monad_laws();
 }

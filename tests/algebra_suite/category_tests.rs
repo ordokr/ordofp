@@ -20,7 +20,7 @@ impl Category for MulCat {
 #[test]
 fn test_mul_cat_identity() {
     // 1 * 5 == 5 AND 5 * 1 == 5
-    assert!(category_laws::identity::<MulCat, (), ()>(5));
+    assert!(category_laws::identity::<MulCat, (), ()>(&5));
 }
 
 #[test]

@@ -139,9 +139,9 @@ where
 pub async fn run_effectus_async<E, H, A, F, Fut>(handler: &H, _effect: E, computation: F) -> A
 where
     E: Effectus,
-    H: EffectusHandlerAsync<E>,
-    F: FnOnce(&H) -> Fut,
-    Fut: Future<Output = A>,
+    H: EffectusHandlerAsync<E> + Sync,
+    F: FnOnce(&H) -> Fut + Send,
+    Fut: Future<Output = A> + Send,
 {
     computation(handler).await
 }
@@ -194,18 +194,18 @@ impl<H1, H2> ComposedHandler<H1, H2> {
     /// Create a new composed handler from two handlers.
     #[inline]
     pub const fn new(handler1: H1, handler2: H2) -> Self {
-        ComposedHandler { handler1, handler2 }
+        Self { handler1, handler2 }
     }
 
     /// Get a reference to the first handler.
     #[inline]
-    pub fn first(&self) -> &H1 {
+    pub const fn first(&self) -> &H1 {
         &self.handler1
     }
 
     /// Get a reference to the second handler.
     #[inline]
-    pub fn second(&self) -> &H2 {
+    pub const fn second(&self) -> &H2 {
         &self.handler2
     }
 }

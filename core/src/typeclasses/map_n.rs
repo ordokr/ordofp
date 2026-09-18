@@ -119,7 +119,9 @@ where
     F: FnOnce(A, B, C, D) -> E,
 {
     match (fa, fb, fc, fd) {
-        (Some(a), Some(b), Some(c), Some(d)) => Some(f(a, b, c, d)),
+        (Some(first), Some(second), Some(third), Some(fourth)) => {
+            Some(f(first, second, third, fourth))
+        }
         _ => None,
     }
 }
@@ -149,7 +151,9 @@ where
     F: FnOnce(A, B, C, D, E) -> G,
 {
     match (fa, fb, fc, fd, fe) {
-        (Some(a), Some(b), Some(c), Some(d), Some(e)) => Some(f(a, b, c, d, e)),
+        (Some(first), Some(second), Some(third), Some(fourth), Some(fifth)) => {
+            Some(f(first, second, third, fourth, fifth))
+        }
         _ => None,
     }
 }
@@ -169,7 +173,9 @@ where
     F: FnOnce(A, B, C, D, E, G) -> H,
 {
     match (fa, fb, fc, fd, fe, fg) {
-        (Some(a), Some(b), Some(c), Some(d), Some(e), Some(g)) => Some(f(a, b, c, d, e, g)),
+        (Some(first), Some(second), Some(third), Some(fourth), Some(fifth), Some(sixth)) => {
+            Some(f(first, second, third, fourth, fifth, sixth))
+        }
         _ => None,
     }
 }
@@ -205,8 +211,7 @@ where
 {
     match (fa, fb) {
         (Ok(a), Ok(b)) => Ok(f(a, b)),
-        (Err(e), _) => Err(e),
-        (_, Err(e)) => Err(e),
+        (Err(e), _) | (_, Err(e)) => Err(e),
     }
 }
 
@@ -239,9 +244,7 @@ where
 {
     match (fa, fb, fc) {
         (Ok(a), Ok(b), Ok(c)) => Ok(f(a, b, c)),
-        (Err(e), _, _) => Err(e),
-        (_, Err(e), _) => Err(e),
-        (_, _, Err(e)) => Err(e),
+        (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => Err(e),
     }
 }
 
@@ -274,11 +277,8 @@ where
     F: FnOnce(A, B, C, D) -> G,
 {
     match (fa, fb, fc, fd) {
-        (Ok(a), Ok(b), Ok(c), Ok(d)) => Ok(f(a, b, c, d)),
-        (Err(e), _, _, _) => Err(e),
-        (_, Err(e), _, _) => Err(e),
-        (_, _, Err(e), _) => Err(e),
-        (_, _, _, Err(e)) => Err(e),
+        (Ok(first), Ok(second), Ok(third), Ok(fourth)) => Ok(f(first, second, third, fourth)),
+        (Err(e), _, _, _) | (_, Err(e), _, _) | (_, _, Err(e), _) | (_, _, _, Err(e)) => Err(e),
     }
 }
 
@@ -301,12 +301,14 @@ where
     F: FnOnce(A, B, C, D, E) -> G,
 {
     match (fa, fb, fc, fd, fe) {
-        (Ok(a), Ok(b), Ok(c), Ok(d), Ok(e)) => Ok(f(a, b, c, d, e)),
-        (Err(e), _, _, _, _) => Err(e),
-        (_, Err(e), _, _, _) => Err(e),
-        (_, _, Err(e), _, _) => Err(e),
-        (_, _, _, Err(e), _) => Err(e),
-        (_, _, _, _, Err(e)) => Err(e),
+        (Ok(first), Ok(second), Ok(third), Ok(fourth), Ok(fifth)) => {
+            Ok(f(first, second, third, fourth, fifth))
+        }
+        (Err(e), _, _, _, _)
+        | (_, Err(e), _, _, _)
+        | (_, _, Err(e), _, _)
+        | (_, _, _, Err(e), _)
+        | (_, _, _, _, Err(e)) => Err(e),
     }
 }
 
@@ -343,11 +345,11 @@ where
 
 /// Applies a quaternary function to a tuple of values.
 #[inline]
-pub fn tuple4_map<A, B, C, D, E, F>((a, b, c, d): (A, B, C, D), f: F) -> E
+pub fn tuple4_map<A, B, C, D, E, F>((first, second, third, fourth): (A, B, C, D), f: F) -> E
 where
     F: FnOnce(A, B, C, D) -> E,
 {
-    f(a, b, c, d)
+    f(first, second, third, fourth)
 }
 
 // ========== Sequence helpers ==========
@@ -419,8 +421,7 @@ pub fn sequence4<A, B, C, D>(
 pub fn sequence2_result<A, B, E>(tuple: (Result<A, E>, Result<B, E>)) -> Result<(A, B), E> {
     match tuple {
         (Ok(a), Ok(b)) => Ok((a, b)),
-        (Err(e), _) => Err(e),
-        (_, Err(e)) => Err(e),
+        (Err(e), _) | (_, Err(e)) => Err(e),
     }
 }
 
@@ -436,9 +437,7 @@ pub fn sequence3_result<A, B, C, E>(
 ) -> Result<(A, B, C), E> {
     match tuple {
         (Ok(a), Ok(b), Ok(c)) => Ok((a, b, c)),
-        (Err(e), _, _) => Err(e),
-        (_, Err(e), _) => Err(e),
-        (_, _, Err(e)) => Err(e),
+        (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => Err(e),
     }
 }
 
@@ -456,10 +455,7 @@ pub type Results4<A, B, C, D, E> = (Result<A, E>, Result<B, E>, Result<C, E>, Re
 pub fn sequence4_result<A, B, C, D, E>(tuple: Results4<A, B, C, D, E>) -> Result<(A, B, C, D), E> {
     match tuple {
         (Ok(a), Ok(b), Ok(c), Ok(d)) => Ok((a, b, c, d)),
-        (Err(e), _, _, _) => Err(e),
-        (_, Err(e), _, _) => Err(e),
-        (_, _, Err(e), _) => Err(e),
-        (_, _, _, Err(e)) => Err(e),
+        (Err(e), _, _, _) | (_, Err(e), _, _) | (_, _, Err(e), _) | (_, _, _, Err(e)) => Err(e),
     }
 }
 

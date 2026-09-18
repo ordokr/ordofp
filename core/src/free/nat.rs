@@ -72,8 +72,8 @@ pub struct TransformatioFn<F: HKT, G: HKT, Func> {
 impl<F: HKT, G: HKT, Func> TransformatioFn<F, G, Func> {
     /// Create a new function-based natural transformation.
     #[inline]
-    pub fn new(f: Func) -> Self {
-        TransformatioFn {
+    pub const fn new(f: Func) -> Self {
+        Self {
             f,
             _f: core::marker::PhantomData,
             _g: core::marker::PhantomData,
@@ -106,7 +106,7 @@ pub struct TransformatioIdentitas<F>(core::marker::PhantomData<F>);
 impl<F> Default for TransformatioIdentitas<F> {
     #[inline]
     fn default() -> Self {
-        TransformatioIdentitas(core::marker::PhantomData)
+        Self(core::marker::PhantomData)
     }
 }
 

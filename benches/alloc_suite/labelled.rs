@@ -143,7 +143,7 @@ struct BigStruct25FieldsReverse {
 
 impl From<BigStruct24Fields> for BigStruct24FieldsReverse {
     fn from(b: BigStruct24Fields) -> Self {
-        BigStruct24FieldsReverse {
+        Self {
             a: b.a,
             b: b.b,
             c: b.c,
@@ -174,7 +174,7 @@ impl From<BigStruct24Fields> for BigStruct24FieldsReverse {
 
 impl From<BigStruct25Fields> for BigStruct25FieldsReverse {
     fn from(b: BigStruct25Fields) -> Self {
-        BigStruct25FieldsReverse {
+        Self {
             a: b.a,
             b: b.b,
             c: b.c,

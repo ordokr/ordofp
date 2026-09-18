@@ -57,18 +57,15 @@ where
 ///     value: i32,
 /// }
 ///
-/// let result = run_with_env(Config::default(), |config: &Config| config.value);
+/// let result = run_with_env(&Config::default(), |config: &Config| config.value);
 /// assert_eq!(result, 0);
 /// ```
-// `env` is taken by value for call-site ergonomics: temporaries and owned
-// configs can be passed without a borrow dance.
-#[allow(clippy::needless_pass_by_value)]
 #[inline]
-pub fn run_with_env<R, A, F>(env: R, computation: F) -> A
+pub fn run_with_env<R, A, F>(env: &R, computation: F) -> A
 where
     F: FnOnce(&R) -> A,
 {
-    computation(&env)
+    computation(env)
 }
 
 /// Run a computation with a locally modified environment.
@@ -108,7 +105,7 @@ impl<R: 'static, A: 'static> Reader<R, A> {
     where
         F: FnOnce(&R) -> A + 'static,
     {
-        Reader { run: Box::new(f) }
+        Self { run: Box::new(f) }
     }
 
     /// Run the computation with an environment.
@@ -140,6 +137,7 @@ impl<R: 'static, A: 'static> Reader<R, A> {
 
     /// Sequence two computations, keeping the second result.
     #[inline]
+    #[must_use]
     pub fn then<B: 'static>(self, next: Reader<R, B>) -> Reader<R, B> {
         Reader::new(move |r| {
             let _ = (self.run)(r);
@@ -156,6 +154,7 @@ pub fn reader_pure<R: 'static, A: 'static>(value: A) -> Reader<R, A> {
 
 /// Read the entire environment.
 #[inline]
+#[must_use]
 pub fn ask<R: Clone + 'static>() -> Reader<R, R> {
     Reader::new(|r: &R| r.clone())
 }
@@ -193,7 +192,7 @@ pub struct Dependencies<D> {
 impl<D> Dependencies<D> {
     /// Create a new dependency container.
     pub fn new(deps: D) -> Self {
-        Dependencies {
+        Self {
             deps: Arc::new(deps),
         }
     }
@@ -207,6 +206,7 @@ impl<D> Dependencies<D> {
     }
 
     /// Get a reference to the dependencies.
+    #[must_use]
     pub fn get(&self) -> &D {
         &self.deps
     }
@@ -222,7 +222,7 @@ impl<D> Dependencies<D> {
 
 impl<D> Clone for Dependencies<D> {
     fn clone(&self) -> Self {
-        Dependencies {
+        Self {
             deps: Arc::clone(&self.deps),
         }
     }
@@ -249,8 +249,9 @@ pub struct ConfigBuilder<C> {
 
 impl<C: Default> ConfigBuilder<C> {
     /// Create a new config builder with default values.
+    #[must_use]
     pub fn new() -> Self {
-        ConfigBuilder {
+        Self {
             config: C::default(),
             errors: Vec::new(),
         }
@@ -259,14 +260,15 @@ impl<C: Default> ConfigBuilder<C> {
 
 impl<C> ConfigBuilder<C> {
     /// Create a builder from an existing config.
-    pub fn from(config: C) -> Self {
-        ConfigBuilder {
+    pub const fn from(config: C) -> Self {
+        Self {
             config,
             errors: Vec::new(),
         }
     }
 
     /// Modify the configuration.
+    #[must_use]
     pub fn with<F>(mut self, modifier: F) -> Self
     where
         F: FnOnce(&mut C),
@@ -276,6 +278,7 @@ impl<C> ConfigBuilder<C> {
     }
 
     /// Validate a condition, recording an error if it fails.
+    #[must_use]
     pub fn validate<F>(mut self, predicate: F, error: &str) -> Self
     where
         F: FnOnce(&C) -> bool,
@@ -334,8 +337,9 @@ pub struct LayeredEnv<E> {
 
 impl<E> LayeredEnv<E> {
     /// Create a new layered environment.
-    pub fn new() -> Self {
-        LayeredEnv { layers: Vec::new() }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { layers: Vec::new() }
     }
 
     /// Push a new layer.
@@ -349,6 +353,7 @@ impl<E> LayeredEnv<E> {
     }
 
     /// Get the top layer.
+    #[must_use]
     pub fn top(&self) -> Option<&E> {
         self.layers.last()
     }
@@ -365,6 +370,7 @@ impl<E> LayeredEnv<E> {
     }
 
     /// Get all layers from bottom to top.
+    #[must_use]
     pub fn layers(&self) -> &[E] {
         &self.layers
     }
@@ -412,7 +418,7 @@ pub struct LocalEnv<E> {
 impl<E> LocalEnv<E> {
     /// Create a new local environment.
     pub const fn new() -> Self {
-        LocalEnv {
+        Self {
             cell: RefCell::new(None),
         }
     }

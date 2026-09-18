@@ -52,7 +52,7 @@ impl<A, B> Const<A, B> {
     /// ```
     #[inline]
     pub const fn new(value: A) -> Self {
-        Const {
+        Self {
             value,
             _phantom: PhantomData,
         }
@@ -161,7 +161,7 @@ impl<A, B> Const<A, B> {
 /// assert_eq!(get_const(&c), &42);
 /// ```
 #[inline]
-pub fn get_const<A, B>(c: &Const<A, B>) -> &A {
+pub const fn get_const<A, B>(c: &Const<A, B>) -> &A {
     c.get_const()
 }
 
@@ -172,7 +172,7 @@ pub fn get_const<A, B>(c: &Const<A, B>) -> &A {
 impl<A, B> From<A> for Const<A, B> {
     #[inline]
     fn from(value: A) -> Self {
-        Const::new(value)
+        Self::new(value)
     }
 }
 
@@ -198,6 +198,7 @@ use crate::typeclasses::Unitas;
 impl<A: Unitas + Clone, B> Const<A, B> {
     /// The applicative pure for Const - returns the monoid identity.
     #[inline]
+    #[must_use]
     pub fn pure_const<C>(_: C) -> Const<A, C> {
         Const::new(A::empty())
     }
@@ -215,8 +216,9 @@ impl<A: Unitas + Clone, B> Const<A, B> {
     /// assert_eq!(combined.get_const(), &42);
     /// ```
     #[inline]
+    #[must_use]
     pub fn combine_const(&self, other: &Self) -> Self {
-        Const::new(self.value.clone().combine(&other.value))
+        Self::new(self.value.clone().combine(&other.value))
     }
 }
 

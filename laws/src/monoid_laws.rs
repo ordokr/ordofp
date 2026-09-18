@@ -35,8 +35,8 @@ use ordofp::monoid::Unitas;
 /// use ordofp_laws::monoid_laws::left_identity;
 /// assert!(left_identity("hello".to_string()));
 /// ```
-pub fn left_identity<A: Unitas + Eq>(a: A) -> bool {
-    <A as Unitas>::empty().combine(&a) == a
+pub fn left_identity<A: Unitas + Eq>(a: &A) -> bool {
+    <A as Unitas>::empty().combine(a) == *a
 }
 
 /// **Right Identity Law**: Any value combined with empty yields that value.
@@ -51,8 +51,8 @@ pub fn left_identity<A: Unitas + Eq>(a: A) -> bool {
 /// use ordofp_laws::monoid_laws::right_identity;
 /// assert!(right_identity(vec![1, 2, 3]));
 /// ```
-pub fn right_identity<A: Unitas + Eq>(a: A) -> bool {
-    a.combine(&<A as Unitas>::empty()) == a
+pub fn right_identity<A: Unitas + Eq>(a: &A) -> bool {
+    a.combine(&<A as Unitas>::empty()) == *a
 }
 
 #[cfg(test)]
@@ -65,44 +65,149 @@ mod tests {
 
     #[test]
     fn string_id_prop() {
-        quickcheck(left_identity as fn(String) -> bool);
-        quickcheck(right_identity as fn(String) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: String) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: String) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(String) -> bool);
+        quickcheck(right_identity_prop as fn(String) -> bool);
     }
 
     #[test]
     fn option_id_prop() {
-        quickcheck(left_identity as fn(Option<String>) -> bool);
-        quickcheck(right_identity as fn(Option<String>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: Option<String>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: Option<String>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(Option<String>) -> bool);
+        quickcheck(right_identity_prop as fn(Option<String>) -> bool);
     }
 
     #[test]
     fn vec_id_prop() {
-        quickcheck(left_identity as fn(Vec<String>) -> bool);
-        quickcheck(right_identity as fn(Vec<String>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: Vec<String>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: Vec<String>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(Vec<String>) -> bool);
+        quickcheck(right_identity_prop as fn(Vec<String>) -> bool);
     }
 
     #[test]
     fn hashset_id_prop() {
-        quickcheck(left_identity as fn(HashSet<i32>) -> bool);
-        quickcheck(right_identity as fn(HashSet<i32>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: HashSet<i32>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: HashSet<i32>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(HashSet<i32>) -> bool);
+        quickcheck(right_identity_prop as fn(HashSet<i32>) -> bool);
     }
 
     #[test]
     fn hashmap_id_prop() {
-        quickcheck(left_identity as fn(HashMap<i32, String>) -> bool);
-        quickcheck(right_identity as fn(HashMap<i32, String>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: HashMap<i32, String>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: HashMap<i32, String>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(HashMap<i32, String>) -> bool);
+        quickcheck(right_identity_prop as fn(HashMap<i32, String>) -> bool);
     }
 
     #[test]
     fn any_id_prop() {
-        quickcheck(left_identity as fn(Wrapper<Aliquid<i32>>) -> bool);
-        quickcheck(right_identity as fn(Wrapper<Aliquid<i32>>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: Wrapper<Aliquid<i32>>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: Wrapper<Aliquid<i32>>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(Wrapper<Aliquid<i32>>) -> bool);
+        quickcheck(right_identity_prop as fn(Wrapper<Aliquid<i32>>) -> bool);
     }
 
     #[test]
     fn all_id_prop() {
-        quickcheck(left_identity as fn(Wrapper<Omnis<i32>>) -> bool);
-        quickcheck(right_identity as fn(Wrapper<Omnis<i32>>) -> bool);
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn left_identity_prop(x: Wrapper<Omnis<i32>>) -> bool {
+            left_identity(&x)
+        }
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
+        fn right_identity_prop(x: Wrapper<Omnis<i32>>) -> bool {
+            right_identity(&x)
+        }
+
+        quickcheck(left_identity_prop as fn(Wrapper<Omnis<i32>>) -> bool);
+        quickcheck(right_identity_prop as fn(Wrapper<Omnis<i32>>) -> bool);
     }
 
     macro_rules! numeric_id_props {
@@ -111,8 +216,11 @@ mod tests {
         $(
             #[test]
             fn $id() {
-                quickcheck(left_identity as fn($tr) -> bool);
-                quickcheck(right_identity as fn($tr) -> bool);
+                fn left_identity_prop(x: $tr) -> bool { left_identity(&x) }
+                fn right_identity_prop(x: $tr) -> bool { right_identity(&x) }
+
+                quickcheck(left_identity_prop as fn($tr) -> bool);
+                quickcheck(right_identity_prop as fn($tr) -> bool);
             }
         )*
       }

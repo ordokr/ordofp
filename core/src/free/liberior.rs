@@ -124,20 +124,20 @@ pub struct LiberiorSuspensio<F, A> {
 impl<F: 'static, A: 'static> Liberior<F, A> {
     /// Create a pure value.
     #[inline]
-    pub fn purus(a: A) -> Self {
-        Liberior::Purus(a)
+    pub const fn purus(a: A) -> Self {
+        Self::Purus(a)
     }
 
     /// Check if this is a pure value.
     #[inline]
-    pub fn est_purus(&self) -> bool {
-        matches!(self, Liberior::Purus(_))
+    pub const fn est_purus(&self) -> bool {
+        matches!(self, Self::Purus(_))
     }
 
     /// Check if this is an impure computation.
     #[inline]
-    pub fn est_impurus(&self) -> bool {
-        matches!(self, Liberior::Impurus(_))
+    pub const fn est_impurus(&self) -> bool {
+        matches!(self, Self::Impurus(_))
     }
 
     /// Map a function over the result type.
@@ -173,8 +173,8 @@ impl<F: 'static, A: 'static> Liberior<F, A> {
         G: FnOnce(A) -> Liberior<F, B> + Send + 'static,
     {
         match self {
-            Liberior::Purus(a) => f(a),
-            Liberior::Impurus(suspensio) => {
+            Self::Purus(a) => f(a),
+            Self::Impurus(suspensio) => {
                 // Re-type the existing first_cont from  `Any -> Liberior<F, A>`
                 // to `Any -> Any` so it can be pushed into `extra_conts`,
                 // and make `f` the new typed terminal continuation.
@@ -198,8 +198,8 @@ impl<F: 'static, A: 'static> Liberior<F, A> {
 
                 let new_first: ContinuatioFinalis<F, B> = Box::new(move |boxed_any| {
                     // The previous step boxed a `Liberior<F, A>`; unwrap it.
-                    let intermediate: Liberior<F, A> = *boxed_any
-                        .downcast::<Liberior<F, A>>()
+                    let intermediate: Self = *boxed_any
+                        .downcast::<Self>()
                         .expect("Liberior: type mismatch in flat continuation queue");
                     // Apply the user's continuation to the intermediate
                     // Liberior.  If it's Purus we call f directly; if it's
@@ -207,12 +207,12 @@ impl<F: 'static, A: 'static> Liberior<F, A> {
                     // a single level (the result of one user function), not
                     // the whole chain.
                     match intermediate {
-                        Liberior::Purus(a) => f(a),
-                        Liberior::Impurus(inner) => {
+                        Self::Purus(a) => f(a),
+                        Self::Impurus(inner) => {
                             // The intermediate computation itself is impure.
                             // Bind f onto it so that its own continuation
                             // queue absorbs f rather than nesting closures.
-                            Liberior::Impurus(inner).flat_map(f)
+                            Self::Impurus(inner).flat_map(f)
                         }
                     }
                 });
@@ -247,6 +247,7 @@ impl<F: 'static, A: 'static> LiberiorSuspensio<F, A> {
     /// Interpreters should call this once they have resolved the `effect`
     /// into its result value.
     #[inline]
+    #[must_use]
     pub fn resume(self, effect_result: Box<dyn core::any::Any>) -> Liberior<F, A> {
         let mut value: Box<dyn core::any::Any> = effect_result;
 
@@ -263,6 +264,7 @@ impl<F: 'static, A: 'static> LiberiorSuspensio<F, A> {
 
     /// Access the raw effect (type-erased) for inspection by an interpreter.
     #[inline]
+    #[must_use]
     pub fn effect(&self) -> &(dyn core::any::Any + Send + Sync) {
         &*self.effect
     }
@@ -272,11 +274,12 @@ impl<F: 'static, A: 'static> LiberiorSuspensio<F, A> {
     /// Returns `(effect, suspensio_without_effect)` — the caller can
     /// downcast the effect, then call `resume` on the rest.
     #[inline]
+    #[must_use]
     pub fn take_effect(self) -> (Box<dyn core::any::Any + Send + Sync>, Self) {
         // We need to reconstruct without the effect; replace with a unit box.
         let dummy_effect: Box<dyn core::any::Any + Send + Sync> = Box::new(());
         let real_effect = self.effect;
-        let rest = LiberiorSuspensio {
+        let rest = Self {
             effect: dummy_effect,
             first_cont: self.first_cont,
             extra_conts: self.extra_conts,
@@ -402,7 +405,7 @@ mod tests {
 
         match mapped {
             Liberior::Purus(x) => assert_eq!(x, 84),
-            _ => panic!("Expected Purus"),
+            Liberior::Impurus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -413,7 +416,7 @@ mod tests {
 
         match chained {
             Liberior::Purus(x) => assert_eq!(x, 43),
-            _ => panic!("Expected Purus"),
+            Liberior::Impurus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -427,7 +430,7 @@ mod tests {
 
         match result {
             Liberior::Purus(x) => assert_eq!(x, 20), // ((10 + 5) * 2) - 10 = 20
-            _ => panic!("Expected Purus"),
+            Liberior::Impurus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -452,7 +455,7 @@ mod tests {
 
         match result {
             Liberior::Purus(x) => assert_eq!(x, 42),
-            _ => panic!("Expected Purus"),
+            Liberior::Impurus(_) => panic!("Expected Purus"),
         }
     }
 

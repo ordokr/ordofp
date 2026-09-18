@@ -33,13 +33,13 @@ const DIGIT_CHARS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 /// Parses a `TokenStream` (usually received as input into a
 /// custom derive function), into a syn `MacroInput` AST,
 /// which is nice.
-pub(crate) fn to_ast(input: TokenStream) -> DeriveInput {
+pub fn to_ast(input: TokenStream) -> DeriveInput {
     // Parse the string representation
     syn::parse(input).unwrap()
 }
 
 /// Returns an Ident
-pub(crate) fn call_site_ident(s: &str) -> Ident {
+pub fn call_site_ident(s: &str) -> Ident {
     Ident::new(s, Span::call_site())
 }
 
@@ -62,7 +62,7 @@ where
 
 /// Given a list of types, creates an AST for the corresponding `HList`
 /// type.
-pub(crate) fn build_hlist_type<L: IntoIterator>(items: L) -> TokenStream2
+pub fn build_hlist_type<L: IntoIterator>(items: L) -> TokenStream2
 where
     L::Item: ToTokens,
     L::IntoIter: DoubleEndedIterator,
@@ -78,7 +78,7 @@ where
 
 /// Given a list of expressions or patterns, creates an AST for the corresponding `HList`
 /// constructor, which may itself be used as an expression or a pattern.
-pub(crate) fn build_hlist_constr<L: IntoIterator>(items: L) -> TokenStream2
+pub fn build_hlist_constr<L: IntoIterator>(items: L) -> TokenStream2
 where
     L::Item: ToTokens,
     L::IntoIter: DoubleEndedIterator,
@@ -94,7 +94,7 @@ where
 
 /// Given a list of types, creates an AST for the corresponding Disiunctio
 /// type.
-pub(crate) fn build_disiunctio_type<L: IntoIterator>(items: L) -> TokenStream2
+pub fn build_disiunctio_type<L: IntoIterator>(items: L) -> TokenStream2
 where
     L::Item: ToTokens,
     L::IntoIter: DoubleEndedIterator,
@@ -108,7 +108,7 @@ where
 
 /// Given an index and an expression or pattern, creates an AST for the corresponding Disiunctio
 /// constructor, which may itself be used as an expression or a pattern.
-pub(crate) fn build_disiunctio_constr(index: usize, item: impl ToTokens) -> TokenStream2 {
+pub fn build_disiunctio_constr(index: usize, item: impl ToTokens) -> TokenStream2 {
     (0..index).fold(
         quote! { ::ordofp_core::disiunctio::Disiunctio::Sinister(#item) },
         |acc, _| quote! { ::ordofp_core::disiunctio::Disiunctio::Dexter(#acc) },
@@ -118,7 +118,7 @@ pub(crate) fn build_disiunctio_constr(index: usize, item: impl ToTokens) -> Toke
 /// Given the length of a Disiunctio type, generates an "unreachable" match arm, matching
 /// the Absurdum case in order to work around limitations in the compiler's exhaustiveness
 /// checking.
-pub(crate) fn build_disiunctio_unreachable_arm(length: usize, _deref: bool) -> TokenStream2 {
+pub fn build_disiunctio_unreachable_arm(length: usize, _deref: bool) -> TokenStream2 {
     let result = (0..length).fold(quote! { _ordofp_unreachable_ }, |acc, _| {
         quote! { ::ordofp_core::disiunctio::Disiunctio::Dexter(#acc)}
     });
@@ -133,7 +133,7 @@ pub(crate) fn build_disiunctio_unreachable_arm(length: usize, _deref: bool) -> T
 ///
 /// Used by derive macros to generate the `HList` field type for each
 /// named struct field.
-pub(crate) fn build_field_type(name: &Ident, inner_type: impl ToTokens) -> TokenStream2 {
+pub fn build_field_type(name: &Ident, inner_type: impl ToTokens) -> TokenStream2 {
     let label_type = build_label_type(name);
     quote! { ::ordofp_core::labelled::Field<#label_type, #inner_type> }
 }
@@ -147,7 +147,7 @@ pub(crate) fn build_field_type(name: &Ident, inner_type: impl ToTokens) -> Token
 ///
 /// Used by derive macros to generate the `HList` construction expression for
 /// each named struct field.
-pub(crate) fn build_field_expr(name: &Ident, inner_expr: impl ToTokens) -> TokenStream2 {
+pub fn build_field_expr(name: &Ident, inner_expr: impl ToTokens) -> TokenStream2 {
     let label_type = build_label_type(name);
     let literal_name = name.to_string();
     quote! { ::ordofp_core::labelled::field_with_name::<#label_type, _>(#literal_name, #inner_expr) }
@@ -160,7 +160,7 @@ pub(crate) fn build_field_expr(name: &Ident, inner_expr: impl ToTokens) -> Token
 ///
 /// Used by derive macros to generate the `HList` destructuring pattern for
 /// each named struct field.
-pub(crate) fn build_field_pat(inner_pat: impl ToTokens) -> TokenStream2 {
+pub fn build_field_pat(inner_pat: impl ToTokens) -> TokenStream2 {
     quote! { ::ordofp_core::labelled::Field { value: #inner_pat, .. } }
 }
 
@@ -168,7 +168,7 @@ pub(crate) fn build_field_pat(inner_pat: impl ToTokens) -> TokenStream2 {
 /// enums generated in `ordofp_core::labelled`.
 ///
 /// For example, given `first_name`, returns an AST for (f,i,r,s,t,__,n,a,m,e)
-pub(crate) fn build_label_type(ident: &Ident) -> impl ToTokens {
+pub fn build_label_type(ident: &Ident) -> impl ToTokens {
     let as_string = ident.to_string();
     let name = as_string.as_str();
     // Map each encoded char-ident straight into its token stream; no intermediate
@@ -233,7 +233,7 @@ fn encode_as_ident(c: char) -> Vec<Ident> {
 ///
 /// Propagates any `syn::Error` from [`find_idents_in_expr`] if `path_expr`
 /// is not a valid field access chain.
-pub(crate) fn build_path_type(path_expr: Expr) -> syn::Result<TokenStream2> {
+pub fn build_path_type(path_expr: Expr) -> syn::Result<TokenStream2> {
     let idents = find_idents_in_expr(path_expr)?;
     Ok(idents
         .iter()
@@ -259,7 +259,7 @@ pub(crate) fn build_path_type(path_expr: Expr) -> syn::Result<TokenStream2> {
 /// - Tuple field access is used (e.g., `foo.0`) - only named fields are supported
 /// - The path contains `::` separators (e.g., `module::name`)
 /// - The expression is not a valid field access chain
-pub(crate) fn find_idents_in_expr(path_expr: Expr) -> syn::Result<Vec<Ident>> {
+pub fn find_idents_in_expr(path_expr: Expr) -> syn::Result<Vec<Ident>> {
     fn go(current: Expr, mut v: Vec<Ident>) -> syn::Result<Vec<Ident>> {
         match current {
             Expr::Field(e) => {
@@ -305,15 +305,21 @@ pub(crate) fn find_idents_in_expr(path_expr: Expr) -> syn::Result<Vec<Ident>> {
     go(path_expr, Vec::new())
 }
 
-pub(crate) enum StructType {
+pub enum StructType {
     Named,
     Tuple,
     Unit,
 }
 
-pub(crate) struct FieldBinding {
+pub struct FieldBinding {
     pub field: Field,
     pub binding: Ident,
+    /// Type-level label ident. Same as `binding` for named fields; `_0`,
+    /// `_1`, … for tuple fields — the `_N` spelling is public API (encoded
+    /// in the `Repr` type and its string form), while `binding` (used for
+    /// value-level patterns) avoids the leading underscore so the expansion
+    /// stays `used_underscore_binding`-clean.
+    pub label: Ident,
 }
 
 impl FieldBinding {
@@ -357,19 +363,19 @@ impl FieldBinding {
     }
     /// Returns a `TokenStream2` for a struct field declaration with the owned type (`ident: T`).
     pub(crate) fn build_field_type(&self) -> TokenStream2 {
-        build_field_type(&self.binding, self.build_type())
+        build_field_type(&self.label, self.build_type())
     }
     /// Returns a `TokenStream2` for a struct field declaration with a shared reference type (`ident: &'_ T`).
     pub(crate) fn build_field_type_ref(&self) -> TokenStream2 {
-        build_field_type(&self.binding, self.build_type_ref())
+        build_field_type(&self.label, self.build_type_ref())
     }
     /// Returns a `TokenStream2` for a struct field declaration with a mutable reference type (`ident: &'_ mut T`).
     pub(crate) fn build_field_type_mut(&self) -> TokenStream2 {
-        build_field_type(&self.binding, self.build_type_mut())
+        build_field_type(&self.label, self.build_type_mut())
     }
     /// Returns a `TokenStream2` for a struct field expression (`ident: binding`).
     pub(crate) fn build_field_expr(&self) -> TokenStream2 {
-        build_field_expr(&self.binding, &self.binding)
+        build_field_expr(&self.label, &self.binding)
     }
     /// Returns a `TokenStream2` for a struct field destructuring pattern (`ident: binding`).
     pub(crate) fn build_field_pat(&self) -> TokenStream2 {
@@ -379,7 +385,7 @@ impl FieldBinding {
 
 /// Represents the binding of a struct or enum variant's fields to a corresponding
 /// set of similarly named local variables.
-pub(crate) struct FieldBindings {
+pub struct FieldBindings {
     pub type_: StructType,
     pub fields: Vec<FieldBinding>,
 }
@@ -390,7 +396,10 @@ impl FieldBindings {
     /// Inspects each field of the struct or variant to determine the struct
     /// kind (`Named`, `Tuple`, or `Unit`) and creates a [`FieldBinding`] for
     /// every field. Named fields keep their original identifier; tuple fields
-    /// receive a generated identifier of the form `_0`, `_1`, etc.
+    /// receive a generated value binding of the form `field0`, `field1`, etc.
+    /// (no leading underscore: the bindings are used by the expansion, and
+    /// underscore-prefixed-but-used bindings trip `used_underscore_binding`),
+    /// while their type-level label keeps the public `_0`, `_1`, … spelling.
     pub(crate) fn new(fields: &Fields) -> Self {
         Self {
             type_: match fields {
@@ -404,6 +413,10 @@ impl FieldBindings {
                 .map(|(index, field)| FieldBinding {
                     field: field.clone(),
                     binding: field
+                        .ident
+                        .clone()
+                        .unwrap_or_else(|| Ident::new(&format!("field{index}"), field.span())),
+                    label: field
                         .ident
                         .clone()
                         .unwrap_or_else(|| Ident::new(&format!("_{index}"), field.span())),
@@ -458,7 +471,7 @@ impl FieldBindings {
 /// lifetime parameter to outlive it, and appends it to the parameter list.
 /// The resulting `Generics` is suitable for implementing traits on `&'_ordofp_ref_ Type<…>`
 /// and `&'_ordofp_ref_ mut Type<…>` inside derive macros.
-pub(crate) fn ref_generics(generics: &Generics) -> Generics {
+pub fn ref_generics(generics: &Generics) -> Generics {
     let mut generics_ref = generics.clone();
 
     // instantiate a lifetime and lifetime def to add
@@ -481,7 +494,7 @@ pub(crate) fn ref_generics(generics: &Generics) -> Generics {
     generics_ref
 }
 
-pub(crate) struct VariantBinding {
+pub struct VariantBinding {
     pub name: Ident,
     pub fields: FieldBindings,
 }
@@ -594,7 +607,7 @@ impl VariantBinding {
     }
 }
 
-pub(crate) struct VariantBindings {
+pub struct VariantBindings {
     pub variants: Vec<VariantBinding>,
 }
 
@@ -611,7 +624,7 @@ impl VariantBindings {
     /// * `data` – An iterator of references to parsed `syn::Variant` nodes,
     ///   typically obtained from `syn::DataEnum::variants`.
     pub(crate) fn new<'a>(data: impl IntoIterator<Item = &'a Variant>) -> Self {
-        VariantBindings {
+        Self {
             variants: data
                 .into_iter()
                 .map(|variant| VariantBinding {

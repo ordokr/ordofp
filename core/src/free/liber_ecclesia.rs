@@ -88,9 +88,10 @@ enum AcervusStorage<T> {
 #[cfg(feature = "alloc")]
 impl<T> AcervusParvus<T> {
     /// Create an empty small stack.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub const fn empty() -> Self {
-        AcervusParvus {
+        Self {
             storage: AcervusStorage::Inline {
                 data: [const { None }; INLINE_CAPACITY],
                 len: 0,
@@ -99,14 +100,14 @@ impl<T> AcervusParvus<T> {
     }
 
     /// Check if the stack is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Get the number of elements.
-    #[inline(always)]
-    pub fn len(&self) -> usize {
+    #[inline]
+    pub const fn len(&self) -> usize {
         match &self.storage {
             AcervusStorage::Inline { len, .. } => *len,
             AcervusStorage::Heap(vec) => vec.len(),
@@ -114,13 +115,13 @@ impl<T> AcervusParvus<T> {
     }
 
     /// Check if storage is inline.
-    #[inline(always)]
-    pub fn is_inline(&self) -> bool {
+    #[inline]
+    pub const fn is_inline(&self) -> bool {
         matches!(self.storage, AcervusStorage::Inline { .. })
     }
 
     /// Push an element onto the stack.
-    #[inline(always)]
+    #[inline]
     pub fn push(&mut self, item: T) {
         match &mut self.storage {
             AcervusStorage::Inline { data, len } => {
@@ -156,7 +157,7 @@ impl<T> AcervusParvus<T> {
     }
 
     /// Pop an element from the end of the stack.
-    #[inline(always)]
+    #[inline]
     pub fn pop(&mut self) -> Option<T> {
         match &mut self.storage {
             AcervusStorage::Inline { data, len } => {
@@ -200,7 +201,7 @@ impl<T> IntoIterator for AcervusParvus<T> {
 
 #[cfg(feature = "alloc")]
 impl<T> Default for AcervusParvus<T> {
-    #[inline(always)]
+    #[inline]
     fn default() -> Self {
         Self::empty()
     }
@@ -382,27 +383,31 @@ impl<F: FunctorHKT + 'static> ContinuatioStack<F> {
     /// Create an empty continuation stack.
     ///
     /// Uses inline storage - no heap allocation for the first 4 continuations.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn empty() -> Self {
-        ContinuatioStack {
+        Self {
             steps: AcervusParvus::empty(),
         }
     }
 
     /// Check if the stack is empty.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()
     }
 
     /// Get the length of the stack.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
         self.steps.len()
     }
 
     /// Check if the stack is using inline storage (no heap allocation).
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn is_inline(&self) -> bool {
         self.steps.is_inline()
     }
@@ -410,7 +415,7 @@ impl<F: FunctorHKT + 'static> ContinuatioStack<F> {
     /// Push a new continuation onto the stack.
     ///
     /// O(1) amortized - uses inline storage for first 4 elements.
-    #[inline(always)]
+    #[inline]
     fn push(&mut self, step: Box<dyn ContinuatioStep<F> + Send + Sync>) {
         self.steps.push(step);
     }
@@ -450,10 +455,8 @@ impl<F: FunctorHKT + 'static, A: Send + Sync + 'static> LiberEcclesia<F, A> {
     #[inline]
     fn erase(self) -> LiberEcclesiaErased<F> {
         match self {
-            LiberEcclesia::Purus(a) => LiberEcclesiaErased::Purus(Box::new(a)),
-            LiberEcclesia::Suspensus { effect, stack } => {
-                LiberEcclesiaErased::Suspensus { effect, stack }
-            }
+            Self::Purus(a) => LiberEcclesiaErased::Purus(Box::new(a)),
+            Self::Suspensus { effect, stack } => LiberEcclesiaErased::Suspensus { effect, stack },
         }
     }
 }
@@ -472,31 +475,31 @@ impl<F: FunctorHKT + 'static, A: 'static> LiberEcclesia<F, A> {
     /// let x: LiberEcclesia<OptionFWitness, i32> = LiberEcclesia::purus(42);
     /// assert!(x.est_purus());
     /// ```
-    #[inline(always)]
-    pub fn purus(a: A) -> Self {
-        LiberEcclesia::Purus(a)
+    #[inline]
+    pub const fn purus(a: A) -> Self {
+        Self::Purus(a)
     }
 
     /// Check if this is a pure value.
-    #[inline(always)]
-    pub fn est_purus(&self) -> bool {
-        matches!(self, LiberEcclesia::Purus(_))
+    #[inline]
+    pub const fn est_purus(&self) -> bool {
+        matches!(self, Self::Purus(_))
     }
 
     /// Check if this is a suspended computation.
-    #[inline(always)]
-    pub fn est_suspensus(&self) -> bool {
-        matches!(self, LiberEcclesia::Suspensus { .. })
+    #[inline]
+    pub const fn est_suspensus(&self) -> bool {
+        matches!(self, Self::Suspensus { .. })
     }
 
     /// Extract the value if this is a pure computation.
     ///
     /// Returns `None` if the computation is suspended (impure).
-    #[inline(always)]
+    #[inline]
     pub fn extract_pure(self) -> Option<A> {
         match self {
-            LiberEcclesia::Purus(a) => Some(a),
-            LiberEcclesia::Suspensus { .. } => None,
+            Self::Purus(a) => Some(a),
+            Self::Suspensus { .. } => None,
         }
     }
 
@@ -507,11 +510,11 @@ impl<F: FunctorHKT + 'static, A: 'static> LiberEcclesia<F, A> {
     /// Panics if the computation is `Suspensus` (it still contains at least
     /// one unhandled effect). Use [`Self::extract_pure`] for a non-panicking
     /// variant.
-    #[inline(always)]
+    #[inline]
     pub fn run_pure(self) -> A {
         match self {
-            LiberEcclesia::Purus(a) => a,
-            LiberEcclesia::Suspensus { .. } => {
+            Self::Purus(a) => a,
+            Self::Suspensus { .. } => {
                 panic!("Cannot run impure LiberEcclesia as pure")
             }
         }
@@ -523,7 +526,7 @@ impl<F: FunctorHKT + 'static, A: Send + Sync + 'static> LiberEcclesia<F, A> {
     /// Map a function over the result type.
     ///
     /// Time complexity: O(1) - just appends to continuation stack.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: Send + Sync + 'static, G>(self, f: G) -> LiberEcclesia<F, B>
     where
         G: Fn(A) -> B + Send + Sync + 'static,
@@ -546,14 +549,14 @@ impl<F: FunctorHKT + 'static, A: Send + Sync + 'static> LiberEcclesia<F, A> {
     ///     .flat_map(|x| LiberEcclesia::purus(x * 2));
     /// assert_eq!(program.run_pure(), 86);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn flat_map<B: Send + Sync + 'static, G>(self, f: G) -> LiberEcclesia<F, B>
     where
         G: Fn(A) -> LiberEcclesia<F, B> + Send + Sync + 'static,
     {
         match self {
-            LiberEcclesia::Purus(a) => f(a),
-            LiberEcclesia::Suspensus { effect, mut stack } => {
+            Self::Purus(a) => f(a),
+            Self::Suspensus { effect, mut stack } => {
                 // Append the new continuation to the stack - O(1) amortized
                 stack.push(Box::new(ContinuatioStepImpl {
                     f,
@@ -568,7 +571,7 @@ impl<F: FunctorHKT + 'static, A: Send + Sync + 'static> LiberEcclesia<F, A> {
     /// Lift a functor value into the Church-encoded Free monad.
     ///
     /// This is the fundamental operation for building Free monad programs.
-    #[inline(always)]
+    #[inline]
     pub fn lift_f<X: Send + Sync + 'static>(fx: F::Target<X>) -> LiberEcclesia<F, X>
     where
         F::Target<X>: Send + Sync,
@@ -639,15 +642,15 @@ enum CodOptionInner<A> {
 #[cfg(feature = "alloc")]
 impl<A: Clone + Send + 'static> CodOption<A> {
     /// Create a pure Codensity value.
-    #[inline(always)]
-    pub fn purus(a: A) -> Self {
-        CodOption {
+    #[inline]
+    pub const fn purus(a: A) -> Self {
+        Self {
             inner: CodOptionInner::Pure(a),
         }
     }
 
     /// Monadic bind with O(1) performance.
-    #[inline(always)]
+    #[inline]
     pub fn flat_map<B: Clone + Send + 'static, G>(self, f: G) -> CodOption<B>
     where
         G: Fn(A) -> CodOption<B> + Send + 'static,
@@ -670,7 +673,7 @@ impl<A: Clone + Send + 'static> CodOption<A> {
     }
 
     /// Map a function over the value.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: Clone + Send + 'static, G>(self, f: G) -> CodOption<B>
     where
         G: Fn(A) -> B + Send + 'static,
@@ -679,7 +682,7 @@ impl<A: Clone + Send + 'static> CodOption<A> {
     }
 
     /// Lower back to Option.
-    #[inline(always)]
+    #[inline]
     pub fn lower(self) -> Option<A> {
         match self.inner {
             CodOptionInner::Pure(a) => Some(a),
@@ -690,40 +693,39 @@ impl<A: Clone + Send + 'static> CodOption<A> {
     }
 
     /// Create a None value in Codensity.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn none() -> Self {
         // Use a sentinel value that will be converted to None on lower
-        CodOption {
+        Self {
             inner: CodOptionInner::Composed(Box::new(|_k| None)),
         }
     }
 
     /// Lift an Option into Codensity.
-    #[inline(always)]
+    #[inline]
     pub fn from_option(opt: Option<A>) -> Self {
-        match opt {
-            Some(a) => Self::purus(a),
-            None => Self::none(),
-        }
+        opt.map_or_else(Self::none, |a| Self::purus(a))
     }
 
     /// Filter values based on a predicate.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn filter<P>(self, predicate: P) -> Self
     where
         P: Fn(&A) -> bool + Send + 'static,
     {
         self.flat_map(move |a| {
             if predicate(&a) {
-                CodOption::purus(a)
+                Self::purus(a)
             } else {
-                CodOption::none()
+                Self::none()
             }
         })
     }
 
     /// Get the value or a default.
-    #[inline(always)]
+    #[inline]
     pub fn get_or_else<F>(self, default: F) -> A
     where
         F: FnOnce() -> A,
@@ -732,7 +734,7 @@ impl<A: Clone + Send + 'static> CodOption<A> {
     }
 
     /// Combine with another `CodOption` using a function.
-    #[inline(always)]
+    #[inline]
     pub fn map2<B, C, F>(self, other: CodOption<B>, f: F) -> CodOption<C>
     where
         B: Clone + Send + 'static,
@@ -754,7 +756,7 @@ impl<A: Clone + Send + 'static> Clone for CodOption<A> {
     /// pure (`purus`) values can be cloned with the current design.
     fn clone(&self) -> Self {
         match &self.inner {
-            CodOptionInner::Pure(a) => CodOption::purus(a.clone()),
+            CodOptionInner::Pure(a) => Self::purus(a.clone()),
             CodOptionInner::Composed(_) => {
                 // For composed values, we can't easily clone
                 // This is a limitation of the current design
@@ -784,23 +786,23 @@ enum CodResultInner<A, E> {
 #[cfg(feature = "alloc")]
 impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     /// Create a pure Ok value.
-    #[inline(always)]
-    pub fn ok(a: A) -> Self {
-        CodResult {
+    #[inline]
+    pub const fn ok(a: A) -> Self {
+        Self {
             inner: CodResultInner::Pure(a),
         }
     }
 
     /// Create an Err value.
-    #[inline(always)]
-    pub fn err(e: E) -> Self {
-        CodResult {
+    #[inline]
+    pub const fn err(e: E) -> Self {
+        Self {
             inner: CodResultInner::Error(e),
         }
     }
 
     /// Monadic bind with O(1) performance.
-    #[inline(always)]
+    #[inline]
     pub fn flat_map<B: Clone + Send + 'static, G>(self, f: G) -> CodResult<B, E>
     where
         G: Fn(A) -> CodResult<B, E> + Send + 'static,
@@ -814,7 +816,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     }
 
     /// Map a function over the value.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: Clone + Send + 'static, G>(self, f: G) -> CodResult<B, E>
     where
         G: Fn(A) -> B + Send + 'static,
@@ -829,7 +831,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     /// Returns `Err` carrying the stored error exactly when the codensity
     /// computation short-circuited (was constructed via `err` or an earlier
     /// step failed); a pure value lowers to `Ok`.
-    #[inline(always)]
+    #[inline]
     pub fn lower(self) -> Result<A, E> {
         match self.inner {
             CodResultInner::Pure(a) => Ok(a),
@@ -838,7 +840,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     }
 
     /// Lift a Result into Codensity.
-    #[inline(always)]
+    #[inline]
     pub fn from_result(result: Result<A, E>) -> Self {
         match result {
             Ok(a) => Self::ok(a),
@@ -847,7 +849,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     }
 
     /// Map the error type.
-    #[inline(always)]
+    #[inline]
     pub fn map_err<E2: Clone + Send + 'static, G>(self, f: G) -> CodResult<A, E2>
     where
         G: Fn(E) -> E2 + Send + 'static,
@@ -859,7 +861,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     }
 
     /// Get the Ok value or transform the error.
-    #[inline(always)]
+    #[inline]
     pub fn unwrap_or_else<F>(self, f: F) -> A
     where
         F: FnOnce(E) -> A,
@@ -868,7 +870,7 @@ impl<A: Clone + Send + 'static, E: Clone + Send + 'static> CodResult<A, E> {
     }
 
     /// Combine with another `CodResult`.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B: Clone + Send + 'static, F>(self, f: F) -> CodResult<B, E>
     where
         F: Fn(A) -> CodResult<B, E> + Send + 'static,
@@ -889,13 +891,13 @@ pub struct CodIdentity<A> {
 #[cfg(feature = "alloc")]
 impl<A: Clone + 'static> CodIdentity<A> {
     /// Create a pure value.
-    #[inline(always)]
-    pub fn purus(a: A) -> Self {
-        CodIdentity { value: a }
+    #[inline]
+    pub const fn purus(a: A) -> Self {
+        Self { value: a }
     }
 
     /// Monadic bind.
-    #[inline(always)]
+    #[inline]
     pub fn flat_map<B: Clone + 'static, G>(self, f: G) -> CodIdentity<B>
     where
         G: FnOnce(A) -> CodIdentity<B>,
@@ -904,7 +906,7 @@ impl<A: Clone + 'static> CodIdentity<A> {
     }
 
     /// Map a function.
-    #[inline(always)]
+    #[inline]
     pub fn map<B: Clone + 'static, G>(self, f: G) -> CodIdentity<B>
     where
         G: FnOnce(A) -> B,
@@ -915,7 +917,7 @@ impl<A: Clone + 'static> CodIdentity<A> {
     }
 
     /// Extract the value.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> A {
         self.value
     }
@@ -1142,7 +1144,7 @@ mod tests {
 
         // Push up to inline capacity
         for i in 0..INLINE_CAPACITY {
-            stack.push(i as i32);
+            stack.push(i32::try_from(i).expect("loop index fits in i32"));
             assert!(stack.is_inline(), "Should remain inline at {i}");
         }
 
@@ -1156,7 +1158,7 @@ mod tests {
 
         // Push past inline capacity
         for i in 0..=INLINE_CAPACITY {
-            stack.push(i as i32);
+            stack.push(i32::try_from(i).expect("loop index fits in i32"));
         }
 
         assert_eq!(stack.len(), INLINE_CAPACITY + 1);
@@ -1213,13 +1215,15 @@ mod tests {
 
         // Chain up to inline capacity operations
         let result = (0..INLINE_CAPACITY).fold(free, |acc, i| {
-            acc.flat_map(move |x| LiberEcclesia::purus(x + i as i32))
+            acc.flat_map(move |x| {
+                LiberEcclesia::purus(x + i32::try_from(i).expect("loop index fits in i32"))
+            })
         });
 
         // Should still work correctly
         assert_eq!(
             result.extract_pure(),
-            Some((0..INLINE_CAPACITY as i32).sum())
+            Some((0..i32::try_from(INLINE_CAPACITY).expect("inline capacity fits in i32")).sum())
         );
     }
 

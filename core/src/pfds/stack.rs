@@ -64,7 +64,7 @@ struct Node<A> {
 impl<A> Default for Stack<A> {
     #[inline]
     fn default() -> Self {
-        Stack { head: None }
+        Self { head: None }
     }
 }
 
@@ -73,7 +73,7 @@ impl<A> Default for Stack<A> {
 impl<A> Clone for Stack<A> {
     #[inline]
     fn clone(&self) -> Self {
-        Stack {
+        Self {
             head: self.head.clone(),
         }
     }
@@ -143,13 +143,15 @@ impl<A> Stack<A> {
     /// assert!(s.is_empty());
     /// ```
     #[inline]
-    pub fn new() -> Self {
-        Stack { head: None }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { head: None }
     }
 
     /// Check if the stack is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.head.is_none()
     }
 
@@ -166,10 +168,11 @@ impl<A> Stack<A> {
     /// assert_eq!(s.peek(), Some(&2));
     /// ```
     #[inline]
+    #[must_use]
     pub fn push(mut self, value: A) -> Self {
         // `take`, never destructure: Stack has Drop (E0509).
         let next = self.head.take();
-        Stack {
+        Self {
             head: Some(Rc::new(Node { elem: value, next })),
         }
     }
@@ -189,17 +192,18 @@ impl<A> Stack<A> {
     /// assert_eq!(rest.peek(), Some(&1));
     /// ```
     #[inline]
+    #[must_use]
     pub fn pop(mut self) -> Option<(A, Self)>
     where
         A: Clone,
     {
         let node = self.head.take()?;
         match Rc::try_unwrap(node) {
-            Ok(n) => Some((n.elem, Stack { head: n.next })),
+            Ok(n) => Some((n.elem, Self { head: n.next })),
             // Shared: clone the top element, share the tail.
             Err(rc) => Some((
                 rc.elem.clone(),
-                Stack {
+                Self {
                     head: rc.next.clone(),
                 },
             )),
@@ -218,6 +222,7 @@ impl<A> Stack<A> {
     /// assert_eq!(s.peek(), Some(&2)); // Still there
     /// ```
     #[inline]
+    #[must_use]
     pub fn peek(&self) -> Option<&A> {
         self.head.as_deref().map(|n| &n.elem)
     }
@@ -226,8 +231,9 @@ impl<A> Stack<A> {
     ///
     /// Returns the tail stack, if any (O(1) clone via structural sharing).
     #[inline]
+    #[must_use]
     pub fn tail(&self) -> Option<Self> {
-        self.head.as_ref().map(|node| Stack {
+        self.head.as_ref().map(|node| Self {
             head: node.next.clone(),
         })
     }
@@ -235,6 +241,7 @@ impl<A> Stack<A> {
     /// Get the length of the stack.
     ///
     /// Note: This is O(n) as it traverses the entire stack.
+    #[must_use]
     pub fn len(&self) -> usize {
         // Use iterative approach to avoid recursion limit
         let mut count = 0;
@@ -250,6 +257,7 @@ impl<A> Stack<A> {
     ///
     /// Index 0 is the top of the stack.
     #[inline]
+    #[must_use]
     pub fn get(&self, index: usize) -> Option<&A> {
         // Use iterative approach to avoid recursion limit
         let mut current = self.head.as_deref();
@@ -287,7 +295,7 @@ impl<A> Stack<A> {
                 None => return Err(StackError::IndexOutOfBounds),
                 Some(node) => {
                     if prefix.len() == index {
-                        let updated = Stack {
+                        let updated = Self {
                             head: Some(Rc::new(Node {
                                 elem: value,
                                 next: node.next.clone(),
@@ -308,11 +316,12 @@ impl<A> Stack<A> {
     /// Reverse the stack.
     ///
     /// Returns a new stack with elements in reverse order.
+    #[must_use]
     pub fn reverse(&self) -> Self
     where
         A: Clone,
     {
-        let mut result = Stack::new();
+        let mut result = Self::new();
         let mut current = self.head.as_deref();
         while let Some(node) = current {
             result = result.push(node.elem.clone());
@@ -359,6 +368,7 @@ impl<A> Stack<A> {
 
     /// Filter elements that satisfy the predicate.
     #[inline]
+    #[must_use]
     pub fn filter<F>(&self, pred: F) -> Self
     where
         A: Clone,
@@ -377,13 +387,14 @@ impl<A> Stack<A> {
         filtered
             .into_iter()
             .rev()
-            .fold(Stack::new(), |acc, x| acc.push(x.clone()))
+            .fold(Self::new(), |acc, x| acc.push(x.clone()))
     }
 
     /// Concatenate two stacks.
     ///
     /// Elements of `self` come before elements of `other`.
     #[inline]
+    #[must_use]
     pub fn concat(&self, other: &Self) -> Self
     where
         A: Clone,
@@ -404,6 +415,7 @@ impl<A> Stack<A> {
 
     /// Convert to a Vec.
     #[inline]
+    #[must_use]
     pub fn to_vec(&self) -> Vec<A>
     where
         A: Clone,
@@ -421,16 +433,21 @@ impl<A> Stack<A> {
 #[cfg(feature = "alloc")]
 impl<A: Clone> From<Vec<A>> for Stack<A> {
     fn from(vec: Vec<A>) -> Self {
-        vec.into_iter().rev().fold(Stack::new(), Stack::push)
+        vec.into_iter().rev().fold(Self::new(), Self::push)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<A: Clone> FromIterator<A> for Stack<A> {
     fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-        // Collect to vec first, then reverse to maintain order
-        let vec: Vec<A> = iter.into_iter().collect();
-        vec.into_iter().rev().fold(Stack::new(), Stack::push)
+        // Buffer first: `I` is single-pass, but the stack top must hold the
+        // first element, so elements are pushed in reverse (popped) order.
+        let mut vec: Vec<A> = iter.into_iter().collect();
+        let mut stack = Self::new();
+        while let Some(a) = vec.pop() {
+            stack = stack.push(a);
+        }
+        stack
     }
 }
 
@@ -467,6 +484,7 @@ impl<'a, A> IntoIterator for &'a Stack<A> {
 impl<A> Stack<A> {
     /// Returns an iterator over references to elements.
     #[inline]
+    #[must_use]
     pub fn iter(&self) -> StackIter<'_, A> {
         StackIter {
             current: self.head.as_deref(),
@@ -488,7 +506,7 @@ impl<'de, A: serde::Deserialize<'de>> serde::Deserialize<'de> for Stack<A> {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let items = Vec::<A>::deserialize(d)?;
         // Rebuild through push so invariants hold by construction.
-        Ok(items.into_iter().rev().fold(Stack::new(), Stack::push))
+        Ok(items.into_iter().rev().fold(Self::new(), Self::push))
     }
 }
 
@@ -668,7 +686,7 @@ mod tests {
     }
 
     /// H6 regression: eq on two independently built stacks (no shared Rc
-    /// spine, so the ptr_eq shortcut cannot save us).
+    /// spine, so the `ptr_eq` shortcut cannot save us).
     #[test]
     fn eq_deep_stacks_no_overflow() {
         let build = || (0..100_000u32).fold(Stack::new(), super::Stack::push);

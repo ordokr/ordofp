@@ -100,8 +100,8 @@ pub struct Dilatum<A> {
 impl<A: Clone> Dilatum<A> {
     /// Create a new empty deferred value.
     #[inline]
-    pub fn new() -> Self {
-        Dilatum {
+    pub const fn new() -> Self {
+        Self {
             state: Mutex::new(Status::Vacuus),
             cond: Condvar::new(),
         }
@@ -131,14 +131,20 @@ impl<A: Clone> Dilatum<A> {
             .state
             .lock()
             .expect("Dilatum::complete: state mutex poisoned — library invariant violated");
-        match &*guard {
+        let won = match &*guard {
             Status::Perfectus(_) => false,
             Status::Vacuus => {
                 *guard = Status::Perfectus(a);
-                self.cond.notify_all();
                 true
             }
+        };
+        // Release the lock before waking waiters: holding it across the
+        // notify would serialize every woken thread on this mutex.
+        drop(guard);
+        if won {
+            self.cond.notify_all();
         }
+        won
     }
 
     /// Check if the deferred has been completed.
@@ -255,8 +261,8 @@ pub struct Referentia<A> {
 impl<A: Clone> Referentia<A> {
     /// Create a new reference with initial value.
     #[inline]
-    pub fn new(a: A) -> Self {
-        Referentia {
+    pub const fn new(a: A) -> Self {
+        Self {
             value: Mutex::new(a),
         }
     }
@@ -411,8 +417,9 @@ pub struct Semaphorum {
 impl Semaphorum {
     /// Create a semaphore with initial permits.
     #[inline]
-    pub fn new(permits: usize) -> Self {
-        Semaphorum {
+    #[must_use]
+    pub const fn new(permits: usize) -> Self {
+        Self {
             permits: Mutex::new(permits),
             cond: Condvar::new(),
         }
@@ -523,6 +530,7 @@ impl Semaphorum {
             .lock()
             .expect("Semaphorum::release: permits mutex poisoned — library invariant violated");
         *guard += 1;
+        drop(guard);
         self.cond.notify_one();
     }
 
@@ -543,6 +551,7 @@ impl Semaphorum {
             .lock()
             .expect("Semaphorum::release_n: permits mutex poisoned — library invariant violated");
         *guard += n;
+        drop(guard);
         self.cond.notify_all();
     }
 }
@@ -622,8 +631,8 @@ pub struct MVarSync<A> {
 impl<A> MVarSync<A> {
     /// Create a new empty `MVar`.
     #[inline]
-    pub fn new_empty() -> Self {
-        MVarSync {
+    pub const fn new_empty() -> Self {
+        Self {
             value: Mutex::new(None),
             cond: Condvar::new(),
         }
@@ -631,8 +640,8 @@ impl<A> MVarSync<A> {
 
     /// Create a new `MVar` with an initial value.
     #[inline]
-    pub fn new(a: A) -> Self {
-        MVarSync {
+    pub const fn new(a: A) -> Self {
+        Self {
             value: Mutex::new(Some(a)),
             cond: Condvar::new(),
         }
@@ -676,6 +685,7 @@ impl<A> MVarSync<A> {
             .lock()
             .expect("MVarSync::try_take: value mutex poisoned — library invariant violated");
         let result = guard.take();
+        drop(guard);
         if result.is_some() {
             self.cond.notify_one();
         }
@@ -709,6 +719,7 @@ impl<A> MVarSync<A> {
         let result = guard
             .take()
             .expect("MVarSync::take_blocking: value must be Some after wait loop — invariant bug");
+        drop(guard);
         self.cond.notify_one();
         result
     }
@@ -733,6 +744,7 @@ impl<A> MVarSync<A> {
             .expect("MVarSync::try_put: value mutex poisoned — library invariant violated");
         if guard.is_none() {
             *guard = Some(a);
+            drop(guard);
             self.cond.notify_one();
             true
         } else {
@@ -764,6 +776,7 @@ impl<A> MVarSync<A> {
             );
         }
         *guard = Some(a);
+        drop(guard);
         self.cond.notify_one();
     }
 
@@ -826,6 +839,7 @@ impl<A> MVarSync<A> {
             .take()
             .expect("MVarSync::swap_blocking: value must be Some after wait loop — invariant bug");
         *guard = Some(a);
+        drop(guard);
         self.cond.notify_one();
         old
     }
@@ -873,8 +887,9 @@ pub struct CaudaBackpressure<A> {
 impl<A> CaudaBackpressure<A> {
     /// Create a new bounded queue.
     #[inline]
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
-        CaudaBackpressure {
+        Self {
             capacity,
             buffer: Mutex::new(VecDeque::with_capacity(capacity)),
             not_empty: Condvar::new(),
@@ -884,7 +899,7 @@ impl<A> CaudaBackpressure<A> {
 
     /// Get the capacity.
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.capacity
     }
 
@@ -963,6 +978,7 @@ impl<A> CaudaBackpressure<A> {
         );
         if guard.len() < self.capacity {
             guard.push_back(a);
+            drop(guard);
             self.not_empty.notify_one();
             true
         } else {
@@ -994,6 +1010,7 @@ impl<A> CaudaBackpressure<A> {
             );
         }
         guard.push_back(a);
+        drop(guard);
         self.not_empty.notify_one();
     }
 
@@ -1013,6 +1030,7 @@ impl<A> CaudaBackpressure<A> {
             "CaudaBackpressure::try_take: buffer mutex poisoned — library invariant violated",
         );
         let result = guard.pop_front();
+        drop(guard);
         if result.is_some() {
             self.not_full.notify_one();
         }
@@ -1045,6 +1063,7 @@ impl<A> CaudaBackpressure<A> {
         let result = guard.pop_front().expect(
             "CaudaBackpressure::take_blocking: buffer must be non-empty after wait loop — invariant bug",
         );
+        drop(guard);
         self.not_full.notify_one();
         result
     }
@@ -1091,6 +1110,7 @@ impl<A> CaudaBackpressure<A> {
             .expect("CaudaBackpressure::drain: buffer mutex poisoned — library invariant violated");
         let mut result = Vec::with_capacity(guard.len());
         result.extend(guard.drain(..));
+        drop(guard);
         self.not_full.notify_all();
         result
     }
@@ -1245,16 +1265,17 @@ mod tests {
         let deferred = Arc::new(Dilatum::<u32>::new());
         let counter = Arc::new(AtomicU32::new(0));
 
-        let handles: Vec<_> = (0..8)
-            .map(|_| {
-                let deferred = Arc::clone(&deferred);
-                let counter = Arc::clone(&counter);
-                thread::spawn(move || {
-                    let value = counter.fetch_add(1, Ordering::SeqCst) + 1;
-                    deferred.complete(value)
-                })
-            })
-            .collect();
+        // Spawn every thread before joining any of them: joining eagerly
+        // would serialize the race this test is built to exercise.
+        let mut handles = Vec::with_capacity(8);
+        for _ in 0..8 {
+            let deferred = Arc::clone(&deferred);
+            let counter = Arc::clone(&counter);
+            handles.push(thread::spawn(move || {
+                let value = counter.fetch_add(1, Ordering::SeqCst) + 1;
+                deferred.complete(value)
+            }));
+        }
 
         let wins = handles
             .into_iter()
@@ -1349,7 +1370,10 @@ mod tests {
                 thread::spawn(move || {
                     let _permit = Permissum::new(&sem); // blocks until a permit frees up
                     let now = current_holders.fetch_add(1, Ordering::SeqCst) + 1;
-                    max_holders.fetch_max(now as usize, Ordering::SeqCst);
+                    max_holders.fetch_max(
+                        usize::try_from(now).expect("holder count fits in usize"),
+                        Ordering::SeqCst,
+                    );
                     thread::sleep(Duration::from_millis(20));
                     current_holders.fetch_sub(1, Ordering::SeqCst);
                 })

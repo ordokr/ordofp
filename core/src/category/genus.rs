@@ -445,7 +445,7 @@ pub struct ResultGenus<E>(PhantomData<E>);
 
 impl<E> Default for ResultGenus<E> {
     fn default() -> Self {
-        ResultGenus(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -486,8 +486,7 @@ impl<E: Send + Sync + 'static> ApplicatioGenus for ResultGenus<E> {
     {
         match (ff, fa) {
             (Ok(mut f), Ok(a)) => Ok(f(a)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 
@@ -501,8 +500,7 @@ impl<E: Send + Sync + 'static> ApplicatioGenus for ResultGenus<E> {
     {
         match (fa, fb) {
             (Ok(a), Ok(b)) => Ok(f(a, b)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -723,7 +721,7 @@ where
 mod tests {
     use super::*;
 
-    /// Regression for the accumulator-discarding fold_map default: over a
+    /// Regression for the accumulator-discarding `fold_map` default: over a
     /// multi-element structure it must combine every mapped element, not
     /// return `f(last)`.
     #[cfg(feature = "alloc")]

@@ -1,3 +1,5 @@
+//! Example 01: heterogeneous-list construction and basics.
+
 use ordofp::hlist;
 
 fn main() {
@@ -18,7 +20,7 @@ fn main() {
     let h2 = hlist![1, "hello", true, 42.0];
     let (s, _rest): (f64, _) = h2.pluck();
     println!("Plucked f64: {s}");
-    assert_eq!(s, 42.0);
+    assert_eq!(s.to_bits(), 42.0f64.to_bits());
 
     // 4. Appending/Prepending
     let h3 = hlist![true];

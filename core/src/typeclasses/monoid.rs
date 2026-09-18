@@ -29,7 +29,7 @@
 use alloc::{string::String, vec::Vec};
 
 #[cfg(feature = "std")]
-use core::hash::Hash;
+use core::hash::{BuildHasher, Hash};
 #[cfg(feature = "std")]
 use std::collections::{HashMap, HashSet};
 
@@ -158,7 +158,7 @@ aggregatio_monoid_impl!(0.0; f32, f64);
 impl Unitas for Omnis<bool> {
     #[inline]
     fn empty() -> Self {
-        Omnis(true)
+        Self(true)
     }
 }
 
@@ -184,7 +184,7 @@ omnis_numeric_monoid_impl!(
 impl Unitas for Aliquid<bool> {
     #[inline]
     fn empty() -> Self {
-        Aliquid(false)
+        Self(false)
     }
 }
 
@@ -224,13 +224,13 @@ impl<T: Compositio + Clone> Unitas for Option<T> {
     #[inline]
     fn combine_all(xs: &[Self]) -> Self {
         let mut iter = xs.iter().flatten();
-        match iter.next() {
-            None => None,
-            Some(first) => {
+        iter.next().map_or_else(
+            || None,
+            |first| {
                 let first = first.clone();
                 Some(iter.fold(first, |acc, x| acc.combine(x)))
-            }
-        }
+            },
+        )
     }
 }
 
@@ -238,15 +238,15 @@ impl<T: Compositio + Clone> Unitas for Option<T> {
 impl Unitas for String {
     #[inline]
     fn empty() -> Self {
-        String::new()
+        Self::new()
     }
 
     /// Optimized implementation for `String` that pre-calculates the total length
     /// and reserves capacity to avoid repeated reallocations during concatenation.
     #[inline]
     fn combine_all(xs: &[Self]) -> Self {
-        let total_len = xs.iter().map(String::len).sum();
-        let mut result = String::with_capacity(total_len);
+        let total_len = xs.iter().map(Self::len).sum();
+        let mut result = Self::with_capacity(total_len);
         for x in xs {
             result.push_str(x);
         }
@@ -258,15 +258,15 @@ impl Unitas for String {
 impl<T: Clone> Unitas for Vec<T> {
     #[inline]
     fn empty() -> Self {
-        Vec::new()
+        Self::new()
     }
 
     /// Optimized implementation for `Vec` that pre-calculates the total length
     /// and reserves capacity to avoid repeated reallocations.
     #[inline]
     fn combine_all(xs: &[Self]) -> Self {
-        let total_len = xs.iter().map(Vec::len).sum();
-        let mut result = Vec::with_capacity(total_len);
+        let total_len = xs.iter().map(Self::len).sum();
+        let mut result = Self::with_capacity(total_len);
         for x in xs {
             result.extend_from_slice(x);
         }
@@ -275,18 +275,20 @@ impl<T: Clone> Unitas for Vec<T> {
 }
 
 #[cfg(feature = "std")]
-impl<T: Eq + Hash + Clone> Unitas for HashSet<T> {
+impl<T: Eq + Hash + Clone, S: BuildHasher + Default> Unitas for HashSet<T, S> {
     #[inline]
     fn empty() -> Self {
-        HashSet::new()
+        Self::default()
     }
 }
 
 #[cfg(feature = "std")]
-impl<K: Eq + Hash + Clone, V: Compositio + Clone> Unitas for HashMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Compositio + Clone, S: BuildHasher + Default + Clone> Unitas
+    for HashMap<K, V, S>
+{
     #[inline]
     fn empty() -> Self {
-        HashMap::new()
+        Self::default()
     }
 }
 
@@ -370,7 +372,7 @@ mod tests {
     #[test]
     fn test_empty() {
         assert_eq!(i32::empty(), 0);
-        assert_eq!(f64::empty(), 0.0);
+        assert_eq!(f64::empty().to_bits(), 0.0f64.to_bits());
         assert_eq!(Option::<i32>::empty(), None);
     }
 

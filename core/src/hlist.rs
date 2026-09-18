@@ -238,7 +238,7 @@ impl<H, T> Coniunctio<H, T> {
 /// # }
 /// ```
 #[inline]
-pub fn coniunctio<H, T: HList>(h: H, tail: T) -> Coniunctio<H, T> {
+pub const fn coniunctio<H, T: HList>(h: H, tail: T) -> Coniunctio<H, T> {
     Coniunctio { head: h, tail }
 }
 
@@ -247,7 +247,7 @@ macro_rules! gen_inherent_methods {
     (impl<$($TyPar:ident),*> $Struct:ty { ... })
     => {
         impl<$($TyPar),*> $Struct {
-            /// Returns the length of a given HList
+            /// Returns the length of a given `HList`
             ///
             /// # Examples
             ///
@@ -259,14 +259,14 @@ macro_rules! gen_inherent_methods {
             /// assert_eq!(h.len(), 2);
             /// # }
             /// ```
-            #[inline(always)]
+            #[inline]
             pub fn len(&self) -> usize
             where Self: HList,
             {
                 HList::len(self)
             }
 
-            /// Returns whether a given HList is empty
+            /// Returns whether a given `HList` is empty
             ///
             /// # Examples
             ///
@@ -278,14 +278,14 @@ macro_rules! gen_inherent_methods {
             /// assert!(h.is_empty());
             /// # }
             /// ```
-            #[inline(always)]
+            #[inline]
             pub fn is_empty(&self) -> bool
             where Self: HList,
             {
                 HList::is_empty(self)
             }
 
-            /// Prepend an item to the current HList
+            /// Prepend an item to the current `HList`
             ///
             /// # Examples
             ///
@@ -301,17 +301,17 @@ macro_rules! gen_inherent_methods {
             /// assert_eq!(c, "hi");
             /// # }
             /// ```
-            #[inline(always)]
+            #[inline]
             pub fn prepend<H>(self, h: H) -> Coniunctio<H, Self>
             where Self: HList,
             {
                 HList::prepend(self, h)
             }
 
-            /// Consume the current HList and return an HList with the requested shape.
+            /// Consume the current `HList` and return an `HList` with the requested shape.
             ///
-            /// `sculpt` allows us to extract/reshape/sculpt the current HList into another shape,
-            /// provided that the requested shape's types are are contained within the current HList.
+            /// `sculpt` allows us to extract/reshape/sculpt the current `HList` into another shape,
+            /// provided that the requested shape's types are are contained within the current `HList`.
             ///
             /// The `Indices` type parameter allows the compiler to figure out that `Ts`
             /// and `Self` can be morphed into each other.
@@ -336,7 +336,7 @@ macro_rules! gen_inherent_methods {
                 Sculptor::sculpt(self)
             }
 
-            /// Reverse the HList.
+            /// Reverse the `HList`.
             ///
             /// # Examples
             ///
@@ -360,8 +360,8 @@ macro_rules! gen_inherent_methods {
                 IntoReverse::into_reverse(self)
             }
 
-            /// Return an HList where the contents are references to
-            /// the original HList on which this method was called.
+            /// Return an `HList` where the contents are references to
+            /// the original `HList` on which this method was called.
             ///
             /// # Examples
             ///
@@ -374,7 +374,7 @@ macro_rules! gen_inherent_methods {
             /// assert_eq!(hlist![1, true].to_ref(), hlist![&1, &true]);
             /// # }
             /// ```
-            #[inline(always)]
+            #[inline]
             pub fn to_ref<'a>(&'a self) -> <Self as ToRef<'a>>::Output
                 where Self: ToRef<'a>,
             {
@@ -395,7 +395,7 @@ macro_rules! gen_inherent_methods {
             /// assert_eq!(hlist![1, true].to_mut(), hlist![&mut 1, &mut true]);
             /// # }
             /// ```
-            #[inline(always)]
+            #[inline]
             pub fn to_mut<'a>(&'a mut self) -> <Self as ToMut<'a>>::Output
             where
                 Self: ToMut<'a>,
@@ -403,14 +403,14 @@ macro_rules! gen_inherent_methods {
                 ToMut::to_mut(self)
             }
 
-            /// Apply a function to each element of an HList.
+            /// Apply a function to each element of an `HList`.
             ///
             /// This transforms some `HList![A, B, C, ..., E]` into some
             /// `HList![T, U, V, ..., Z]`.  A variety of types are supported
             /// for the folder argument:
             ///
             /// * An `hlist![]` of closures (one for each element).
-            /// * A single closure (for mapping an HList that is homogenous).
+            /// * A single closure (for mapping an `HList` that is homogenous).
             /// * A single [`Poly`].
             ///
             /// [`Poly`]: ../traits/struct.Poly.html
@@ -452,7 +452,7 @@ macro_rules! gen_inherent_methods {
                 HMappable::map(self, mapper)
             }
 
-            /// Zip two HLists together.
+            /// Zip two `HList`s together.
             ///
             /// This zips a `HList![A1, B1, ..., C1]` with a `HList![A2, B2, ..., C2]`
             /// to make a `HList![(A1, A2), (B1, B2), ..., (C1, C2)]`
@@ -485,14 +485,14 @@ macro_rules! gen_inherent_methods {
                 HZippable::zip(self, other)
             }
 
-            /// Perform a left fold over an HList.
+            /// Perform a left fold over an `HList`.
             ///
             /// This transforms some `HList![A, B, C, ..., E]` into a single
             /// value by visiting all of the elements in left-to-right order.
             /// A variety of types are supported for the mapper argument:
             ///
             /// * An `hlist![]` of closures (one for each element).
-            /// * A single closure (for folding an HList that is homogenous).
+            /// * A single closure (for folding an `HList` that is homogenous).
             /// * A single [`Poly`].
             ///
             /// The accumulator can freely change type over the course of the call.
@@ -562,14 +562,14 @@ macro_rules! gen_inherent_methods {
                 HFoldLeftable::foldl(self, folder, acc)
             }
 
-            /// Perform a right fold over an HList.
+            /// Perform a right fold over an `HList`.
             ///
             /// This transforms some `HList![A, B, C, ..., E]` into a single
             /// value by visiting all of the elements in reverse order.
             /// A variety of types are supported for the mapper argument:
             ///
             /// * An `hlist![]` of closures (one for each element).
-            /// * A single closure (for folding an HList that is homogenous),
+            /// * A single closure (for folding an `HList` that is homogenous),
             ///   taken by reference.
             /// * A single [`Poly`].
             ///
@@ -581,15 +581,15 @@ macro_rules! gen_inherent_methods {
             ///
             /// While the order of element traversal in `foldl` may seem more natural,
             /// `foldr` does have its use cases, in particular when it is used to build
-            /// something that reflects the structure of the original HList (such as
-            /// folding an HList of `Option`s into an `Option` of an HList).
+            /// something that reflects the structure of the original `HList` (such as
+            /// folding an `HList` of `Option`s into an `Option` of an `HList`).
             /// An implementation of such a function using `foldl` will tend to
             /// reverse the list, while `foldr` will tend to preserve its order.
             ///
             /// The reason for this is because `foldr` performs what is known as
             /// "structural induction;" it can be understood as follows:
             ///
-            /// * Write out the HList in terms of [`coniunctio`] and [`Nihil`].
+            /// * Write out the `HList` in terms of [`coniunctio`] and [`Nihil`].
             /// * Substitute each [`coniunctio`] with a function,
             ///   and substitute [`Nihil`] with `init`
             ///
@@ -640,7 +640,7 @@ macro_rules! gen_inherent_methods {
                 HFoldRightable::foldr(self, folder, init)
             }
 
-            /// Extend the contents of this HList with another HList
+            /// Extend the contents of this `HList` with another `HList`
             ///
             /// This exactly the same as the [`Add`][Add] impl.
             ///
@@ -703,7 +703,7 @@ impl<Head, Tail> Coniunctio<Head, Tail> {
     /// }
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn get<T, Index>(&self) -> &T
     where
         Self: Selector<T, Index>,
@@ -729,7 +729,7 @@ impl<Head, Tail> Coniunctio<Head, Tail> {
     /// assert_eq!(h, hlist![2i32, false]);
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn get_mut<T, Index>(&mut self) -> &mut T
     where
         Self: Selector<T, Index>,
@@ -762,7 +762,7 @@ impl<Head, Tail> Coniunctio<Head, Tail> {
     /// assert_eq!(list, hlist!["hello", 42.0])
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn pluck<T, Index>(self) -> (T, <Self as Plucker<T, Index>>::Remainder)
     where
         Self: Plucker<T, Index>,
@@ -790,7 +790,7 @@ impl<Head, Tail> Coniunctio<Head, Tail> {
     /// assert_eq!(fourth,   42f32);
     /// # }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn into_tuple2(
         self,
     ) -> (
@@ -866,14 +866,14 @@ pub trait Selector<S, I> {
     fn get_mut(&mut self) -> &mut S;
 }
 
-impl<T, Tail> Selector<T, Here> for Coniunctio<T, Tail> {
+impl<H, Tail> Selector<H, Here> for Coniunctio<H, Tail> {
     #[inline]
-    fn get(&self) -> &T {
+    fn get(&self) -> &H {
         &self.head
     }
 
     #[inline]
-    fn get_mut(&mut self) -> &mut T {
+    fn get_mut(&mut self) -> &mut H {
         &mut self.head
     }
 }
@@ -921,11 +921,11 @@ pub trait Plucker<Target, Index> {
 }
 
 /// Implementation when the pluck target is in head
-impl<T, Tail> Plucker<T, Here> for Coniunctio<T, Tail> {
+impl<H, Tail> Plucker<H, Here> for Coniunctio<H, Tail> {
     type Remainder = Tail;
 
     #[inline]
-    fn pluck(self) -> (T, Self::Remainder) {
+    fn pluck(self) -> (H, Self::Remainder) {
         (self.head, self.tail)
     }
 }
@@ -1019,7 +1019,7 @@ pub trait Sculptor<Target, Indices> {
 impl<Source> Sculptor<Nihil, Nihil> for Source {
     type Remainder = Source;
 
-    #[inline(always)]
+    #[inline]
     fn sculpt(self) -> (Nihil, Self::Remainder) {
         (Nihil, self)
     }
@@ -1034,29 +1034,23 @@ impl<THead, TTail, SHead, STail, IndexHead, IndexTail>
     Sculptor<Coniunctio<THead, TTail>, Coniunctio<IndexHead, IndexTail>>
     for Coniunctio<SHead, STail>
 where
-    Coniunctio<SHead, STail>: Plucker<THead, IndexHead>,
-    <Coniunctio<SHead, STail> as Plucker<THead, IndexHead>>::Remainder: Sculptor<TTail, IndexTail>,
+    Self: Plucker<THead, IndexHead>,
+    <Self as Plucker<THead, IndexHead>>::Remainder: Sculptor<TTail, IndexTail>,
 {
     type Remainder =
-        <<Coniunctio<SHead, STail> as Plucker<THead, IndexHead>>::Remainder as Sculptor<
-            TTail,
-            IndexTail,
-        >>::Remainder;
+        <<Self as Plucker<THead, IndexHead>>::Remainder as Sculptor<TTail, IndexTail>>::Remainder;
 
     // #[inline] is enough — recursive sculpt body is larger than a trivial wrapper; let the compiler decide.
     #[inline]
     fn sculpt(self) -> (Coniunctio<THead, TTail>, Self::Remainder) {
-        let (p, r): (
-            THead,
-            <Coniunctio<SHead, STail> as Plucker<THead, IndexHead>>::Remainder,
-        ) = self.pluck();
+        let (p, r): (THead, <Self as Plucker<THead, IndexHead>>::Remainder) = self.pluck();
         let (tail, tail_remainder): (TTail, Self::Remainder) = r.sculpt();
         (Coniunctio { head: p, tail }, tail_remainder)
     }
 }
 
 impl IntoReverse for Nihil {
-    type Output = Nihil;
+    type Output = Self;
     #[inline]
     fn into_reverse(self) -> Self::Output {
         self
@@ -1123,11 +1117,11 @@ pub trait HMappable<Mapper> {
 }
 
 impl<F> HMappable<F> for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
     #[inline]
     fn map(self, _: F) -> Self::Output {
-        Nihil
+        Self
     }
 }
 
@@ -1140,7 +1134,7 @@ where
 
     #[inline]
     fn map(self, f: F) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         Coniunctio {
             head: f(head),
             tail: tail.map(f),
@@ -1157,7 +1151,7 @@ where
 
     #[inline]
     fn map(self, mapper: Coniunctio<F, MapperTail>) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         Coniunctio {
             head: (mapper.head)(head),
             tail: tail.map(mapper.tail),
@@ -1188,11 +1182,11 @@ pub trait HZippable<Other> {
     fn zip(self, other: Other) -> Self::Zipped;
 }
 
-impl HZippable<Nihil> for Nihil {
-    type Zipped = Nihil;
+impl HZippable<Self> for Nihil {
+    type Zipped = Self;
     #[inline]
-    fn zip(self, _other: Nihil) -> Self::Zipped {
-        Nihil
+    fn zip(self, _other: Self) -> Self::Zipped {
+        Self
     }
 }
 
@@ -1327,18 +1321,18 @@ where
 
     #[inline]
     fn foldr(self, poly: Poly<P>, init: Init) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         let folded_tail = tail.foldr(poly, init);
         P::call((folded_tail, head))
     }
 }
 
 impl<'a> ToRef<'a> for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
-    #[inline(always)]
+    #[inline]
     fn to_ref(&'a self) -> Self::Output {
-        Nihil
+        Self
     }
 }
 
@@ -1349,7 +1343,7 @@ where
 {
     type Output = Coniunctio<&'a H, <Tail as ToRef<'a>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn to_ref(&'a self) -> Self::Output {
         Coniunctio {
             head: &self.head,
@@ -1359,11 +1353,11 @@ where
 }
 
 impl<'a> ToMut<'a> for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
-    #[inline(always)]
+    #[inline]
     fn to_mut(&'a mut self) -> Self::Output {
-        Nihil
+        Self
     }
 }
 
@@ -1374,7 +1368,7 @@ where
 {
     type Output = Coniunctio<&'a mut H, <Tail as ToMut<'a>>::Output>;
 
-    #[inline(always)]
+    #[inline]
     fn to_mut(&'a mut self) -> Self::Output {
         Coniunctio {
             head: &mut self.head,
@@ -1428,7 +1422,7 @@ where
 
     #[inline]
     fn foldl(self, folder: Coniunctio<F, FTail>, acc: Acc) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         tail.foldl(folder.tail, (folder.head)(acc, head))
     }
 }
@@ -1442,7 +1436,7 @@ where
 
     #[inline]
     fn foldl(self, poly: Poly<P>, acc: Acc) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         let r = P::call((acc, head));
         tail.foldl(poly, r)
     }
@@ -1470,7 +1464,7 @@ where
 
     #[inline]
     fn foldl(self, f: F, acc: Acc) -> Self::Output {
-        let Coniunctio { head, tail } = self;
+        let Self { head, tail } = self;
         let acc = f(acc, head);
         tail.foldl(f, acc)
     }
@@ -1513,11 +1507,11 @@ impl<T1, T2> IntoTuple2 for Coniunctio<T1, Coniunctio<T2, Nihil>> {
     }
 }
 
-impl<T, Tail> IntoTuple2 for Coniunctio<T, Tail>
+impl<H, Tail> IntoTuple2 for Coniunctio<H, Tail>
 where
     Tail: IntoTuple2,
 {
-    type HeadType = T;
+    type HeadType = H;
     type TailOutput = (
         <Tail as IntoTuple2>::HeadType,
         <Tail as IntoTuple2>::TailOutput,
@@ -1532,14 +1526,14 @@ where
 #[cfg(feature = "alloc")]
 impl<H, Tail> From<Coniunctio<H, Tail>> for Vec<H>
 where
-    Tail: Into<Vec<H>> + HList,
+    Tail: Into<Self> + HList,
 {
     fn from(hlist: Coniunctio<H, Tail>) -> Self {
         let h = hlist.head;
         let t = hlist.tail;
-        let mut v = Vec::with_capacity(<Coniunctio<H, Tail> as HList>::LEN);
+        let mut v = Self::with_capacity(<Coniunctio<H, Tail> as HList>::LEN);
         v.push(h);
-        let mut t_vec: Vec<H> = t.into();
+        let mut t_vec: Self = t.into();
         v.append(&mut t_vec);
         v
     }
@@ -1548,25 +1542,26 @@ where
 #[cfg(feature = "alloc")]
 impl<T> From<Nihil> for Vec<T> {
     fn from(_: Nihil) -> Self {
-        Vec::new()
+        Self::new()
     }
 }
 
 impl Default for Nihil {
     #[inline]
     fn default() -> Self {
-        Nihil
+        Self
     }
 }
 
-impl<T: Default, Tail: Default + HList> Default for Coniunctio<T, Tail> {
+impl<H: Default, Tail: Default + HList> Default for Coniunctio<H, Tail> {
     #[inline]
     fn default() -> Self {
-        coniunctio(T::default(), Tail::default())
+        coniunctio(H::default(), Tail::default())
     }
 }
 
 /// Indexed type conversions of `T -> Self` with index `I`.
+///
 /// This is a generalized version of `From` which for example allows the caller
 /// to use default values for parts of `Self` and thus "fill in the blanks".
 ///
@@ -1639,12 +1634,12 @@ where
     }
 }
 
-impl<T, Tail> LiftFrom<T, Here> for Coniunctio<T, Tail>
+impl<H, Tail> LiftFrom<H, Here> for Coniunctio<H, Tail>
 where
     Tail: Default + HList,
 {
     #[inline]
-    fn lift_from(part: T) -> Self {
+    fn lift_from(part: H) -> Self {
         coniunctio(part, Tail::default())
     }
 }
@@ -1700,11 +1695,11 @@ pub trait HListSequenceOption {
 }
 
 impl HListSequenceOption for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
     #[inline]
-    fn sequence_option(self) -> Option<Nihil> {
-        Some(Nihil)
+    fn sequence_option(self) -> Option<Self> {
+        Some(Self)
     }
 }
 
@@ -1734,7 +1729,7 @@ pub trait HListSequenceResult<E> {
     ///
     /// # Errors
     ///
-    /// Returns `Err(E)` containing the error of the first failed element in the HList.
+    /// Returns `Err(E)` containing the error of the first failed element in the `HList`.
     ///
     /// # Example
     ///
@@ -1752,11 +1747,11 @@ pub trait HListSequenceResult<E> {
 }
 
 impl<E> HListSequenceResult<E> for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
     #[inline]
-    fn sequence_result(self) -> Result<Nihil, E> {
-        Ok(Nihil)
+    fn sequence_result(self) -> Result<Self, E> {
+        Ok(Self)
     }
 }
 
@@ -1808,11 +1803,11 @@ pub trait HListSequenceValidated<E> {
 
 #[cfg(feature = "Probatum")]
 impl<E> HListSequenceValidated<E> for Nihil {
-    type Output = Nihil;
+    type Output = Self;
 
     #[inline]
-    fn sequence_validated(self) -> crate::validated::Probatum<E, Nihil> {
-        crate::validated::Probatum::Valid(Nihil)
+    fn sequence_validated(self) -> crate::validated::Probatum<E, Self> {
+        crate::validated::Probatum::Valid(Self)
     }
 }
 
@@ -1865,8 +1860,8 @@ mod tests {
     #[test]
     fn test_pluck() {
         let h = hlist![1, "hello".to_string(), true, 42f32];
-        let (t, r): (f32, _) = h.clone().pluck();
-        assert_eq!(t, 42f32);
+        let (t, r): (f32, _) = h.pluck();
+        assert_eq!(t.to_bits(), 42f32.to_bits());
         assert_eq!(r, hlist![1, "hello".to_string(), true]);
     }
 
@@ -1874,7 +1869,7 @@ mod tests {
     fn test_ref_pluck() {
         let h = &hlist![1, "hello".to_string(), true, 42f32];
         let (t, r): (&f32, _) = h.pluck();
-        assert_eq!(t, &42f32);
+        assert_eq!(t.to_bits(), 42f32.to_bits());
         assert_eq!(r, hlist![&1, &"hello".to_string(), &true]);
     }
 
@@ -1913,15 +1908,15 @@ mod tests {
         let h = hlist![5, 3.2f32, true, "blue"];
         let coniunctio_pat!(five, float, right, s) = h;
         assert_eq!(five, 5);
-        assert_eq!(float, 3.2f32);
+        assert_eq!(float.to_bits(), 3.2f32.to_bits());
         assert!(right);
         assert_eq!(s, "blue");
 
         let h2 = hlist![13.5f32, "hello", Some(41)];
-        let coniunctio_pat![a, b, c,] = h2;
-        assert_eq!(a, 13.5f32);
-        assert_eq!(b, "hello");
-        assert_eq!(c, Some(41));
+        let coniunctio_pat![first, second, third,] = h2;
+        assert_eq!(first.to_bits(), 13.5f32.to_bits());
+        assert_eq!(second, "hello");
+        assert_eq!(third, Some(41));
     }
 
     #[test]
@@ -1969,8 +1964,8 @@ mod tests {
             |acc, &_| if acc > 42f32 { 9000 } else { 0 },
             |acc, &f| f + acc
         ];
-        let folded = h.to_ref().foldr(folder, 1f32);
-        assert_eq!(folded, 9001);
+        let total = h.to_ref().foldr(folder, 1f32);
+        assert_eq!(total, 9001);
     }
 
     #[test]
@@ -2014,7 +2009,7 @@ mod tests {
             ],
             1,
         );
-        assert_eq!(42f32, folded);
+        assert_eq!(42f32.to_bits(), folded.to_bits());
     }
 
     #[test]
@@ -2028,7 +2023,7 @@ mod tests {
             ],
             1,
         );
-        assert_eq!(42f32, folded);
+        assert_eq!(42f32.to_bits(), folded.to_bits());
         assert_eq!((&h.head), &1);
     }
 
@@ -2071,7 +2066,7 @@ mod tests {
 
     #[test]
     fn test_poly_map_consuming() {
-        let h = hlist![9000, "joe", 41f32, "schmoe", 50];
+        struct P;
         impl Func<i32> for P {
             type Output = bool;
             fn call(args: i32) -> Self::Output {
@@ -2090,13 +2085,14 @@ mod tests {
                 "dummy"
             }
         }
-        struct P;
+
+        let h = hlist![9000, "joe", 41f32, "schmoe", 50];
         assert_eq!(h.map(Poly(P)), hlist![true, 3, "dummy", 6, false]);
     }
 
     #[test]
     fn test_poly_map_non_consuming() {
-        let h = hlist![9000, "joe", 41f32, "schmoe", 50];
+        struct P;
         impl<'a> Func<&'a i32> for P {
             type Output = bool;
             fn call(args: &'a i32) -> Self::Output {
@@ -2115,7 +2111,8 @@ mod tests {
                 "dummy"
             }
         }
-        struct P;
+
+        let h = hlist![9000, "joe", 41f32, "schmoe", 50];
         assert_eq!(h.to_ref().map(Poly(P)), hlist![true, 3, "dummy", 6, false]);
     }
 

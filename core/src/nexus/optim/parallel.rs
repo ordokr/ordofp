@@ -105,7 +105,7 @@ const ADAPTIVE_MIN_PAR_ITEMS: usize = 128;
 
 #[cfg(feature = "rayon")]
 #[inline]
-fn adaptive_prefers_sequential(len: usize) -> bool {
+const fn adaptive_prefers_sequential(len: usize) -> bool {
     len < ADAPTIVE_MIN_PAR_ITEMS
 }
 
@@ -603,8 +603,9 @@ pub struct ParallelBuilder<A> {
 impl<A> ParallelBuilder<A> {
     /// Create a new parallel builder.
     #[inline]
+    #[must_use]
     pub fn new(items: Vec<A>) -> Self {
-        ParallelBuilder {
+        Self {
             items,
             strategy: ParallelStrategy::default(),
             chunk_size: None,
@@ -613,14 +614,16 @@ impl<A> ParallelBuilder<A> {
 
     /// Set the parallel strategy.
     #[inline]
-    pub fn with_strategy(mut self, strategy: ParallelStrategy) -> Self {
+    #[must_use]
+    pub const fn with_strategy(mut self, strategy: ParallelStrategy) -> Self {
         self.strategy = strategy;
         self
     }
 
     /// Set the chunk size for chunked processing.
     #[inline]
-    pub fn with_chunk_size(mut self, size: usize) -> Self {
+    #[must_use]
+    pub const fn with_chunk_size(mut self, size: usize) -> Self {
         self.chunk_size = Some(size);
         self
     }
@@ -689,8 +692,9 @@ pub struct ParallelProof<R: ParallelSafe> {
 
 impl ParallelProof<Pure> {
     /// Create a proof of parallel safety for pure computations.
+    #[must_use]
     pub const fn pure() -> Self {
-        ParallelProof {
+        Self {
             _marker: PhantomData,
         }
     }

@@ -62,8 +62,9 @@ pub struct SignumEffectus<E: EffectusAlgebraicus> {
 impl<E: EffectusAlgebraicus + 'static> SignumEffectus<E> {
     /// Create a new effect tag with the given name.
     #[inline]
+    #[must_use]
     pub const fn new(nomen: &'static str) -> Self {
-        SignumEffectus {
+        Self {
             nomen,
             type_id: TypeId::of::<E>(),
             _phantom: PhantomData,
@@ -72,18 +73,21 @@ impl<E: EffectusAlgebraicus + 'static> SignumEffectus<E> {
 
     /// Get the tag's name.
     #[inline]
-    pub fn nomen(&self) -> &'static str {
+    #[must_use]
+    pub const fn nomen(&self) -> &'static str {
         self.nomen
     }
 
     /// Get the type ID.
     #[inline]
-    pub fn type_id(&self) -> TypeId {
+    #[must_use]
+    pub const fn type_id(&self) -> TypeId {
         self.type_id
     }
 
     /// Check if this tag matches another effect type.
     #[inline]
+    #[must_use]
     pub fn matches<F: EffectusAlgebraicus + 'static>(&self) -> bool {
         self.type_id == TypeId::of::<F>()
     }
@@ -137,8 +141,8 @@ pub struct Testimonium<E: EffectusAlgebraicus, H> {
 impl<E: EffectusAlgebraicus + 'static, H> Testimonium<E, H> {
     /// Create new evidence with the given handler.
     #[inline]
-    pub fn new(signum: SignumEffectus<E>, tractator: H) -> Self {
-        Testimonium {
+    pub const fn new(signum: SignumEffectus<E>, tractator: H) -> Self {
+        Self {
             signum,
             tractator,
             depth: 0,
@@ -147,8 +151,8 @@ impl<E: EffectusAlgebraicus + 'static, H> Testimonium<E, H> {
 
     /// Create evidence at a specific depth.
     #[inline]
-    pub fn with_depth(signum: SignumEffectus<E>, tractator: H, depth: usize) -> Self {
-        Testimonium {
+    pub const fn with_depth(signum: SignumEffectus<E>, tractator: H, depth: usize) -> Self {
+        Self {
             signum,
             tractator,
             depth,
@@ -157,25 +161,25 @@ impl<E: EffectusAlgebraicus + 'static, H> Testimonium<E, H> {
 
     /// Get the effect tag.
     #[inline]
-    pub fn signum(&self) -> &SignumEffectus<E> {
+    pub const fn signum(&self) -> &SignumEffectus<E> {
         &self.signum
     }
 
     /// Get a reference to the handler.
     #[inline]
-    pub fn tractator(&self) -> &H {
+    pub const fn tractator(&self) -> &H {
         &self.tractator
     }
 
     /// Get a mutable reference to the handler.
     #[inline]
-    pub fn tractator_mut(&mut self) -> &mut H {
+    pub const fn tractator_mut(&mut self) -> &mut H {
         &mut self.tractator
     }
 
     /// Get the handler depth.
     #[inline]
-    pub fn depth(&self) -> usize {
+    pub const fn depth(&self) -> usize {
         self.depth
     }
 
@@ -235,16 +239,18 @@ struct TestimoniumEntry {
 impl VectorTestimonium {
     /// Create an empty evidence vector.
     #[inline]
-    pub fn new() -> Self {
-        VectorTestimonium {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             entries: Vec::new(),
         }
     }
 
     /// Create an evidence vector with capacity.
     #[inline]
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
-        VectorTestimonium {
+        Self {
             entries: Vec::with_capacity(cap),
         }
     }
@@ -264,6 +270,7 @@ impl VectorTestimonium {
 
     /// Look up evidence for an effect type.
     #[inline]
+    #[must_use]
     pub fn lookup<E: EffectusAlgebraicus + 'static>(&self) -> Option<usize> {
         let target = TypeId::of::<E>();
         self.entries.iter().position(|e| e.type_id == target)
@@ -271,19 +278,22 @@ impl VectorTestimonium {
 
     /// Check if evidence exists for an effect.
     #[inline]
+    #[must_use]
     pub fn has<E: EffectusAlgebraicus + 'static>(&self) -> bool {
         self.lookup::<E>().is_some()
     }
 
     /// Get the number of evidence entries.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Check if the vector is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
@@ -362,7 +372,7 @@ impl<A, B, E: EffectusAlgebraicus, R> Clausula<A, B, E, R> {
     where
         F: Fn(A) -> B + Send + Sync + 'static,
     {
-        Clausula::Fun(Box::new(f))
+        Self::Fun(Box::new(f))
     }
 
     /// Create a control clause.
@@ -371,7 +381,7 @@ impl<A, B, E: EffectusAlgebraicus, R> Clausula<A, B, E, R> {
     where
         F: Fn(A, Resumptio<B, R>) -> R + Send + Sync + 'static,
     {
-        Clausula::Ctl(Box::new(f))
+        Self::Ctl(Box::new(f))
     }
 
     /// Create a final clause.
@@ -380,17 +390,26 @@ impl<A, B, E: EffectusAlgebraicus, R> Clausula<A, B, E, R> {
     where
         F: Fn(A) -> R + Send + Sync + 'static,
     {
-        Clausula::Final(Box::new(f))
+        Self::Final(Box::new(f))
     }
 
     /// Get the clause type.
+    ///
+    /// # Panics
+    ///
+    /// Never panics at runtime: the `_Phantom` arm is dead because
+    /// [`Infallible`](core::convert::Infallible) is uninhabited, so no
+    /// `Clausula` value can inhabit it.
     #[inline]
-    pub fn genus(&self) -> ClausulaGenus {
+    #[must_use]
+    pub const fn genus(&self) -> ClausulaGenus {
         match self {
-            Clausula::Fun(_) => ClausulaGenus::Fun,
-            Clausula::Ctl(_) => ClausulaGenus::Ctl,
-            Clausula::Final(_) => ClausulaGenus::Final,
-            Clausula::_Phantom(_, never) => match *never {},
+            Self::Fun(_) => ClausulaGenus::Fun,
+            Self::Ctl(_) => ClausulaGenus::Ctl,
+            Self::Final(_) => ClausulaGenus::Final,
+            // Dead: `Infallible` is uninhabited. Bare `unreachable!()` (rather
+            // than a message) because formatting macros are not `const`.
+            Self::_Phantom(_, _) => unreachable!(),
         }
     }
 }
@@ -422,7 +441,7 @@ impl<A: 'static, R: 'static> Resumptio<A, R> {
     where
         F: FnOnce(A) -> R + Send + 'static,
     {
-        Resumptio {
+        Self {
             continuation: Box::new(f),
         }
     }
@@ -487,7 +506,10 @@ pub trait TractatorEvidentia<E: EffectusAlgebraicus>: Sized {
 /// evidence vector; full handler threading is not yet implemented.
 // Takes the handler by value now so that wiring it into the evidence vector
 // later is not a breaking signature change.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "by-value reserves handler-threading without a future breaking change"
+)]
 #[inline]
 pub fn run_with_evidence<E, H, A, F>(handler: H, evv: &mut VectorTestimonium, computation: F) -> A
 where
@@ -580,7 +602,8 @@ mod tests {
     #[test]
     fn test_resumptio_contramap() {
         let k = Resumptio::new(|x: i32| x * 2);
-        let contramapped = k.contramap(|s: &str| s.len() as i32);
+        let contramapped =
+            k.contramap(|s: &str| i32::try_from(s.len()).expect("test string length fits in i32"));
         assert_eq!(contramapped.resume("hello"), 10);
     }
 

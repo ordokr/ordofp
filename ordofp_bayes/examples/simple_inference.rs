@@ -1,8 +1,6 @@
 //! Simple Bayesian inference example.
 //!
 //! This example demonstrates basic usage of `ordofp_bayes` for probabilistic programming.
-// Sample counts ≪ 2^52 — the usize→f64 mean casts are exact.
-#![allow(clippy::cast_precision_loss)]
 #![cfg(feature = "std")]
 
 use ordofp_bayes::distributions::{Normal, Uniform};
@@ -21,6 +19,20 @@ fn next_seed() -> u64 {
 }
 
 fn main() {
+    struct ObservedModel;
+
+    impl WeightedModel<f64> for ObservedModel {
+        fn execute_weighted<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Particle<f64> {
+            let prior = Normal::new(0.0, 1.0);
+            let value = prior.sample(rng);
+            let mut p = Particle::new(value);
+            // log-likelihood of observing 0.5 under N(value, 1.0), up to a constant
+            let diff = value - 0.5;
+            p.factor(-0.5 * diff * diff);
+            p
+        }
+    }
+
     println!("OrdoFP Bayes - Simple Inference Example\n");
 
     // Example: Estimate mean of a normal distribution
@@ -43,7 +55,8 @@ fn main() {
 
     println!("  Generated {} samples", smc_samples.len());
     if !smc_samples.is_empty() {
-        let mean: f64 = smc_samples.iter().sum::<f64>() / smc_samples.len() as f64;
+        let mean: f64 = smc_samples.iter().sum::<f64>()
+            / f64::from(u32::try_from(smc_samples.len()).expect("sample count fits in u32"));
         println!("  Sample mean: {mean:.3}");
     }
 
@@ -65,7 +78,8 @@ fn main() {
         10
     );
     if !mh_samples.is_empty() {
-        let mean: f64 = mh_samples.iter().sum::<f64>() / mh_samples.len() as f64;
+        let mean: f64 = mh_samples.iter().sum::<f64>()
+            / f64::from(u32::try_from(mh_samples.len()).expect("sample count fits in u32"));
         println!("  Sample mean: {mean:.3}");
     }
 
@@ -83,27 +97,14 @@ fn main() {
 
     println!("  Generated {} samples", is_samples.len());
     if !is_samples.is_empty() {
-        let mean: f64 = is_samples.iter().sum::<f64>() / is_samples.len() as f64;
+        let mean: f64 = is_samples.iter().sum::<f64>()
+            / f64::from(u32::try_from(is_samples.len()).expect("sample count fits in u32"));
         println!("  Sample mean: {mean:.3}");
     }
 
     // Demonstrate weighted importance sampling (likelihood weighting):
     // prior N(0,1) as the proposal, one observation at 0.5.
     println!("\nImportance Sampling (Weighted):");
-
-    struct ObservedModel;
-
-    impl WeightedModel<f64> for ObservedModel {
-        fn execute_weighted<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Particle<f64> {
-            let prior = Normal::new(0.0, 1.0);
-            let value = prior.sample(rng);
-            let mut p = Particle::new(value);
-            // log-likelihood of observing 0.5 under N(value, 1.0), up to a constant
-            let diff = value - 0.5;
-            p.factor(-0.5 * diff * diff);
-            p
-        }
-    }
 
     let is_weighted = ImportanceSampling::new(500);
     let weighted_samples = is_weighted.infer_weighted(&ObservedModel, &mut rng);

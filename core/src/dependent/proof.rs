@@ -64,7 +64,8 @@ pub struct Testimonium<T, P: ?Sized> {
 /// This function can only be called when the constraint `P` is satisfied
 /// by type `T`, enforced by trait bounds.
 #[inline]
-pub fn testimonium<T, P: ?Sized>() -> Testimonium<T, P>
+#[must_use]
+pub const fn testimonium<T, P: ?Sized>() -> Testimonium<T, P>
 where
     T: TestimoniumConstructor<P>,
 {
@@ -165,14 +166,15 @@ pub struct Aequalitas<A, B> {
     _b: PhantomData<B>,
 }
 
-impl<A> Aequalitas<A, A> {
+impl<T> Aequalitas<T, T> {
     /// Create a proof that a type equals itself (reflexivity).
     ///
     /// # Latin Etymology
     /// *Reflexio* means "a bending back" - reflexivity.
     #[inline]
-    pub fn reflexio() -> Self {
-        Aequalitas {
+    #[must_use]
+    pub const fn reflexio() -> Self {
+        Self {
             _a: PhantomData,
             _b: PhantomData,
         }
@@ -185,7 +187,8 @@ impl<A, B> Aequalitas<A, B> {
     /// # Latin Etymology
     /// *Symmetria* means "symmetry".
     #[inline]
-    pub fn symmetria(self) -> Aequalitas<B, A> {
+    #[must_use]
+    pub const fn symmetria(self) -> Aequalitas<B, A> {
         // SAFETY: If A = B (which is the only way to construct this),
         // then B = A trivially holds
         Aequalitas {
@@ -199,7 +202,8 @@ impl<A, B> Aequalitas<A, B> {
     /// # Latin Etymology
     /// *Transitivitas* means "transitivity".
     #[inline]
-    pub fn transitivitas<C>(self, _other: Aequalitas<B, C>) -> Aequalitas<A, C> {
+    #[must_use]
+    pub const fn transitivitas<C>(self, _other: Aequalitas<B, C>) -> Aequalitas<A, C> {
         Aequalitas {
             _a: PhantomData,
             _b: PhantomData,
@@ -212,7 +216,8 @@ impl<A, B> Aequalitas<A, B> {
     /// # Latin Etymology
     /// *Congruentia* means "agreement, consistency".
     #[inline]
-    pub fn congruentia<F: crate::typeclasses::hkt::HKT>(
+    #[must_use]
+    pub const fn congruentia<F: crate::typeclasses::hkt::HKT>(
         self,
     ) -> Aequalitas<F::Target<A>, F::Target<B>> {
         Aequalitas {
@@ -224,7 +229,8 @@ impl<A, B> Aequalitas<A, B> {
 
 /// Create a reflexivity proof.
 #[inline]
-pub fn reflexio<A>() -> Aequalitas<A, A> {
+#[must_use]
+pub const fn reflexio<A>() -> Aequalitas<A, A> {
     Aequalitas::reflexio()
 }
 
@@ -247,14 +253,14 @@ pub enum Decisio<P> {
 impl<P> Decisio<P> {
     /// Check if the decision is positive.
     #[inline]
-    pub fn is_ita(&self) -> bool {
-        matches!(self, Decisio::Ita(_))
+    pub const fn is_ita(&self) -> bool {
+        matches!(self, Self::Ita(_))
     }
 
     /// Check if the decision is negative.
     #[inline]
-    pub fn is_non(&self) -> bool {
-        matches!(self, Decisio::Non)
+    pub const fn is_non(&self) -> bool {
+        matches!(self, Self::Non)
     }
 
     /// Map over a positive decision.
@@ -264,8 +270,8 @@ impl<P> Decisio<P> {
         F: FnOnce(P) -> Q,
     {
         match self {
-            Decisio::Ita(p) => Decisio::Ita(f(p)),
-            Decisio::Non => Decisio::Non,
+            Self::Ita(p) => Decisio::Ita(f(p)),
+            Self::Non => Decisio::Non,
         }
     }
 
@@ -277,8 +283,8 @@ impl<P> Decisio<P> {
     #[inline]
     pub fn unwrap(self) -> P {
         match self {
-            Decisio::Ita(p) => p,
-            Decisio::Non => panic!("Called unwrap on Decisio::Non"),
+            Self::Ita(p) => p,
+            Self::Non => panic!("Called unwrap on Decisio::Non"),
         }
     }
 
@@ -290,8 +296,8 @@ impl<P> Decisio<P> {
     #[inline]
     pub fn expect(self, msg: &str) -> P {
         match self {
-            Decisio::Ita(p) => p,
-            Decisio::Non => panic!("{}", msg),
+            Self::Ita(p) => p,
+            Self::Non => panic!("{}", msg),
         }
     }
 }
@@ -318,8 +324,8 @@ pub struct Existentia<T, P> {
 impl<T, P> Existentia<T, P> {
     /// Create an existential proof with a witness and proof.
     #[inline]
-    pub fn new(witness: T, proof: P) -> Self {
-        Existentia { witness, proof }
+    pub const fn new(witness: T, proof: P) -> Self {
+        Self { witness, proof }
     }
 
     /// Project out the witness.
@@ -366,8 +372,8 @@ pub struct Coniunctio<P, Q> {
 impl<P, Q> Coniunctio<P, Q> {
     /// Create a conjunction proof.
     #[inline]
-    pub fn new(p: P, q: Q) -> Self {
-        Coniunctio {
+    pub const fn new(p: P, q: Q) -> Self {
+        Self {
             sinister: p,
             dexter: q,
         }
@@ -405,14 +411,14 @@ pub enum Disiunctio<P, Q> {
 impl<P, Q> Disiunctio<P, Q> {
     /// Create a left disjunction.
     #[inline]
-    pub fn sinister(p: P) -> Self {
-        Disiunctio::Sinister(p)
+    pub const fn sinister(p: P) -> Self {
+        Self::Sinister(p)
     }
 
     /// Create a right disjunction.
     #[inline]
-    pub fn dexter(q: Q) -> Self {
-        Disiunctio::Dexter(q)
+    pub const fn dexter(q: Q) -> Self {
+        Self::Dexter(q)
     }
 
     /// Case analysis on a disjunction.
@@ -423,8 +429,8 @@ impl<P, Q> Disiunctio<P, Q> {
         G: FnOnce(Q) -> R,
     {
         match self {
-            Disiunctio::Sinister(p) => f(p),
-            Disiunctio::Dexter(q) => g(q),
+            Self::Sinister(p) => f(p),
+            Self::Dexter(q) => g(q),
         }
     }
 }
@@ -445,8 +451,9 @@ pub struct Finitus<N: Naturalis, Bound: Naturalis> {
 
 impl<N: Naturalis + Minor<Bound>, Bound: Naturalis> Finitus<N, Bound> {
     /// Create a bounded natural.
-    pub fn new() -> Self {
-        Finitus {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _n: PhantomData,
             _bound: PhantomData,
         }
@@ -571,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_propositio() {
-        assert!(Verum::VALUE);
+        const _: () = assert!(Verum::VALUE);
         // Falsum has no values, so we can't test its VALUE
     }
 }

@@ -65,7 +65,7 @@ pub enum Liber<F: FunctorHKT, A> {
     ///
     /// # Latin Etymology
     /// *Suspensus* = hanging, suspended
-    Suspensus(Box<F::Target<Liber<F, A>>>),
+    Suspensus(Box<F::Target<Self>>),
 }
 
 #[cfg(feature = "alloc")]
@@ -81,26 +81,26 @@ impl<F: FunctorHKT, A> Liber<F, A> {
     /// assert!(x.est_purus());
     /// ```
     #[inline]
-    pub fn purus(a: A) -> Self {
-        Liber::Purus(a)
+    pub const fn purus(a: A) -> Self {
+        Self::Purus(a)
     }
 
     /// Create a suspended computation from a functor value.
     #[inline]
-    pub fn suspensus(fa: F::Target<Liber<F, A>>) -> Self {
-        Liber::Suspensus(Box::new(fa))
+    pub fn suspensus(fa: F::Target<Self>) -> Self {
+        Self::Suspensus(Box::new(fa))
     }
 
     /// Check if this is a pure value.
     #[inline]
-    pub fn est_purus(&self) -> bool {
-        matches!(self, Liber::Purus(_))
+    pub const fn est_purus(&self) -> bool {
+        matches!(self, Self::Purus(_))
     }
 
     /// Check if this is a suspended computation.
     #[inline]
-    pub fn est_suspensus(&self) -> bool {
-        matches!(self, Liber::Suspensus(_))
+    pub const fn est_suspensus(&self) -> bool {
+        matches!(self, Self::Suspensus(_))
     }
 
     /// Map a function over the result type.
@@ -112,8 +112,8 @@ impl<F: FunctorHKT, A> Liber<F, A> {
         G: Fn(A) -> B + Clone,
     {
         match self {
-            Liber::Purus(a) => Liber::Purus(f(a)),
-            Liber::Suspensus(fa) => {
+            Self::Purus(a) => Liber::Purus(f(a)),
+            Self::Suspensus(fa) => {
                 let mapped = F::map(*fa, |child| child.map(f.clone()));
                 Liber::Suspensus(Box::new(mapped))
             }
@@ -142,8 +142,8 @@ impl<F: FunctorHKT, A> Liber<F, A> {
         G: Fn(A) -> Liber<F, B> + Clone,
     {
         match self {
-            Liber::Purus(a) => f(a),
-            Liber::Suspensus(fa) => {
+            Self::Purus(a) => f(a),
+            Self::Suspensus(fa) => {
                 let mapped = F::map(*fa, |child| child.flat_map(f.clone()));
                 Liber::Suspensus(Box::new(mapped))
             }
@@ -167,7 +167,7 @@ impl<F: FunctorHKT, A> Liber<F, A> {
     where
         A: Clone,
     {
-        Liber::Suspensus(Box::new(F::map(fa, Liber::purus)))
+        Self::Suspensus(Box::new(F::map(fa, Self::purus)))
     }
 }
 
@@ -373,7 +373,7 @@ pub fn join_liber<F: FunctorHKT, A>(nested: Liber<F, Liber<F, A>>) -> Liber<F, A
 /// Wrap a value in Liber (alias for purus).
 #[cfg(feature = "alloc")]
 #[inline]
-pub fn purus_liber<F: FunctorHKT, A>(a: A) -> Liber<F, A> {
+pub const fn purus_liber<F: FunctorHKT, A>(a: A) -> Liber<F, A> {
     Liber::purus(a)
 }
 
@@ -400,7 +400,7 @@ mod tests {
 
         match mapped {
             Liber::Purus(x) => assert_eq!(x, 84),
-            _ => panic!("Expected Purus"),
+            Liber::Suspensus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -411,7 +411,7 @@ mod tests {
 
         match chained {
             Liber::Purus(x) => assert_eq!(x, 43),
-            _ => panic!("Expected Purus"),
+            Liber::Suspensus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -425,7 +425,7 @@ mod tests {
 
         match result {
             Liber::Purus(x) => assert_eq!(x, 20), // ((10 + 5) * 2) - 10 = 20
-            _ => panic!("Expected Purus"),
+            Liber::Suspensus(_) => panic!("Expected Purus"),
         }
     }
 
@@ -452,7 +452,7 @@ mod tests {
 
         match result {
             Liber::Purus(r) => assert_eq!(r, 42),
-            _ => panic!("Should be Purus"),
+            Liber::Suspensus(_) => panic!("Should be Purus"),
         }
     }
 
@@ -464,7 +464,7 @@ mod tests {
 
         match joined {
             Liber::Purus(x) => assert_eq!(x, 42),
-            _ => panic!("Expected Purus"),
+            Liber::Suspensus(_) => panic!("Expected Purus"),
         }
     }
 }

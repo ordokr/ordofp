@@ -50,7 +50,7 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 #[cfg(feature = "std")]
-use core::hash::Hash;
+use core::hash::{BuildHasher, Hash};
 #[cfg(feature = "std")]
 use std::collections::{HashMap, HashSet};
 
@@ -159,6 +159,35 @@ macro_rules! collection_biformis_ext {
             }
         }
     };
+    ($(#[$attr:meta])* $trait_name:ident, $container:ident $(, $bound:path)* ; hasher) => {
+        $(#[$attr])*
+        #[doc = concat!("Extension trait for ", stringify!($container),
+            " to provide invariant mapping.")]
+        pub trait $trait_name<A, S> {
+            #[doc = concat!("Apply an invariant map to ", stringify!($container),
+                " (keeping its hasher).")]
+            fn imap<B, F, G>(self, f: F, g: G) -> $container<B, S>
+            where
+                B: $($bound +)* Sized,
+                F: FnMut(A) -> B,
+                G: FnMut(B) -> A,
+                S: BuildHasher + Default;
+        }
+
+        $(#[$attr])*
+        impl<A, S: BuildHasher + Default> $trait_name<A, S> for $container<A, S> {
+            #[inline]
+            fn imap<B, F, G>(self, f: F, _g: G) -> $container<B, S>
+            where
+                B: $($bound +)* Sized,
+                F: FnMut(A) -> B,
+                G: FnMut(B) -> A,
+                S: BuildHasher + Default,
+            {
+                self.into_iter().map(f).collect()
+            }
+        }
+    };
 }
 
 collection_biformis_ext!(VecBiformisExt, Vec);
@@ -170,7 +199,8 @@ collection_biformis_ext!(
     HashSetBiformisExt,
     HashSet,
     Hash,
-    Eq
+    Eq;
+    hasher
 );
 
 // ============================================================================
@@ -186,12 +216,12 @@ pub trait BoxBiformisExt<A> {
         G: FnOnce(B) -> A;
 }
 
-impl<A> BoxBiformisExt<A> for Box<A> {
+impl<T> BoxBiformisExt<T> for Box<T> {
     #[inline]
     fn imap<B, F, G>(self, f: F, _g: G) -> Box<B>
     where
-        F: FnOnce(A) -> B,
-        G: FnOnce(B) -> A,
+        F: FnOnce(T) -> B,
+        G: FnOnce(B) -> T,
     {
         Box::new(f(*self))
     }
@@ -230,6 +260,37 @@ macro_rules! map_biformis_ext {
             }
         }
     };
+    ($(#[$attr:meta])* $trait_name:ident, $container:ident $(, $kbound:path)* ; hasher) => {
+        $(#[$attr])*
+        #[doc = concat!("Extension trait for ", stringify!($container),
+            " to provide invariant mapping over values.")]
+        pub trait $trait_name<K, V, S> {
+            #[doc = concat!("Apply an invariant map to ", stringify!($container),
+                " values (keeping its hasher).")]
+            fn imap<B, F, G>(self, f: F, g: G) -> $container<K, B, S>
+            where
+                K: $($kbound +)* Sized,
+                F: FnMut(V) -> B,
+                G: FnMut(B) -> V,
+                S: BuildHasher + Default;
+        }
+
+        $(#[$attr])*
+        impl<K: $($kbound +)* Sized, V, S: BuildHasher + Default> $trait_name<K, V, S>
+            for $container<K, V, S>
+        {
+            #[inline]
+            fn imap<B, F, G>(self, mut f: F, _g: G) -> $container<K, B, S>
+            where
+                K: $($kbound +)* Sized,
+                F: FnMut(V) -> B,
+                G: FnMut(B) -> V,
+                S: BuildHasher + Default,
+            {
+                self.into_iter().map(|(k, v)| (k, f(v))).collect()
+            }
+        }
+    };
 }
 
 map_biformis_ext!(BTreeMapBiformisExt, BTreeMap, Ord);
@@ -238,7 +299,8 @@ map_biformis_ext!(
     HashMapBiformisExt,
     HashMap,
     Hash,
-    Eq
+    Eq;
+    hasher
 );
 
 // ============================================================================

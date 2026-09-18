@@ -27,8 +27,8 @@ fn hlist_into_tuple2_match(c: &mut Criterion) {
     let h = hlist![1, 2, 3.3f32, "hi2", true];
     c.bench_function("hlist_into_tuple2_match", |b| {
         b.iter(|| {
-            let (a, (b, (c, (d, e)))) = h.into_tuple2();
-            black_box((a, b, c, d, e))
+            let (first, (second, (third, (fourth, fifth)))) = h.into_tuple2();
+            black_box((first, second, third, fourth, fifth))
         });
     });
 }
@@ -37,8 +37,8 @@ fn hlist_into_coniunctio_pat_match(c: &mut Criterion) {
     let h = hlist![1, 2, 3.3f32, "hi2", true];
     c.bench_function("hlist_into_coniunctio_pat_match", |b| {
         b.iter(|| {
-            let coniunctio_pat!(a, b, c, d, e) = h;
-            black_box((a, b, c, d, e))
+            let coniunctio_pat!(first, second, third, fourth, fifth) = h;
+            black_box((first, second, third, fourth, fifth))
         });
     });
 }

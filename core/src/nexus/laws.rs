@@ -79,9 +79,8 @@
 //! - Tier 2: Implemented in [`super::verification`] (debug-build law checks)
 //! - Tier 3-4: Future research
 
-// Law-check functions take their inputs by value by design: they are
-// quickcheck-style value properties whose arguments are consumed test data.
-#![allow(clippy::needless_pass_by_value)]
+// Law-check functions borrow large inputs and take small ones by value,
+// following standard borrowing conventions.
 
 use super::effects::error::ErrorComputation;
 use super::effects::reader::ReaderComputation;
@@ -109,13 +108,13 @@ pub fn verify_state_get_put<S: Clone + PartialEq + 'static>(initial: S) -> bool 
 /// Verify the Put-Get law: `put(s).and_then`(|_| get) = put(s).map(|_| s)
 ///
 /// Putting state and getting it should return the put value.
-pub fn verify_state_put_get<S: Clone + PartialEq + 'static>(new_state: S, initial: S) -> bool {
+pub fn verify_state_put_get<S: Clone + PartialEq + 'static>(new_state: &S, initial: S) -> bool {
     let put_get = StatefulComputation::<S, ()>::put(new_state.clone())
         .and_then(|()| StatefulComputation::<S, S>::get());
 
     let (result, final_state) = put_get.run(initial);
 
-    result == new_state && final_state == new_state
+    result == *new_state && final_state == *new_state
 }
 
 /// Verify the Put-Put law: `put(s1).and_then`(|_| put(s2)) = put(s2)
@@ -204,6 +203,7 @@ use super::effects::writer::{Monoid, WriterComputation};
 /// Verify Tell-Empty: tell(empty) = pure(())
 ///
 /// Telling the identity element should be a no-op.
+#[must_use]
 pub fn verify_writer_tell_empty<W: Monoid + PartialEq + 'static>() -> bool {
     let tell_empty = WriterComputation::<W, ()>::tell(W::empty());
     let pure_unit = WriterComputation::<W, ()>::pure(());
@@ -222,12 +222,12 @@ pub fn verify_writer_listen_pure<
     W: Monoid + PartialEq + Clone + 'static,
     A: Clone + PartialEq + 'static,
 >(
-    value: A,
+    value: &A,
 ) -> bool {
     let listened = WriterComputation::<W, A>::pure(value.clone()).listen();
     let ((result, inner_log), outer_log) = listened.run();
 
-    result == value && inner_log == W::empty() && outer_log == W::empty()
+    result == *value && inner_log == W::empty() && outer_log == W::empty()
 }
 
 // =============================================================================
@@ -264,6 +264,7 @@ pub fn verify_writer_listen_pure<
 /// // Law holds for arbitrary value and initial state
 /// assert!(verify_monad_left_identity_state(42, 0));
 /// ```
+#[must_use]
 pub fn verify_monad_left_identity_state(a: i32, initial: i32) -> bool {
     let f = |x: i32| StatefulComputation::<i32, i32>::new(move |s| (x * 2, s + 1));
 
@@ -301,6 +302,7 @@ pub fn verify_monad_left_identity_state(a: i32, initial: i32) -> bool {
 /// // Law holds for a successful value
 /// assert!(verify_monad_left_identity_error(42));
 /// ```
+#[must_use]
 pub fn verify_monad_left_identity_error(a: i32) -> bool {
     let f = |x: i32| ErrorComputation::<&str, i32>::ok(x * 2);
 
@@ -364,8 +366,8 @@ mod tests {
 
     #[test]
     fn test_state_put_get_law() {
-        assert!(verify_state_put_get(100i32, 0i32));
-        assert!(verify_state_put_get(42i32, 99i32));
+        assert!(verify_state_put_get(&100i32, 0i32));
+        assert!(verify_state_put_get(&42i32, 99i32));
     }
 
     #[test]
@@ -407,9 +409,9 @@ mod tests {
 
     #[test]
     fn test_writer_listen_pure_law() {
-        assert!(verify_writer_listen_pure::<alloc::string::String, i32>(42));
+        assert!(verify_writer_listen_pure::<alloc::string::String, i32>(&42));
         assert!(verify_writer_listen_pure::<alloc::vec::Vec<i32>, &str>(
-            "hello"
+            &"hello"
         ));
     }
 

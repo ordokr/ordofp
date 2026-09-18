@@ -63,8 +63,8 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.tail(), &[2, 3]);
     /// ```
     #[inline]
-    pub fn new(head: T, tail: Vec<T>) -> Self {
-        NonEmpty { head, tail }
+    pub const fn new(head: T, tail: Vec<T>) -> Self {
+        Self { head, tail }
     }
 
     /// Create a `NonEmpty` with a single element.
@@ -79,8 +79,8 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.head(), &42);
     /// ```
     #[inline]
-    pub fn singleton(value: T) -> Self {
-        NonEmpty {
+    pub const fn singleton(value: T) -> Self {
+        Self {
             head: value,
             tail: Vec::new(),
         }
@@ -101,12 +101,13 @@ impl<T> NonEmpty<T> {
     /// let empty = NonEmpty::<i32>::from_vec(vec![]);
     /// assert!(empty.is_none());
     /// ```
+    #[must_use]
     pub fn from_vec(mut vec: Vec<T>) -> Option<Self> {
         if vec.is_empty() {
             None
         } else {
             let head = vec.remove(0);
-            Some(NonEmpty { head, tail: vec })
+            Some(Self { head, tail: vec })
         }
     }
 
@@ -123,13 +124,13 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.head(), &1);
     /// ```
     #[inline]
-    pub fn head(&self) -> &T {
+    pub const fn head(&self) -> &T {
         &self.head
     }
 
     /// Get a mutable reference to the head.
     #[inline]
-    pub fn head_mut(&mut self) -> &mut T {
+    pub const fn head_mut(&mut self) -> &mut T {
         &mut self.head
     }
 
@@ -181,7 +182,7 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.len(), 3);
     /// ```
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         1 + self.tail.len()
     }
 
@@ -217,7 +218,7 @@ impl<T> NonEmpty<T> {
     /// assert!(!multiple.is_singleton());
     /// ```
     #[inline]
-    pub fn is_singleton(&self) -> bool {
+    pub const fn is_singleton(&self) -> bool {
         self.tail.is_empty()
     }
 
@@ -262,6 +263,7 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.to_vec(), vec![1, 2, 3]);
     /// ```
     #[inline]
+    #[must_use]
     pub fn push(mut self, value: T) -> Self {
         self.tail.push(value);
         self
@@ -277,11 +279,12 @@ impl<T> NonEmpty<T> {
     /// let nel = NonEmpty::singleton(2).prepend(1);
     /// assert_eq!(nel.to_vec(), vec![1, 2]);
     /// ```
+    #[must_use]
     pub fn prepend(self, value: T) -> Self {
         let mut new_tail = Vec::with_capacity(self.len());
         new_tail.push(self.head);
         new_tail.extend(self.tail);
-        NonEmpty {
+        Self {
             head: value,
             tail: new_tail,
         }
@@ -392,12 +395,13 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(combined.to_vec(), vec![1, 2, 3, 4]);
     /// ```
     #[inline]
-    pub fn concat(self, other: NonEmpty<T>) -> NonEmpty<T> {
+    #[must_use]
+    pub fn concat(self, other: Self) -> Self {
         let mut tail = self.tail;
         tail.reserve(1 + other.tail.len());
         tail.push(other.head);
         tail.extend(other.tail);
-        NonEmpty {
+        Self {
             head: self.head,
             tail,
         }
@@ -420,11 +424,12 @@ impl<T> NonEmpty<T> {
     /// Panics only if the non-emptiness invariant is violated (the
     /// `unwrap` re-wraps a vector that necessarily holds at least the
     /// head); reaching it would indicate a bug in this crate.
-    pub fn reverse(self) -> NonEmpty<T> {
+    #[must_use]
+    pub fn reverse(self) -> Self {
         let mut all = self.to_vec();
         all.reverse();
         // Safe because NonEmpty always has at least one element
-        NonEmpty::from_vec(all).unwrap()
+        Self::from_vec(all).unwrap()
     }
 
     /// Get an iterator over references.
@@ -469,7 +474,7 @@ impl<T> NonEmpty<T> {
     /// let evens2 = nel2.filter(|x| x % 2 == 0);
     /// assert!(evens2.is_none());
     /// ```
-    pub fn filter<F>(self, mut pred: F) -> Option<NonEmpty<T>>
+    pub fn filter<F>(self, mut pred: F) -> Option<Self>
     where
         F: FnMut(&T) -> bool,
     {
@@ -486,7 +491,7 @@ impl<T> NonEmpty<T> {
                 all.push(x);
             }
         }
-        NonEmpty::from_vec(all)
+        Self::from_vec(all)
     }
 
     /// `FlatMap` over the `NonEmpty`.
@@ -541,7 +546,7 @@ impl<T> NonEmpty<T> {
     /// assert_eq!(nel.extract(), &1);
     /// ```
     #[inline]
-    pub fn extract(&self) -> &T {
+    pub const fn extract(&self) -> &T {
         &self.head
     }
 
@@ -576,7 +581,7 @@ impl<T> NonEmpty<T> {
     /// `unwrap` wraps a suffix taken from a loop that only runs while
     /// the slice is non-empty); reaching it would indicate a bug in
     /// this crate.
-    pub fn duplicate(&self) -> NonEmpty<NonEmpty<T>>
+    pub fn duplicate(&self) -> NonEmpty<Self>
     where
         T: Clone,
     {
@@ -585,7 +590,7 @@ impl<T> NonEmpty<T> {
         let mut current_tail = self.tail.as_slice();
 
         while !current_tail.is_empty() {
-            let suffix = NonEmpty::from_vec(current_tail.to_vec()).unwrap();
+            let suffix = Self::from_vec(current_tail.to_vec()).unwrap();
             suffixes.push(suffix);
             current_tail = &current_tail[1..];
         }
@@ -620,7 +625,7 @@ impl<T> NonEmpty<T> {
     pub fn extend<U, F>(&self, f: F) -> NonEmpty<U>
     where
         T: Clone,
-        F: Fn(&NonEmpty<T>) -> U,
+        F: Fn(&Self) -> U,
     {
         self.duplicate().map(|nel| f(&nel))
     }
@@ -630,7 +635,7 @@ impl<T> NonEmpty<T> {
     pub fn coflatmap<U, F>(&self, f: F) -> NonEmpty<U>
     where
         T: Clone,
-        F: Fn(&NonEmpty<T>) -> U,
+        F: Fn(&Self) -> U,
     {
         self.extend(f)
     }
@@ -659,7 +664,7 @@ impl<T> NonEmpty<T> {
     /// Panics only if the non-emptiness invariant is violated (each
     /// `unwrap` wraps a rotation of length `len() >= 1`); reaching it
     /// would indicate a bug in this crate.
-    pub fn rotations(&self) -> NonEmpty<NonEmpty<T>>
+    pub fn rotations(&self) -> NonEmpty<Self>
     where
         T: Clone,
     {
@@ -672,7 +677,7 @@ impl<T> NonEmpty<T> {
             for j in 0..n {
                 rotated.push(all_items[(i + j) % n].clone());
             }
-            rotations.push(NonEmpty::from_vec(rotated).unwrap());
+            rotations.push(Self::from_vec(rotated).unwrap());
         }
 
         NonEmpty {
@@ -821,7 +826,7 @@ impl<T: Clone> crate::typeclasses::Apply for NonEmpty<T> {
 #[cfg(feature = "alloc")]
 impl<T: Clone> crate::typeclasses::Applicatio for NonEmpty<T> {
     fn pure(a: T) -> Self {
-        NonEmpty::singleton(a)
+        Self::singleton(a)
     }
 
     fn pure_target<U>(u: U) -> NonEmpty<U>

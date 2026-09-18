@@ -1,3 +1,5 @@
+//! Example 02: generic conversion with the `Universalis` derive.
+
 use ordofp::Universalis;
 
 #[derive(Universalis, Debug, PartialEq)]

@@ -115,7 +115,10 @@ fn probatum_to_result(c: &mut Criterion) {
 fn probatum_collect(c: &mut Criterion) {
     let mut group = c.benchmark_group("Probatum_collect");
     for &n in &[100usize, 1_000, 10_000, 100_000] {
-        let template: Vec<Probatum<String, i32>> = (0..n as i32).map(Probatum::Valid).collect();
+        let template: Vec<Probatum<String, i32>> = (0..i32::try_from(n)
+            .expect("benchmark input size fits in i32"))
+            .map(Probatum::Valid)
+            .collect();
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter_batched(
                 || template.clone(),

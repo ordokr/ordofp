@@ -102,7 +102,7 @@ mod phase2_optics {
         let circle_prism = prism(
             |s: &Shape| match s {
                 Shape::Circle(r) => Some(*r),
-                _ => None,
+                Shape::Rectangle(..) => None,
             },
             Shape::Circle,
         );
@@ -149,7 +149,7 @@ mod phase3_disiunctio {
         // Verify the values are in the right variant
         match int_val {
             Disiunctio::Sinister(n) => assert_eq!(n, 42),
-            _ => panic!("Expected Sinister"),
+            Disiunctio::Dexter(_) => panic!("Expected Sinister"),
         }
 
         match str_val {
@@ -194,7 +194,7 @@ mod phase4_data_types {
 
         match mapped {
             Aut::Dexter(n) => assert_eq!(n, 42),
-            _ => panic!("Expected Dexter"),
+            Aut::Sinister(_) => panic!("Expected Dexter"),
         }
     }
 }

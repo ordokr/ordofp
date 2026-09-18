@@ -29,7 +29,11 @@ use quickcheck::quickcheck;
 
 #[test]
 fn functor_option_identity_law() {
-    quickcheck(functor_laws::option_identity::<i32> as fn(Option<i32>) -> bool);
+    fn option_identity_prop(x: Option<i32>) -> bool {
+        functor_laws::option_identity::<i32>(&x)
+    }
+
+    quickcheck(option_identity_prop as fn(Option<i32>) -> bool);
 }
 
 #[test]
@@ -84,21 +88,51 @@ fn applicative_vec_pure_preservation_law() {
 
 #[test]
 fn monoid_string_identity_laws() {
-    quickcheck(monoid_laws::left_identity as fn(String) -> bool);
-    quickcheck(monoid_laws::right_identity as fn(String) -> bool);
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn left_identity_prop(x: String) -> bool {
+        monoid_laws::left_identity(&x)
+    }
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn right_identity_prop(x: String) -> bool {
+        monoid_laws::right_identity(&x)
+    }
+
+    quickcheck(left_identity_prop as fn(String) -> bool);
+    quickcheck(right_identity_prop as fn(String) -> bool);
 }
 
 #[test]
 fn monoid_i32_identity_laws() {
-    quickcheck(monoid_laws::left_identity as fn(i32) -> bool);
-    quickcheck(monoid_laws::right_identity as fn(i32) -> bool);
+    fn left_identity_prop(x: i32) -> bool {
+        monoid_laws::left_identity(&x)
+    }
+    fn right_identity_prop(x: i32) -> bool {
+        monoid_laws::right_identity(&x)
+    }
+
+    quickcheck(left_identity_prop as fn(i32) -> bool);
+    quickcheck(right_identity_prop as fn(i32) -> bool);
 }
 
 // ==================== semigroup_laws ====================
 
 #[test]
 fn semigroup_vec_associativity_law() {
-    quickcheck(semigroup_laws::associativity as fn(Vec<i8>, Vec<i8>, Vec<i8>) -> bool);
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn associativity_prop(a: Vec<i8>, b: Vec<i8>, c: Vec<i8>) -> bool {
+        semigroup_laws::associativity(&a, &b, &c)
+    }
+
+    quickcheck(associativity_prop as fn(Vec<i8>, Vec<i8>, Vec<i8>) -> bool);
 }
 
 // Also instantiates `ordofp_laws::wrapper::Wrapper`, the support newtype
@@ -106,13 +140,34 @@ fn semigroup_vec_associativity_law() {
 // running into the orphan-instance rule.
 #[test]
 fn semigroup_wrapper_max_min_associativity_law() {
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn associativity_prop(
+        a: Wrapper<Max<i32>>,
+        b: Wrapper<Max<i32>>,
+        c: Wrapper<Max<i32>>,
+    ) -> bool {
+        semigroup_laws::associativity(&a, &b, &c)
+    }
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn associativity_prop_2(
+        a: Wrapper<Min<i32>>,
+        b: Wrapper<Min<i32>>,
+        c: Wrapper<Min<i32>>,
+    ) -> bool {
+        semigroup_laws::associativity(&a, &b, &c)
+    }
+
     quickcheck(
-        semigroup_laws::associativity
-            as fn(Wrapper<Max<i32>>, Wrapper<Max<i32>>, Wrapper<Max<i32>>) -> bool,
+        associativity_prop as fn(Wrapper<Max<i32>>, Wrapper<Max<i32>>, Wrapper<Max<i32>>) -> bool,
     );
     quickcheck(
-        semigroup_laws::associativity
-            as fn(Wrapper<Min<i32>>, Wrapper<Min<i32>>, Wrapper<Min<i32>>) -> bool,
+        associativity_prop_2 as fn(Wrapper<Min<i32>>, Wrapper<Min<i32>>, Wrapper<Min<i32>>) -> bool,
     );
 }
 
@@ -120,16 +175,32 @@ fn semigroup_wrapper_max_min_associativity_law() {
 
 #[test]
 fn foldable_vec_length_and_all_any_laws() {
-    quickcheck(foldable_laws::vec_length_consistency::<i32> as fn(Vec<i32>) -> bool);
-    fn all_any(fa: Vec<i32>) -> bool {
-        foldable_laws::vec_all_any_duality(fa, |&x| x > 0)
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn vec_length_consistency_prop(x: Vec<i32>) -> bool {
+        foldable_laws::vec_length_consistency::<i32>(&x)
     }
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
+    fn all_any(fa: Vec<i32>) -> bool {
+        foldable_laws::vec_all_any_duality(&fa, |&x| x > 0)
+    }
+
+    quickcheck(vec_length_consistency_prop as fn(Vec<i32>) -> bool);
     quickcheck(all_any as fn(Vec<i32>) -> bool);
 }
 
 #[test]
 fn foldable_option_length_consistency_law() {
-    quickcheck(foldable_laws::option_length_consistency::<i32> as fn(Option<i32>) -> bool);
+    fn option_length_consistency_prop(x: Option<i32>) -> bool {
+        foldable_laws::option_length_consistency::<i32>(&x)
+    }
+
+    quickcheck(option_length_consistency_prop as fn(Option<i32>) -> bool);
 }
 
 // ==================== traversable_laws ====================
@@ -141,18 +212,26 @@ fn traversable_vec_identity_law() {
 
 #[test]
 fn traversable_option_sequence_consistency_law() {
-    fn test(fa: Option<Option<i32>>) -> bool {
+    fn test(pair: (Option<i32>, bool)) -> bool {
+        // Encode the nested option without naming `Option<Option<_>>`: the
+        // flag selects the outer layer, preserving quickcheck's 50/25/25
+        // distribution over `None` / `Some(None)` / `Some(Some(_))`.
+        let fa = pair.1.then_some(pair.0);
         traversable_laws::option_sequence_option_consistency(fa)
     }
-    quickcheck(test as fn(Option<Option<i32>>) -> bool);
+    quickcheck(test as fn((Option<i32>, bool)) -> bool);
 }
 
 // ==================== bifunctor_laws ====================
 
 #[test]
 fn bifunctor_result_identity_law() {
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
     fn test(fa: Result<i32, String>) -> bool {
-        bifunctor_laws::result_identity(fa)
+        bifunctor_laws::result_identity(&fa)
     }
     quickcheck(test as fn(Result<i32, String>) -> bool);
 }
@@ -176,7 +255,7 @@ fn bifunctor_tuple_composition_law() {
 #[test]
 fn comonad_identitas_left_identity_law() {
     fn test(w: i32) -> bool {
-        comonad_laws::identitas_left_identity(Identitas(w))
+        comonad_laws::identitas_left_identity(&Identitas(w))
     }
     quickcheck(test as fn(i32) -> bool);
 }
@@ -184,7 +263,7 @@ fn comonad_identitas_left_identity_law() {
 #[test]
 fn comonad_contextus_right_identity_law() {
     fn test(env: i8, val: i8) -> bool {
-        comonad_laws::contextus_right_identity(Contextus::new(env, val), |w| {
+        comonad_laws::contextus_right_identity(&Contextus::new(env, val), |w| {
             w.extract().wrapping_add(*w.ask())
         })
     }
@@ -195,14 +274,25 @@ fn comonad_contextus_right_identity_law() {
 
 #[test]
 fn alternative_option_left_right_identity_laws() {
-    quickcheck(alternative_laws::option_left_identity::<i32> as fn(Option<i32>) -> bool);
-    quickcheck(alternative_laws::option_right_identity::<i32> as fn(Option<i32>) -> bool);
+    fn option_left_identity_prop(x: Option<i32>) -> bool {
+        alternative_laws::option_left_identity::<i32>(&x)
+    }
+    fn option_right_identity_prop(x: Option<i32>) -> bool {
+        alternative_laws::option_right_identity::<i32>(&x)
+    }
+
+    quickcheck(option_left_identity_prop as fn(Option<i32>) -> bool);
+    quickcheck(option_right_identity_prop as fn(Option<i32>) -> bool);
 }
 
 #[test]
 fn alternative_vec_associativity_law() {
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+    )]
     fn test(a: Vec<i32>, b: Vec<i32>, c: Vec<i32>) -> bool {
-        alternative_laws::vec_associativity(a, b, c)
+        alternative_laws::vec_associativity(&a, &b, &c)
     }
     quickcheck(test as fn(Vec<i32>, Vec<i32>, Vec<i32>) -> bool);
 }
@@ -215,13 +305,13 @@ fn alternative_vec_associativity_law() {
 mod fixpoint_support {
     use ordofp::typeclasses::hkt::{FunctorHKT, HKT};
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub enum NatF<A> {
         Zero,
         Succ(A),
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct NatHKT;
 
     impl HKT for NatHKT {
@@ -289,7 +379,7 @@ fn fixpoint_cata_ana_inverse_law() {
 
     // Keep n small: cata/ana recurse.
     fn prop(n: u8) -> bool {
-        fixpoint_laws::cata_ana_inverse::<NatHKT, _, _, _>(u32::from(n), alg, coalg)
+        fixpoint_laws::cata_ana_inverse::<NatHKT, _, _, _>(&u32::from(n), alg, coalg)
     }
     quickcheck(prop as fn(u8) -> bool);
 }
@@ -300,11 +390,11 @@ fn fixpoint_lambek_lemmas() {
     use ordofp::fix::Fix;
 
     // Lambek's Lemma 1: unfix(new(x)) == x
-    assert!(fixpoint_laws::lambek_lemma_1::<ConstHKT>(7));
+    assert!(fixpoint_laws::lambek_lemma_1::<ConstHKT>(&7));
 
     // Lambek's Lemma 2: new(unfix(x)) == x
     let fixed: Fix<ConstHKT> = Fix::new(7);
-    assert!(fixpoint_laws::lambek_lemma_2::<ConstHKT>(fixed));
+    assert!(fixpoint_laws::lambek_lemma_2::<ConstHKT>(&fixed));
 }
 
 // ==================== is_eq (support module) ====================
@@ -324,9 +414,9 @@ fn is_eq_direct_and_via_law_eq_variants() {
     assert!(applicative_laws::option_identity_eq(Some(7)).holds());
     assert!(traversable_laws::vec_traverse_identity_eq(vec![1, 2, 3]).holds());
     assert!(bifunctor_laws::result_identity_eq(Ok::<_, String>(9)).holds());
-    assert!(comonad_laws::identitas_left_identity_eq(Identitas(9)).holds());
-    assert!(alternative_laws::option_left_identity_eq(Some(9)).holds());
-    assert!(foldable_laws::vec_length_consistency_eq(vec![1, 2, 3]).holds());
+    assert!(comonad_laws::identitas_left_identity_eq(&Identitas(9)).holds());
+    assert!(alternative_laws::option_left_identity_eq(&Some(9)).holds());
+    assert!(foldable_laws::vec_length_consistency_eq(&vec![1, 2, 3]).holds());
 }
 
 #[cfg(feature = "async")]
@@ -343,7 +433,7 @@ mod async_laws {
     // all immediately-ready, so no real reactor is needed.
     fn block_on<F: Future>(fut: F) -> F::Output {
         fn noop_raw_waker() -> RawWaker {
-            fn noop(_: *const ()) {}
+            const fn noop(_: *const ()) {}
             fn clone_waker(_: *const ()) -> RawWaker {
                 noop_raw_waker()
             }

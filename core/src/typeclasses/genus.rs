@@ -115,8 +115,9 @@ impl<E> Default for ResultGenus<E> {
 
 impl<E> ResultGenus<E> {
     /// Create a new Result genus with the given error type.
+    #[must_use]
     pub const fn new() -> Self {
-        ResultGenus(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -273,8 +274,7 @@ impl<E> ApplicativeGenus for ResultGenus<E> {
     {
         match (ff, fa) {
             (Ok(f), Ok(a)) => Ok(f(a)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -414,17 +414,17 @@ impl<A> Extrahere for Option<A> {
     type Elementum = A;
 
     #[inline]
-    fn extrahere(self) -> Option<A> {
+    fn extrahere(self) -> Self {
         self
     }
 }
 
-impl<A> Extrahere for Vec<A> {
+impl<T> Extrahere for Vec<T> {
     type Genus = VecGenus;
-    type Elementum = A;
+    type Elementum = T;
 
     #[inline]
-    fn extrahere(self) -> Option<A> {
+    fn extrahere(self) -> Option<T> {
         self.into_iter().next()
     }
 }
@@ -439,12 +439,12 @@ impl<A, E> Extrahere for Result<A, E> {
     }
 }
 
-impl<A> Extrahere for Box<A> {
+impl<T> Extrahere for Box<T> {
     type Genus = BoxGenus;
-    type Elementum = A;
+    type Elementum = T;
 
     #[inline]
-    fn extrahere(self) -> Option<A> {
+    fn extrahere(self) -> Option<T> {
         Some(*self)
     }
 }
@@ -519,10 +519,7 @@ pub struct OptionAdVecGenus;
 impl TransformatioGenerum<OptionGenus, VecGenus> for OptionAdVecGenus {
     #[inline]
     fn transformare_genus<A>(fa: Option<A>) -> Vec<A> {
-        match fa {
-            Some(a) => alloc::vec![a],
-            None => Vec::new(),
-        }
+        fa.map_or_else(Vec::new, |a| alloc::vec![a])
     }
 }
 
@@ -595,10 +592,7 @@ impl TraversableGenus for OptionGenus {
         F: FnOnce(A) -> H::Applicatum<B>,
         H: ApplicativeGenus,
     {
-        match fa {
-            Some(a) => H::fmap_genus(f(a), Some),
-            None => H::purus_genus(None),
-        }
+        fa.map_or_else(|| H::purus_genus(None), |a| H::fmap_genus(f(a), Some))
     }
 }
 

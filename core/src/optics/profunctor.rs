@@ -124,7 +124,7 @@ where
     /// Create a new function profunctor.
     #[inline]
     pub fn new(f: F) -> Self {
-        FunctioProf {
+        Self {
             f,
             _phantom: PhantomData,
         }
@@ -177,7 +177,7 @@ where
     /// Create a new iso profunctor optic.
     #[inline]
     pub fn new(forward: Fwd, backward: Bwd) -> Self {
-        AequivalentiaProfunctor {
+        Self {
             forward,
             backward,
             _phantom: PhantomData,
@@ -186,13 +186,13 @@ where
 
     /// Get the forward function.
     #[inline]
-    pub fn forward(&self) -> &Fwd {
+    pub const fn forward(&self) -> &Fwd {
         &self.forward
     }
 
     /// Get the backward function.
     #[inline]
-    pub fn backward(&self) -> &Bwd {
+    pub const fn backward(&self) -> &Bwd {
         &self.backward
     }
 }
@@ -203,7 +203,7 @@ where
     Bwd: Fn(B) -> T + Clone,
 {
     fn clone(&self) -> Self {
-        AequivalentiaProfunctor {
+        Self {
             forward: self.forward.clone(),
             backward: self.backward.clone(),
             _phantom: PhantomData,
@@ -232,7 +232,7 @@ where
     /// Create a new lens profunctor optic.
     #[inline]
     pub fn new(get: Get, set: Set) -> Self {
-        AspectusProfunctor {
+        Self {
             get,
             set,
             _phantom: PhantomData,
@@ -268,7 +268,7 @@ where
     Set: Fn(S, B) -> T + Clone,
 {
     fn clone(&self) -> Self {
-        AspectusProfunctor {
+        Self {
             get: self.get.clone(),
             set: self.set.clone(),
             _phantom: PhantomData,
@@ -300,7 +300,7 @@ where
     /// - `build`: Constructs the target from the focus
     #[inline]
     pub fn new(matching: Match, build: Build) -> Self {
-        DivisioProfunctor {
+        Self {
             matching,
             build,
             _phantom: PhantomData,
@@ -338,7 +338,7 @@ where
     Build: Fn(B) -> T + Clone,
 {
     fn clone(&self) -> Self {
-        DivisioProfunctor {
+        Self {
             matching: self.matching.clone(),
             build: self.build.clone(),
             _phantom: PhantomData,
@@ -387,7 +387,7 @@ where
     /// Compose two optics.
     #[inline]
     pub fn new(outer: O1, inner: O2) -> Self {
-        ComposedOptic {
+        Self {
             outer,
             inner,
             _phantom: PhantomData,
@@ -401,7 +401,7 @@ where
     O2: Clone,
 {
     fn clone(&self) -> Self {
-        ComposedOptic {
+        Self {
             outer: self.outer.clone(),
             inner: self.inner.clone(),
             _phantom: PhantomData,
@@ -554,7 +554,7 @@ mod tests {
         let circle_prism = divisio_profunctor(
             |s: Shape| match s {
                 Shape::Circle(r) => Ok(r),
-                other => Err(other),
+                other @ Shape::Rectangle(..) => Err(other),
             },
             Shape::Circle,
         );
@@ -571,7 +571,7 @@ mod tests {
         let circle_prism = divisio_profunctor(
             |s: Shape| match s {
                 Shape::Circle(r) => Ok(r),
-                other => Err(other),
+                other @ Shape::Rectangle(..) => Err(other),
             },
             Shape::Circle,
         );
@@ -584,7 +584,7 @@ mod tests {
         let circle_prism = divisio_profunctor(
             |s: Shape| match s {
                 Shape::Circle(r) => Ok(r),
-                other => Err(other),
+                other @ Shape::Rectangle(..) => Err(other),
             },
             Shape::Circle,
         );

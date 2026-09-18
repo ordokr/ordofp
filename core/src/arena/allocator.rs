@@ -7,7 +7,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use core::marker::PhantomData;
+use core::num::NonZeroUsize;
 use core::ptr::NonNull;
+#[cfg(feature = "std")]
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 // =============================================================================
 // Arena Allocator
@@ -48,8 +51,10 @@ pub struct Arena {
 
 /// A chunk of memory in the arena.
 struct Chunk {
-    /// Pointer to the start of the chunk
-    start: NonNull<u8>,
+    /// Base address of the live chunk allocation. An integer (rather than a
+    /// raw pointer) so `Chunk` is auto-`Send + Sync`, which `SyncArena`
+    /// relies on; converted back with `as` casts at the use sites.
+    start: NonZeroUsize,
     /// Layout of the chunk
     layout: Layout,
 }
@@ -61,29 +66,30 @@ impl Chunk {
         // SAFETY: `layout` has non-zero size (guaranteed by the `MIN_CHUNK_SIZE` lower bound
         // applied before `Chunk::new` is called) and a valid power-of-two alignment (16).
         // These are the only requirements of the global allocator's `alloc`. A null return
-        // value (OOM) is handled by the `NonNull::new` check immediately below.
+        // value (OOM) is filtered out by the `NonZeroUsize::new` check immediately below.
         let ptr = unsafe { alloc(layout) };
-        NonNull::new(ptr).map(|start| Chunk { start, layout })
+        NonZeroUsize::new(ptr.addr()).map(|start| Self { start, layout })
     }
 
     /// Get the end pointer of this chunk.
-    fn end(&self) -> *mut u8 {
-        // SAFETY: `self.start` points to the beginning of a live allocation of exactly
+    const fn end(&self) -> *mut u8 {
+        // `self.start` is the base address of a live allocation of exactly
         // `self.layout.size()` bytes, so adding that offset produces a pointer one
         // byte past the end of the allocation — a valid "end" sentinel that is never
-        // dereferenced and stays within the bounds required by `pointer::add`.
-        unsafe { self.start.as_ptr().add(self.layout.size()) }
+        // dereferenced. The `as` casts round-trip the address with exposed
+        // provenance, exactly as the bump-pointer arithmetic in `alloc_layout` does.
+        (self.start.get() + self.layout.size()) as *mut u8
     }
 }
 
 impl Drop for Chunk {
     fn drop(&mut self) {
-        // SAFETY: `self.start` was obtained from `alloc(self.layout)` in `Chunk::new`
-        // and has not been freed since. `self.layout` is the same layout that was
-        // passed to `alloc`, satisfying `dealloc`'s requirement that the pointer and
-        // layout match the original allocation.
+        // SAFETY: `self.start` is the address returned by `alloc(self.layout)` in
+        // `Chunk::new` and has not been freed since. `self.layout` is the same
+        // layout that was passed to `alloc`, satisfying `dealloc`'s requirement
+        // that the pointer and layout match the original allocation.
         unsafe {
-            dealloc(self.start.as_ptr(), self.layout);
+            dealloc(self.start.get() as *mut u8, self.layout);
         }
     }
 }
@@ -96,6 +102,7 @@ pub const MIN_CHUNK_SIZE: usize = 4 * 1024;
 
 impl Arena {
     /// Create a new arena with default chunk size.
+    #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_CHUNK_SIZE)
     }
@@ -109,14 +116,15 @@ impl Arena {
     /// Panics if the initial chunk cannot be allocated — either the global
     /// allocator reports out-of-memory, or `capacity` is so large that no
     /// valid `Layout` exists for it (exceeds `isize::MAX` after alignment).
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         let chunk_size = capacity.max(MIN_CHUNK_SIZE);
         let chunk = Chunk::new(chunk_size).expect("Failed to allocate arena chunk");
 
-        let ptr = chunk.start.as_ptr();
+        let ptr = chunk.start.get() as *mut u8;
         let end = chunk.end();
 
-        Arena {
+        Self {
             chunks: RefCell::new(vec![chunk]),
             current: Cell::new(0),
             ptr: Cell::new(ptr),
@@ -235,7 +243,7 @@ impl Arena {
         let new_size = (last_size * 2).max(min_size + 256);
 
         let chunk = Chunk::new(new_size).expect("Failed to allocate arena chunk");
-        let ptr = chunk.start.as_ptr();
+        let ptr = chunk.start.get() as *mut u8;
         let end = chunk.end();
 
         chunks.push(chunk);
@@ -253,7 +261,7 @@ impl Arena {
         let mut chunks = self.chunks.borrow_mut();
         if let Some(first) = chunks.first() {
             self.current.set(0);
-            self.ptr.set(first.start.as_ptr());
+            self.ptr.set(first.start.get() as *mut u8);
             self.end.set(first.end());
         }
         chunks.truncate(1);
@@ -274,7 +282,7 @@ impl Arena {
             if i < current {
                 used += chunk.layout.size();
             } else if i == current {
-                used += self.ptr.get() as usize - chunk.start.as_ptr() as usize;
+                used += self.ptr.get() as usize - chunk.start.get();
             }
         }
         used
@@ -325,21 +333,28 @@ pub struct SyncArena {
 #[cfg(feature = "std")]
 struct SyncArenaInner {
     chunks: Vec<Chunk>,
-    ptr: *mut u8,
-    end: *mut u8,
+    /// Bump-pointer address into the live tail chunk. Shared across threads
+    /// under the `Mutex` with `Relaxed` ordering — the lock provides all
+    /// synchronization; the atomic type documents the sharing and keeps the
+    /// struct auto-`Send + Sync`. Always a non-null live address: every
+    /// store comes from a live `Chunk` allocation or an aligned,
+    /// bounds-checked bump (see `alloc_layout`).
+    ptr: AtomicUsize,
+    /// One-past-the-end address of the live tail chunk; same sharing and
+    /// validity argument as `ptr`.
+    end: AtomicUsize,
 }
 
-// SAFETY: `ptr` and `end` are only accessed while the `Mutex` is held.
-// No reference to the arena memory outlives `&SyncArena`, and allocations
-// never overlap because each bump is performed atomically under the lock.
-#[cfg(feature = "std")]
-unsafe impl Send for SyncArena {}
-#[cfg(feature = "std")]
-unsafe impl Sync for SyncArena {}
+// `SyncArena` is automatically `Send + Sync`: every field is `Send + Sync`
+// (`Mutex<T>` is `Send`/`Sync` when `T: Send`; `Vec<Chunk>`, `Layout` and
+// `AtomicUsize` are all `Send + Sync`), and the bump addresses are only
+// loaded, stored and dereferenced while the `Mutex` is held, so no reference
+// to arena memory outlives `&SyncArena` and no two allocations overlap.
 
 #[cfg(feature = "std")]
 impl SyncArena {
     /// Create a new `SyncArena` with the default chunk size (64 KiB).
+    #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_CHUNK_SIZE)
     }
@@ -353,16 +368,17 @@ impl SyncArena {
     /// Panics if the initial chunk cannot be allocated — either the global
     /// allocator reports out-of-memory, or `capacity` is so large that no
     /// valid `Layout` exists for it (exceeds `isize::MAX` after alignment).
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         let chunk_size = capacity.max(MIN_CHUNK_SIZE);
         let chunk = Chunk::new(chunk_size).expect("Failed to allocate SyncArena chunk");
-        let ptr = chunk.start.as_ptr();
-        let end = chunk.end();
-        SyncArena {
+        let ptr = chunk.start.get();
+        let end = chunk.end() as usize;
+        Self {
             inner: std::sync::Mutex::new(SyncArenaInner {
                 chunks: vec![chunk],
-                ptr,
-                end,
+                ptr: AtomicUsize::new(ptr),
+                end: AtomicUsize::new(end),
             }),
         }
     }
@@ -390,12 +406,12 @@ impl SyncArena {
         let layout = layout.pad_to_align();
         let mut inner = self.inner.lock().expect("SyncArena mutex poisoned");
         loop {
-            let aligned = align_up(inner.ptr as usize, layout.align());
+            let aligned = align_up(inner.ptr.load(Ordering::Relaxed), layout.align());
             let new_ptr = aligned
                 .checked_add(layout.size())
                 .expect("arena allocation size overflows the address space");
-            if new_ptr <= inner.end as usize {
-                inner.ptr = new_ptr as *mut u8;
+            if new_ptr <= inner.end.load(Ordering::Relaxed) {
+                inner.ptr.store(new_ptr, Ordering::Relaxed);
                 // SAFETY: `aligned` is within the current live chunk allocation
                 // (`checked_add` rules out wrap-around — a wrapped sum would
                 // pass the guard while pointing outside the chunk — and the
@@ -411,8 +427,8 @@ impl SyncArena {
                 .map_or(DEFAULT_CHUNK_SIZE, |c| c.layout.size());
             let new_size = (last_size * 2).max(layout.size() + 256);
             let chunk = Chunk::new(new_size).expect("Failed to allocate SyncArena chunk");
-            inner.ptr = chunk.start.as_ptr();
-            inner.end = chunk.end();
+            inner.ptr.store(chunk.start.get(), Ordering::Relaxed);
+            inner.end.store(chunk.end() as usize, Ordering::Relaxed);
             inner.chunks.push(chunk);
         }
     }
@@ -442,7 +458,7 @@ impl Default for SyncArena {
 }
 
 /// Align a pointer up to the given alignment.
-fn align_up(ptr: usize, align: usize) -> usize {
+const fn align_up(ptr: usize, align: usize) -> usize {
     (ptr + align - 1) & !(align - 1)
 }
 
@@ -503,7 +519,7 @@ pub struct ArenaRef<'a, T: ?Sized> {
 impl<'a, T: ?Sized> ArenaRef<'a, T> {
     /// Wrap a freshly allocated, uniquely-borrowed value.
     #[inline]
-    fn from_mut(ptr: &'a mut T) -> Self {
+    const fn from_mut(ptr: &'a mut T) -> Self {
         ArenaRef {
             ptr,
             _marker: PhantomData,
@@ -512,17 +528,19 @@ impl<'a, T: ?Sized> ArenaRef<'a, T> {
 
     /// Convert into a mutable reference with the arena's lifetime.
     #[inline]
-    pub fn into_mut(self) -> &'a mut T {
+    #[must_use]
+    pub const fn into_mut(self) -> &'a mut T {
         self.ptr
     }
 
     /// Get a reference to the value.
-    pub fn get(&self) -> &T {
+    #[must_use]
+    pub const fn get(&self) -> &T {
         self.ptr
     }
 
     /// Get a mutable reference to the value.
-    pub fn get_mut(&mut self) -> &mut T {
+    pub const fn get_mut(&mut self) -> &mut T {
         self.ptr
     }
 }
@@ -587,7 +605,7 @@ mod tests {
         let z: &mut bool = arena.alloc(true).into_mut();
 
         assert_eq!(*x, 42);
-        assert_eq!(*y, 2.5);
+        assert_eq!(y.to_bits(), 2.5f64.to_bits());
         assert!(*z);
     }
 

@@ -20,15 +20,15 @@ use ordofp_core::recursion::{
 
 /// Fixed point of a functor.
 #[derive(Debug, Clone, PartialEq)]
-struct FixNat(Option<Box<FixNat>>);
+struct FixNat(Option<Box<Self>>);
 
 impl FixNat {
-    fn zero() -> Self {
-        FixNat(None)
+    const fn zero() -> Self {
+        Self(None)
     }
 
     fn succ(n: Self) -> Self {
-        FixNat(Some(Box::new(n)))
+        Self(Some(Box::new(n)))
     }
 
     fn from_usize(n: usize) -> Self {
@@ -40,10 +40,7 @@ impl FixNat {
     }
 
     fn to_usize(&self) -> usize {
-        match &self.0 {
-            None => 0,
-            Some(n) => 1 + n.to_usize(),
-        }
+        self.0.as_ref().map_or(0, |n| 1 + n.to_usize())
     }
 }
 
@@ -53,18 +50,15 @@ impl FunctorBasis for FixNat {
 
 impl Recursiva for FixNat {
     fn project(self) -> NatF<Self> {
-        match self.0 {
-            None => NatF::ZeroF,
-            Some(n) => NatF::SuccF(*n),
-        }
+        self.0.map_or(NatF::ZeroF, |n| NatF::SuccF(*n))
     }
 }
 
 impl Corecursiva for FixNat {
     fn embed(layer: NatF<Self>) -> Self {
         match layer {
-            NatF::ZeroF => FixNat(None),
-            NatF::SuccF(n) => FixNat(Some(Box::new(n))),
+            NatF::ZeroF => Self(None),
+            NatF::SuccF(n) => Self(Some(Box::new(n))),
         }
     }
 }
@@ -73,16 +67,16 @@ impl Corecursiva for FixNat {
 #[derive(Debug, Clone, PartialEq)]
 enum FixList<E> {
     Nil,
-    Cons(E, Box<FixList<E>>),
+    Cons(E, Box<Self>),
 }
 
 impl<E> FixList<E> {
-    fn nil() -> Self {
-        FixList::Nil
+    const fn nil() -> Self {
+        Self::Nil
     }
 
     fn cons(head: E, tail: Self) -> Self {
-        FixList::Cons(head, Box::new(tail))
+        Self::Cons(head, Box::new(tail))
     }
 }
 
@@ -93,8 +87,8 @@ impl<E: Clone + 'static> FunctorBasis for FixList<E> {
 impl<E: Clone + 'static> Recursiva for FixList<E> {
     fn project(self) -> ListF<E, Self> {
         match self {
-            FixList::Nil => ListF::NilF,
-            FixList::Cons(h, t) => ListF::ConsF(h, *t),
+            Self::Nil => ListF::NilF,
+            Self::Cons(h, t) => ListF::ConsF(h, *t),
         }
     }
 }
@@ -102,8 +96,8 @@ impl<E: Clone + 'static> Recursiva for FixList<E> {
 impl<E: Clone + 'static> Corecursiva for FixList<E> {
     fn embed(layer: ListF<E, Self>) -> Self {
         match layer {
-            ListF::NilF => FixList::Nil,
-            ListF::ConsF(h, t) => FixList::Cons(h, Box::new(t)),
+            ListF::NilF => Self::Nil,
+            ListF::ConsF(h, t) => Self::Cons(h, Box::new(t)),
         }
     }
 }
@@ -580,7 +574,7 @@ fn fib_alg(layer: NatF<Cofree<NatFWitness, usize>>) -> usize {
     }
 }
 
-fn nat_coalg(n: usize) -> NatF<usize> {
+const fn nat_coalg(n: usize) -> NatF<usize> {
     if n == 0 {
         NatF::ZeroF
     } else {
@@ -724,7 +718,7 @@ fn test_mhylo_matches_hylo() {
     // mhylo must agree with hylo when the Mendler algebra just recurses
     // into every seed position.
     for n in 0..10usize {
-        let via_mhylo: usize = mhylo::<NatFWitness, usize, usize, _, _>(
+        let actual: usize = mhylo::<NatFWitness, usize, usize, _, _>(
             |recurse: &dyn Fn(usize) -> usize, layer: NatF<usize>| match layer {
                 NatF::ZeroF => 0,
                 NatF::SuccF(seed) => recurse(seed) + 1,
@@ -733,7 +727,7 @@ fn test_mhylo_matches_hylo() {
             n,
         );
 
-        let via_hylo: usize = hylo::<NatFWitness, usize, usize, _, _>(
+        let expected: usize = hylo::<NatFWitness, usize, usize, _, _>(
             |layer: NatF<usize>| match layer {
                 NatF::ZeroF => 0,
                 NatF::SuccF(acc) => acc + 1,
@@ -742,7 +736,7 @@ fn test_mhylo_matches_hylo() {
             n,
         );
 
-        assert_eq!(via_mhylo, via_hylo, "mhylo and hylo disagree at n={n}");
+        assert_eq!(actual, expected, "mhylo and hylo disagree at n={n}");
     }
 }
 

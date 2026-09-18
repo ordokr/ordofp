@@ -32,8 +32,9 @@ pub struct IntensitasRestitutio {
 
 impl IntensitasRestitutio {
     /// Create a new restart intensity tracker.
+    #[must_use]
     pub fn new(max_restarts: u32, window_secs: u64) -> Self {
-        IntensitasRestitutio {
+        Self {
             max_restarts,
             window_secs,
             restart_times: Vec::with_capacity(max_restarts as usize),
@@ -61,13 +62,15 @@ impl IntensitasRestitutio {
 
     /// Get the current restart count within the window.
     #[inline]
-    pub fn current_count(&self) -> usize {
+    #[must_use]
+    pub const fn current_count(&self) -> usize {
         self.restart_times.len()
     }
 
     /// Get the configured intensity window, in seconds.
     #[inline]
-    pub fn window_secs(&self) -> u64 {
+    #[must_use]
+    pub const fn window_secs(&self) -> u64 {
         self.window_secs
     }
 
@@ -146,8 +149,9 @@ impl StrategiaSupervisionis {
     /// Create a one-for-one strategy.
     ///
     /// Only the failed child is restarted.
+    #[must_use]
     pub fn unus_pro_uno(max_restarts: u32, window: Duration) -> Self {
-        StrategiaSupervisionis::UnusProUno {
+        Self::UnusProUno {
             intensity: IntensitasRestitutio::new(max_restarts, window.as_secs()),
         }
     }
@@ -155,8 +159,9 @@ impl StrategiaSupervisionis {
     /// Create an all-for-one strategy.
     ///
     /// All children are restarted when one fails.
+    #[must_use]
     pub fn omnes_pro_uno(max_restarts: u32, window: Duration) -> Self {
-        StrategiaSupervisionis::OmnesProUno {
+        Self::OmnesProUno {
             intensity: IntensitasRestitutio::new(max_restarts, window.as_secs()),
         }
     }
@@ -164,20 +169,22 @@ impl StrategiaSupervisionis {
     /// Create a rest-for-one strategy.
     ///
     /// Failed child and all children started after it are restarted.
+    #[must_use]
     pub fn reliqui_pro_uno(max_restarts: u32, window: Duration) -> Self {
-        StrategiaSupervisionis::ReliquiProUno {
+        Self::ReliquiProUno {
             intensity: IntensitasRestitutio::new(max_restarts, window.as_secs()),
         }
     }
 
     /// Create a simple strategy (always restart, no limits).
-    pub fn simplex() -> Self {
-        StrategiaSupervisionis::Simplex
+    #[must_use]
+    pub const fn simplex() -> Self {
+        Self::Simplex
     }
 
     /// Create a custom strategy.
     pub fn proprius(name: impl Into<String>, max_restarts: u32) -> Self {
-        StrategiaSupervisionis::Proprius {
+        Self::Proprius {
             name: name.into(),
             max_restarts,
         }
@@ -189,24 +196,26 @@ impl StrategiaSupervisionis {
     /// `Simplex` and `Proprius` escalate without a time-windowed intensity
     /// tracker, so they have no window to report.
     #[inline]
-    pub fn window_secs(&self) -> Option<u64> {
+    #[must_use]
+    pub const fn window_secs(&self) -> Option<u64> {
         match self {
-            StrategiaSupervisionis::UnusProUno { intensity }
-            | StrategiaSupervisionis::OmnesProUno { intensity }
-            | StrategiaSupervisionis::ReliquiProUno { intensity } => Some(intensity.window_secs()),
-            StrategiaSupervisionis::Simplex | StrategiaSupervisionis::Proprius { .. } => None,
+            Self::UnusProUno { intensity }
+            | Self::OmnesProUno { intensity }
+            | Self::ReliquiProUno { intensity } => Some(intensity.window_secs()),
+            Self::Simplex | Self::Proprius { .. } => None,
         }
     }
 
     /// Get the strategy name.
     #[inline]
+    #[must_use]
     pub fn name(&self) -> &str {
         match self {
-            StrategiaSupervisionis::UnusProUno { .. } => "UnusProUno",
-            StrategiaSupervisionis::OmnesProUno { .. } => "OmnesProUno",
-            StrategiaSupervisionis::ReliquiProUno { .. } => "ReliquiProUno",
-            StrategiaSupervisionis::Simplex => "Simplex",
-            StrategiaSupervisionis::Proprius { name, .. } => name,
+            Self::UnusProUno { .. } => "UnusProUno",
+            Self::OmnesProUno { .. } => "OmnesProUno",
+            Self::ReliquiProUno { .. } => "ReliquiProUno",
+            Self::Simplex => "Simplex",
+            Self::Proprius { name, .. } => name,
         }
     }
 
@@ -220,7 +229,7 @@ impl StrategiaSupervisionis {
         current_time: u64,
     ) -> RestartDecision {
         match self {
-            StrategiaSupervisionis::UnusProUno { intensity } => {
+            Self::UnusProUno { intensity } => {
                 if intensity.record_restart(current_time) {
                     RestartDecision::Restart(vec![failed_child_index])
                 } else {
@@ -228,7 +237,7 @@ impl StrategiaSupervisionis {
                 }
             }
 
-            StrategiaSupervisionis::OmnesProUno { intensity } => {
+            Self::OmnesProUno { intensity } => {
                 if intensity.record_restart(current_time) {
                     RestartDecision::Restart((0..total_children).collect())
                 } else {
@@ -236,7 +245,7 @@ impl StrategiaSupervisionis {
                 }
             }
 
-            StrategiaSupervisionis::ReliquiProUno { intensity } => {
+            Self::ReliquiProUno { intensity } => {
                 if intensity.record_restart(current_time) {
                     RestartDecision::Restart((failed_child_index..total_children).collect())
                 } else {
@@ -244,9 +253,9 @@ impl StrategiaSupervisionis {
                 }
             }
 
-            StrategiaSupervisionis::Simplex => RestartDecision::Restart(vec![failed_child_index]),
+            Self::Simplex => RestartDecision::Restart(vec![failed_child_index]),
 
-            StrategiaSupervisionis::Proprius { max_restarts, .. } => {
+            Self::Proprius { max_restarts, .. } => {
                 // Simple counter-based approach for custom strategies
                 if *max_restarts > 0 {
                     *max_restarts -= 1;
@@ -292,21 +301,24 @@ pub enum RestartDecision {
 impl RestartDecision {
     /// Check if this decision involves restarting.
     #[inline]
-    pub fn is_restart(&self) -> bool {
-        matches!(self, RestartDecision::Restart(_))
+    #[must_use]
+    pub const fn is_restart(&self) -> bool {
+        matches!(self, Self::Restart(_))
     }
 
     /// Check if this decision is an escalation.
     #[inline]
-    pub fn is_escalate(&self) -> bool {
-        matches!(self, RestartDecision::Escalate)
+    #[must_use]
+    pub const fn is_escalate(&self) -> bool {
+        matches!(self, Self::Escalate)
     }
 
     /// Get the children to restart, if any.
     #[inline]
+    #[must_use]
     pub fn children_to_restart(&self) -> Option<&[usize]> {
         match self {
-            RestartDecision::Restart(children) => Some(children),
+            Self::Restart(children) => Some(children),
             _ => None,
         }
     }
@@ -342,11 +354,12 @@ pub enum ModusRestitutio {
 impl ModusRestitutio {
     /// Check if restart is needed based on termination status.
     #[inline]
-    pub fn should_restart(&self, normal_exit: bool) -> bool {
+    #[must_use]
+    pub const fn should_restart(&self, normal_exit: bool) -> bool {
         match self {
-            ModusRestitutio::Permanens => true,
-            ModusRestitutio::Transiens => !normal_exit,
-            ModusRestitutio::Temporarius => false,
+            Self::Permanens => true,
+            Self::Transiens => !normal_exit,
+            Self::Temporarius => false,
         }
     }
 }

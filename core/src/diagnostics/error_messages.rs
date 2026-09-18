@@ -68,8 +68,9 @@ pub struct EffectError {
 impl EffectError {
     /// Create a new effect error.
     #[inline]
-    pub fn new(kind: EffectErrorKind) -> Self {
-        EffectError {
+    #[must_use]
+    pub const fn new(kind: EffectErrorKind) -> Self {
+        Self {
             kind,
             location: None,
             suggestions: Vec::new(),
@@ -78,18 +79,21 @@ impl EffectError {
     }
 
     /// Add location information.
+    #[must_use]
     pub fn with_location(mut self, location: ErrorLocation) -> Self {
         self.location = Some(location);
         self
     }
 
     /// Add a suggestion.
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: Suggestion) -> Self {
         self.suggestions.push(suggestion);
         self
     }
 
     /// Add a note.
+    #[must_use]
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.notes.push(note.into());
         self
@@ -97,7 +101,7 @@ impl EffectError {
 
     /// Create a "missing effect" error.
     pub fn missing_effect(required: impl Into<String>, available: Vec<String>) -> Self {
-        EffectError::new(EffectErrorKind::MissingEffect {
+        Self::new(EffectErrorKind::MissingEffect {
             required: required.into(),
             available,
         })
@@ -105,7 +109,7 @@ impl EffectError {
 
     /// Create an "unexpected effect" error.
     pub fn unexpected_effect(effect: impl Into<String>, reason: impl Into<String>) -> Self {
-        EffectError::new(EffectErrorKind::UnexpectedEffect {
+        Self::new(EffectErrorKind::UnexpectedEffect {
             effect: effect.into(),
             reason: reason.into(),
         })
@@ -113,7 +117,7 @@ impl EffectError {
 
     /// Create a "type mismatch" error.
     pub fn type_mismatch(expected: impl Into<String>, found: impl Into<String>) -> Self {
-        EffectError::new(EffectErrorKind::TypeMismatch {
+        Self::new(EffectErrorKind::TypeMismatch {
             expected: expected.into(),
             found: found.into(),
         })
@@ -121,13 +125,14 @@ impl EffectError {
 
     /// Create an "unhandled effect" error.
     pub fn unhandled_effect(effect: impl Into<String>, handler: impl Into<String>) -> Self {
-        EffectError::new(EffectErrorKind::UnhandledEffect {
+        Self::new(EffectErrorKind::UnhandledEffect {
             effect: effect.into(),
             handler: handler.into(),
         })
     }
 
     /// Format as a primary error message.
+    #[must_use]
     pub fn primary_message(&self) -> String {
         match &self.kind {
             EffectErrorKind::MissingEffect {
@@ -202,7 +207,7 @@ pub struct ErrorLocation {
 impl ErrorLocation {
     /// Create a new error location.
     pub fn new(file: impl Into<String>, line: u32, column: u32) -> Self {
-        ErrorLocation {
+        Self {
             file: file.into(),
             line,
             column,
@@ -228,7 +233,7 @@ pub struct Suggestion {
 impl Suggestion {
     /// Create a new suggestion.
     pub fn new(message: impl Into<String>) -> Self {
-        Suggestion {
+        Self {
             message: message.into(),
             code: None,
             is_primary: false,
@@ -236,13 +241,15 @@ impl Suggestion {
     }
 
     /// Add a code snippet.
+    #[must_use]
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = Some(code.into());
         self
     }
 
     /// Mark as primary suggestion.
-    pub fn primary(mut self) -> Self {
+    #[must_use]
+    pub const fn primary(mut self) -> Self {
         self.is_primary = true;
         self
     }
@@ -250,27 +257,31 @@ impl Suggestion {
     // Common suggestions
 
     /// Suggest adding a handler.
+    #[must_use]
     pub fn add_handler(effect: &str, handler: &str) -> Self {
-        Suggestion::new(format!("add a handler for `{effect}`"))
+        Self::new(format!("add a handler for `{effect}`"))
             .with_code(format!("handle::<{handler}, _>(handler, computation)"))
     }
 
     /// Suggest extending the effect row.
+    #[must_use]
     pub fn extend_row(effect: &str) -> Self {
-        Suggestion::new(format!("add `{effect}` to the effect row constraint"))
+        Self::new(format!("add `{effect}` to the effect row constraint"))
             .with_code(format!("where R: HasEffect<{effect}>"))
     }
 
     /// Suggest using a different function.
+    #[must_use]
     pub fn use_function(current: &str, suggested: &str) -> Self {
-        Suggestion::new(format!(
+        Self::new(format!(
             "consider using `{suggested}` instead of `{current}`"
         ))
     }
 
     /// Suggest lifting a pure value.
+    #[must_use]
     pub fn lift_pure() -> Self {
-        Suggestion::new("consider lifting the pure value into the effect context")
+        Self::new("consider lifting the pure value into the effect context")
             .with_code("pure(value)")
     }
 }
@@ -300,8 +311,9 @@ pub struct ErrorBuilder {
 impl ErrorBuilder {
     /// Start building an error.
     #[inline]
-    pub fn new(kind: EffectErrorKind) -> Self {
-        ErrorBuilder {
+    #[must_use]
+    pub const fn new(kind: EffectErrorKind) -> Self {
+        Self {
             kind,
             location: None,
             suggestions: Vec::new(),
@@ -310,24 +322,28 @@ impl ErrorBuilder {
     }
 
     /// Add location.
+    #[must_use]
     pub fn at(mut self, file: impl Into<String>, line: u32, column: u32) -> Self {
         self.location = Some(ErrorLocation::new(file, line, column));
         self
     }
 
     /// Add a suggestion.
+    #[must_use]
     pub fn suggest(mut self, suggestion: Suggestion) -> Self {
         self.suggestions.push(suggestion);
         self
     }
 
     /// Add a note.
+    #[must_use]
     pub fn note(mut self, note: impl Into<String>) -> Self {
         self.notes.push(note.into());
         self
     }
 
     /// Build the error.
+    #[must_use]
     pub fn build(self) -> EffectError {
         EffectError {
             kind: self.kind,
@@ -343,6 +359,7 @@ impl ErrorBuilder {
 // =============================================================================
 
 /// Create an error for when IO is used in a pure context.
+#[must_use]
 pub fn error_io_in_pure_context() -> EffectError {
     EffectError::new(EffectErrorKind::UnexpectedEffect {
         effect: "IO".to_string(),
@@ -356,6 +373,7 @@ pub fn error_io_in_pure_context() -> EffectError {
 }
 
 /// Create an error for missing state handler.
+#[must_use]
 pub fn error_missing_state_handler(state_type: &str) -> EffectError {
     EffectError::missing_effect(format!("State<{state_type}>"), Vec::new())
         .with_suggestion(Suggestion::add_handler(
@@ -366,6 +384,7 @@ pub fn error_missing_state_handler(state_type: &str) -> EffectError {
 }
 
 /// Create an error for unhandled effects.
+#[must_use]
 pub fn error_effects_not_handled(effects: &[&str]) -> EffectError {
     EffectError::new(EffectErrorKind::RowMismatch {
         expected_row: "∅ (empty)".to_string(),

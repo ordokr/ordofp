@@ -80,11 +80,11 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &2);
     /// ```
     #[inline]
-    pub fn new(focus: A, left: Vec<A>, right: Vec<A>) -> Self {
+    pub const fn new(focus: A, left: Vec<A>, right: Vec<A>) -> Self {
         // Left is stored with nearest neighbor at the end for O(1) pop
         // User provides [1, 2] meaning "1 then 2 to the left of focus"
         // We store as-is because pop() from [1, 2] gives us 2 (nearest)
-        Zipper { focus, left, right }
+        Self { focus, left, right }
     }
 
     /// Create a Zipper from a non-empty slice, focusing on the first element.
@@ -105,7 +105,7 @@ impl<A> Zipper<A> {
     {
         match slice {
             [] => None,
-            [first, rest @ ..] => Some(Zipper {
+            [first, rest @ ..] => Some(Self {
                 focus: first.clone(),
                 left: Vec::new(),
                 // Allocate exactly the capacity needed for the right side.
@@ -131,6 +131,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &1);
     /// assert_eq!(z.to_vec(), vec![1, 2, 3]);
     /// ```
+    #[must_use]
     pub fn from_vec(mut vec: Vec<A>) -> Option<Self> {
         if vec.is_empty() {
             None
@@ -138,7 +139,7 @@ impl<A> Zipper<A> {
             // from_vec is one-time construction (not a hot path); the O(n)
             // shift of remove(0) is fine and keeps `right` in natural order.
             let focus = vec.remove(0);
-            Some(Zipper {
+            Some(Self {
                 focus,
                 left: Vec::new(),
                 right: vec,
@@ -157,13 +158,13 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &42);
     /// ```
     #[inline]
-    pub fn focus(&self) -> &A {
+    pub const fn focus(&self) -> &A {
         &self.focus
     }
 
     /// Get a mutable reference to the focused element.
     #[inline]
-    pub fn focus_mut(&mut self) -> &mut A {
+    pub const fn focus_mut(&mut self) -> &mut A {
         &mut self.focus
     }
 
@@ -178,8 +179,8 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.len(), 1);
     /// ```
     #[inline]
-    pub fn singleton(a: A) -> Self {
-        Zipper {
+    pub const fn singleton(a: A) -> Self {
+        Self {
             focus: a,
             left: Vec::new(),
             right: Vec::new(),
@@ -251,6 +252,7 @@ impl<A> Zipper<A> {
     /// non-empty, so `focus_next` always succeeds); reaching it would
     /// indicate a bug in this crate.
     #[inline]
+    #[must_use]
     pub fn focus_next_wrap(self) -> Self {
         if self.right.is_empty() {
             // Wrap around: combine left and current, focus on first
@@ -279,6 +281,7 @@ impl<A> Zipper<A> {
     /// non-empty, so `focus_prev` always succeeds); reaching it would
     /// indicate a bug in this crate.
     #[inline]
+    #[must_use]
     pub fn focus_prev_wrap(self) -> Self {
         if self.left.is_empty() {
             self.focus_last()
@@ -299,6 +302,7 @@ impl<A> Zipper<A> {
     /// let z = z.focus_first();
     /// assert_eq!(z.focus(), &1);
     /// ```
+    #[must_use]
     pub fn focus_first(mut self) -> Self {
         if self.left.is_empty() {
             self
@@ -309,7 +313,7 @@ impl<A> Zipper<A> {
             let mut new_right = self.left;
             new_right.push(self.focus);
             new_right.extend(self.right);
-            Zipper {
+            Self {
                 focus: first,
                 left: Vec::new(),
                 right: new_right,
@@ -334,6 +338,7 @@ impl<A> Zipper<A> {
     /// `expect` guards a `pop` in the branch where `right` was just
     /// checked non-empty); reaching it would indicate a bug in this
     /// crate.
+    #[must_use]
     pub fn focus_last(mut self) -> Self {
         if self.right.is_empty() {
             self
@@ -345,7 +350,7 @@ impl<A> Zipper<A> {
             // New left = old left + focus + remaining right
             self.left.push(self.focus);
             self.left.extend(self.right);
-            Zipper {
+            Self {
                 focus: last,
                 left: self.left,
                 right: Vec::new(),
@@ -387,19 +392,19 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.len(), 4);
     /// ```
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.left.len() + 1 + self.right.len()
     }
 
     /// A Zipper is never empty since it always has a focus.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         false
     }
 
     /// Check if this is a singleton Zipper.
     #[inline]
-    pub fn is_singleton(&self) -> bool {
+    pub const fn is_singleton(&self) -> bool {
         self.left.is_empty() && self.right.is_empty()
     }
 
@@ -416,6 +421,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.to_vec(), vec![1, 2, 3]);
     /// ```
     #[inline]
+    #[must_use]
     pub fn insert_left(mut self, a: A) -> Self {
         self.left.push(a);
         self
@@ -433,6 +439,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.to_vec(), vec![1, 2, 3]);
     /// ```
     #[inline]
+    #[must_use]
     pub fn insert_right(mut self, a: A) -> Self {
         self.right.insert(0, a);
         self
@@ -482,7 +489,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &42);
     /// ```
     #[inline]
-    pub fn replace(mut self, a: A) -> (A, Self) {
+    pub const fn replace(mut self, a: A) -> (A, Self) {
         let old = core::mem::replace(&mut self.focus, a);
         (old, self)
     }
@@ -499,6 +506,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &11);
     /// ```
     #[inline]
+    #[must_use]
     pub fn update<F>(mut self, f: F) -> Self
     where
         F: FnOnce(A) -> A,
@@ -620,14 +628,14 @@ impl<A> Zipper<A> {
         let _removed_right: Vec<A> = right.extract_if(.., |x| !pred(x)).collect();
 
         if focus_ok {
-            Some(Zipper {
+            Some(Self {
                 focus: self.focus,
                 left,
                 right,
             })
         } else if !right.is_empty() {
             let focus = right.remove(0);
-            Some(Zipper { focus, left, right })
+            Some(Self { focus, left, right })
         } else if !left.is_empty() {
             // Invariant note: this `expect` is unreachable — `pop` runs in
             // the branch where `left` was just checked non-empty, and the
@@ -635,7 +643,7 @@ impl<A> Zipper<A> {
             let focus = left
                 .pop()
                 .expect("zipper invariant: left is non-empty in this branch (checked above)");
-            Some(Zipper {
+            Some(Self {
                 focus,
                 left,
                 right: Vec::new(),
@@ -656,7 +664,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus_index(), 2);
     /// ```
     #[inline]
-    pub fn focus_index(&self) -> usize {
+    pub const fn focus_index(&self) -> usize {
         self.left.len()
     }
 
@@ -745,6 +753,7 @@ impl<A> Zipper<A> {
     /// assert_eq!(z.focus(), &2);
     /// assert_eq!(z.to_vec(), vec![4, 3, 2, 1]);
     /// ```
+    #[must_use]
     pub fn reverse(self) -> Self {
         // Original: left=[1], focus=2, right=[3,4] → order: 1,2,3,4
         // Reversed: order: 4,3,2,1 → left=[4,3], focus=2, right=[1]
@@ -752,7 +761,7 @@ impl<A> Zipper<A> {
         new_left.reverse();
         let mut new_right = self.left;
         new_right.reverse();
-        Zipper {
+        Self {
             focus: self.focus,
             left: new_left,
             right: new_right,
@@ -767,6 +776,7 @@ where
 {
     /// Duplicate the focused element to the left.
     #[inline]
+    #[must_use]
     pub fn duplicate_left(mut self) -> Self {
         self.left.push(self.focus.clone());
         self
@@ -774,6 +784,7 @@ where
 
     /// Duplicate the focused element to the right.
     #[inline]
+    #[must_use]
     pub fn duplicate_right(mut self) -> Self {
         self.right.insert(0, self.focus.clone());
         self

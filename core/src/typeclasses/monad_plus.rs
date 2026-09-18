@@ -102,6 +102,7 @@ pub trait MonadPlus: Sized + Clone {
     /// assert_eq!(a.electio(&b), Some(10)); // first wins
     /// assert_eq!(c.electio(&b), Some(20)); // fallback to second
     /// ```
+    #[must_use]
     fn electio(&self, other: &Self) -> Self;
 
     /// Combines two monads, consuming both.
@@ -118,6 +119,7 @@ pub trait MonadPlus: Sized + Clone {
     ///
     /// assert_eq!(a.electio_owned(b), Some(42));
     /// ```
+    #[must_use]
     fn electio_owned(self, other: Self) -> Self;
 
     /// Filters values, returning `vacuus` if the predicate fails.
@@ -133,6 +135,7 @@ pub trait MonadPlus: Sized + Clone {
     /// assert_eq!(a.mfilter(|x| *x > 40), Some(42));
     /// assert_eq!(a.mfilter(|x| *x > 50), None);
     /// ```
+    #[must_use]
     fn mfilter<F>(self, pred: F) -> Self
     where
         F: FnOnce(&Self::Inner) -> bool;
@@ -287,6 +290,7 @@ impl<A: Clone, E: Clone + Default> MonadPlus for Result<A, E> {
 /// assert_eq!(empty, None);
 /// ```
 #[inline]
+#[must_use]
 pub fn vacuus<A, M>() -> M
 where
     M: MonadPlus<Inner = A>,
@@ -346,7 +350,8 @@ where
 /// assert_eq!(result, None);
 /// ```
 #[inline]
-pub fn guard(cond: bool) -> Option<()> {
+#[must_use]
+pub const fn guard(cond: bool) -> Option<()> {
     if cond { Some(()) } else { None }
 }
 

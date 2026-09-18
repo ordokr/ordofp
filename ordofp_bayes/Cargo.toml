@@ -8,6 +8,7 @@ description = "Standalone probabilistic programming crate (Bayesian inference, S
 license = "Apache-2.0"
 documentation = "https://docs.rs/ordofp_bayes"
 repository = "https://github.com/ordokr/ordofp"
+readme = "../README.md"
 keywords = ["probabilistic", "bayesian", "inference", "monte-carlo"]
 categories = ["science", "mathematics", "algorithms"]
 

@@ -104,7 +104,7 @@ pub fn error_throw<E: 'static, A: 'static>(_error: E) -> Eff<ErrorRow, A> {
 }
 
 /// Succeed with a value.
-pub fn error_ok<E: 'static, A: 'static>(value: A) -> Eff<ErrorRow, A> {
+pub const fn error_ok<E: 'static, A: 'static>(value: A) -> Eff<ErrorRow, A> {
     Eff::from_value(value)
 }
 
@@ -125,21 +125,21 @@ pub struct ErrorComputation<E, A> {
 
 impl<E, A> ErrorComputation<E, A> {
     /// Create a successful computation.
-    #[inline(always)]
-    pub fn ok(value: A) -> Self {
-        ErrorComputation { result: Ok(value) }
+    #[inline]
+    pub const fn ok(value: A) -> Self {
+        Self { result: Ok(value) }
     }
 
     /// Create a failed computation.
-    #[inline(always)]
-    pub fn err(error: E) -> Self {
-        ErrorComputation { result: Err(error) }
+    #[inline]
+    pub const fn err(error: E) -> Self {
+        Self { result: Err(error) }
     }
 
     /// Create from a Result.
-    #[inline(always)]
-    pub fn from_result(result: Result<A, E>) -> Self {
-        ErrorComputation { result }
+    #[inline]
+    pub const fn from_result(result: Result<A, E>) -> Self {
+        Self { result }
     }
 
     /// Run the computation.
@@ -151,13 +151,13 @@ impl<E, A> ErrorComputation<E, A> {
     /// short-circuited chain). Running performs no work of its own — the
     /// representation is just the underlying `Result` — so no new errors
     /// arise here.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> Result<A, E> {
         self.result
     }
 
     /// Map over a successful result.
-    #[inline(always)]
+    #[inline]
     pub fn map<B, F: FnOnce(A) -> B>(self, f: F) -> ErrorComputation<E, B> {
         ErrorComputation {
             result: self.result.map(f),
@@ -165,7 +165,7 @@ impl<E, A> ErrorComputation<E, A> {
     }
 
     /// Map over an error.
-    #[inline(always)]
+    #[inline]
     pub fn map_err<E2, F: FnOnce(E) -> E2>(self, f: F) -> ErrorComputation<E2, A> {
         ErrorComputation {
             result: self.result.map_err(f),
@@ -173,7 +173,7 @@ impl<E, A> ErrorComputation<E, A> {
     }
 
     /// Chain two error computations.
-    #[inline(always)]
+    #[inline]
     pub fn and_then<B, F: FnOnce(A) -> ErrorComputation<E, B>>(
         self,
         f: F,
@@ -185,10 +185,10 @@ impl<E, A> ErrorComputation<E, A> {
     }
 
     /// Handle an error.
-    #[inline(always)]
-    pub fn or_else<F: FnOnce(E) -> ErrorComputation<E, A>>(self, f: F) -> ErrorComputation<E, A> {
+    #[inline]
+    pub fn or_else<F: FnOnce(E) -> Self>(self, f: F) -> Self {
         match self.result {
-            Ok(a) => ErrorComputation::ok(a),
+            Ok(a) => Self::ok(a),
             Err(e) => f(e),
         }
     }
@@ -220,7 +220,7 @@ impl<E, A> ErrorComputation<E, A> {
 
 impl<E, A> From<Result<A, E>> for ErrorComputation<E, A> {
     fn from(result: Result<A, E>) -> Self {
-        ErrorComputation::from_result(result)
+        Self::from_result(result)
     }
 }
 
@@ -270,6 +270,7 @@ pub fn sequence_results<E, A>(
 }
 
 /// Partition computations into successes and failures.
+#[must_use]
 pub fn partition_results<E, A>(
     computations: alloc::vec::Vec<ErrorComputation<E, A>>,
 ) -> (alloc::vec::Vec<A>, alloc::vec::Vec<E>) {

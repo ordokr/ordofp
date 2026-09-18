@@ -12,7 +12,7 @@ use super::error::GpuResult;
 use crate::par::codegen::wgsl::KernelKey;
 
 /// Cached compute pipeline.
-pub(crate) struct CachedPipeline {
+pub struct CachedPipeline {
     pub pipeline: ComputePipeline,
     pub bind_group_layout: BindGroupLayout,
 }
@@ -21,7 +21,7 @@ pub(crate) struct CachedPipeline {
 ///
 /// This cache stores compiled WGSL shaders to avoid recompilation
 /// on repeated use of the same operations.
-pub(crate) struct KernelCache {
+pub struct KernelCache {
     /// Map from kernel key to compiled pipeline.
     pipelines: BTreeMap<alloc::string::String, CachedPipeline>,
     /// Device for creating pipelines.
@@ -47,9 +47,7 @@ impl KernelCache {
     /// Finds a buffer in the pool with size >= requested size.
     /// If none found, creates a new one using `create_output_buffer`
     /// (which sets STORAGE | `COPY_SRC` usage).
-    /// (Infallible today; the `GpuResult` return matches the fallible GPU-op
-    /// interface its `?`-style callers rely on.)
-    #[allow(clippy::unnecessary_wraps)]
+    /// (Infallible: pool acquisition always yields a buffer.)
     #[inline]
     pub(crate) fn acquire_buffer(&mut self, size: usize) -> Buffer {
         // Reuse buffers to avoid allocation overhead.
@@ -88,6 +86,9 @@ impl KernelCache {
     /// and eliminates `cache_key.clone()` on insertion.
     #[inline]
     pub(crate) fn get_or_compile(&mut self, key: &KernelKey) -> GpuResult<&CachedPipeline> {
+        // Optimization: Use entry API for single lookup instead of contains_key + get/insert
+        use alloc::collections::btree_map::Entry;
+
         // Use shader source as cache key — pre-size to avoid realloc.
         let mut cache_key = alloc::string::String::with_capacity(
             key.entry_point.len() + 1 + key.shader_source.len(),
@@ -96,8 +97,6 @@ impl KernelCache {
         cache_key.push(':');
         cache_key.push_str(&key.shader_source);
 
-        // Optimization: Use entry API for single lookup instead of contains_key + get/insert
-        use alloc::collections::btree_map::Entry;
         let entry = self.pipelines.entry(cache_key);
 
         match entry {

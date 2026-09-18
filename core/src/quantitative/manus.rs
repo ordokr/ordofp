@@ -62,8 +62,8 @@ impl<T> ManusLinearis<T> {
     /// let value = handle.release();
     /// ```
     #[inline]
-    pub fn acquire(resource: T) -> Self {
-        ManusLinearis {
+    pub const fn acquire(resource: T) -> Self {
+        Self {
             resource: Some(resource),
             _linear: PhantomData,
         }
@@ -177,7 +177,7 @@ impl<T> ManusLinearis<T> {
 
     /// Check if the resource has been released.
     #[inline]
-    pub fn is_released(&self) -> bool {
+    pub const fn is_released(&self) -> bool {
         self.resource.is_none()
     }
 
@@ -220,7 +220,7 @@ pub struct ManusGuard<'a, T> {
 impl<'a, T> ManusGuard<'a, T> {
     /// Create a new guard from a handle's resource slot.
     #[inline]
-    fn new(resource: &'a mut Option<T>) -> Self {
+    const fn new(resource: &'a mut Option<T>) -> Self {
         let temp = resource.take();
         ManusGuard { resource, temp }
     }
@@ -232,7 +232,7 @@ impl<'a, T> ManusGuard<'a, T> {
     /// Panics if the guard is empty — i.e. the handle's resource was
     /// permanently removed by an earlier guard's [`ManusGuard::take`].
     #[inline]
-    pub fn get(&self) -> &T {
+    pub const fn get(&self) -> &T {
         self.temp.as_ref().expect("guard is empty")
     }
 
@@ -243,7 +243,7 @@ impl<'a, T> ManusGuard<'a, T> {
     /// Panics if the guard is empty — i.e. the handle's resource was
     /// permanently removed by an earlier guard's [`ManusGuard::take`].
     #[inline]
-    pub fn get_mut(&mut self) -> &mut T {
+    pub const fn get_mut(&mut self) -> &mut T {
         self.temp.as_mut().expect("guard is empty")
     }
 
@@ -303,7 +303,7 @@ impl<T> ManusLinearis<T> {
     /// assert_eq!(vec, vec![1, 2, 3, 4]);
     /// ```
     #[inline]
-    pub fn guard(&mut self) -> ManusGuard<'_, T> {
+    pub const fn guard(&mut self) -> ManusGuard<'_, T> {
         ManusGuard::new(&mut self.resource)
     }
 }

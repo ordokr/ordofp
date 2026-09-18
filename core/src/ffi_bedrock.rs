@@ -246,15 +246,12 @@ macro_rules! wrap_ref {
 /// - **Non-zero-sized elements:** `T` must not be a zero-sized type (ZST). For ZSTs,
 ///   `ptr.add(1)` does not advance the pointer, causing an infinite loop that never
 ///   reaches `tail`.
-// `tail` is a sentinel, typically a Copy scalar (`0u8`, NUL); by-value keeps
-// call sites free of `&0`-style noise.
-#[allow(clippy::needless_pass_by_value)]
 #[inline]
-pub unsafe fn probe_len<T: PartialEq>(mut ptr: *const T, tail: T) -> usize {
+pub unsafe fn probe_len<T: PartialEq>(mut ptr: *const T, tail: &T) -> usize {
     for len in 0.. {
         // SAFETY: The caller guarantees `ptr` points to a sequence terminated by
         // `tail`, so this dereference is valid for at least `len` more elements.
-        if unsafe { *ptr == tail } {
+        if unsafe { *ptr == *tail } {
             return len;
         }
         // SAFETY: We have not yet reached the `tail` sentinel, so the pointer
@@ -272,7 +269,7 @@ pub unsafe fn probe_len<T: PartialEq>(mut ptr: *const T, tail: T) -> usize {
 /// # Safety
 /// `ptr` must be terminated by `tail`.
 #[inline]
-pub unsafe fn build_array<'a, T: PartialEq>(ptr: *const T, tail: T) -> Option<&'a [T]> {
+pub unsafe fn build_array<'a, T: PartialEq>(ptr: *const T, tail: &T) -> Option<&'a [T]> {
     if ptr.is_null() {
         None
     } else {
@@ -293,7 +290,11 @@ pub unsafe fn build_array<'a, T: PartialEq>(ptr: *const T, tail: T) -> Option<&'
 // are `#[macro_export]`ed and emit `pub` items because downstream callers
 // expand them at module scope — inside this private test module that reads as
 // unreachable, so the lint is silenced here rather than narrowed in the macro.
-#[allow(dead_code, unreachable_pub)]
+#[allow(
+    dead_code,
+    unreachable_pub,
+    reason = "generated API typechecked here; uncalled items expected"
+)]
 mod tests {
     use super::*;
 

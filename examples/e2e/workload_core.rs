@@ -60,7 +60,7 @@ impl Default for Config {
             assignments: 20,
             reps: 60,
             error_pct: 3,
-            seed: 0xC0FFEE0D0F,
+            seed: 0x00C0_FFEE_0D0F,
         }
     }
 }
@@ -84,7 +84,7 @@ fn usage(msg: &str) -> ! {
     std::process::exit(2)
 }
 
-fn num(args: &mut impl Iterator<Item = String>, flag: &str) -> u64 {
+fn num<T: core::str::FromStr>(args: &mut impl Iterator<Item = String>, flag: &str) -> T {
     let v = args
         .next()
         .unwrap_or_else(|| usage(&format!("{flag} needs a value")));
@@ -108,12 +108,12 @@ pub fn parse_args() -> (Config, Mode) {
                     other => usage(&format!("unknown mode {other}")),
                 };
             }
-            "--courses" => cfg.courses = num(&mut args, "--courses") as usize,
-            "--students" => cfg.students = num(&mut args, "--students") as usize,
-            "--assignments" => cfg.assignments = num(&mut args, "--assignments") as usize,
-            "--reps" => cfg.reps = num(&mut args, "--reps") as usize,
+            "--courses" => cfg.courses = num(&mut args, "--courses"),
+            "--students" => cfg.students = num(&mut args, "--students"),
+            "--assignments" => cfg.assignments = num(&mut args, "--assignments"),
+            "--reps" => cfg.reps = num(&mut args, "--reps"),
             "--error-pct" => {
-                cfg.error_pct = num(&mut args, "--error-pct").min(100);
+                cfg.error_pct = num::<u64>(&mut args, "--error-pct").min(100);
                 error_pct_set = true;
             }
             "--seed" => cfg.seed = num(&mut args, "--seed"),
@@ -135,7 +135,7 @@ impl Rng {
         Self(seed.max(1))
     }
 
-    fn next(&mut self) -> u64 {
+    const fn next(&mut self) -> u64 {
         let mut x = self.0;
         x ^= x >> 12;
         x ^= x << 25;
@@ -144,7 +144,7 @@ impl Rng {
         x.wrapping_mul(0x2545_F491_4F6C_DD1D)
     }
 
-    fn below(&mut self, n: u64) -> u64 {
+    const fn below(&mut self, n: u64) -> u64 {
         self.next() % n
     }
 }
@@ -225,7 +225,7 @@ fn validate_all(
 
 // ─── grade aggregation (faithful copy of benches/grade_aggregation.rs) ───────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GradeStatistics {
     pub count: u64,
     pub sum: Decimal,
@@ -401,7 +401,10 @@ fn gen_cell(rng: &mut Rng, error_pct: u64) -> GradeCell {
     let bad = rng.below(100) < error_pct;
     if !bad {
         return GradeCell {
-            score: Decimal::new(rng.below(10_001) as i64, 2),
+            score: Decimal::new(
+                i64::try_from(rng.below(10_001)).expect("bounded rng output fits in i64"),
+                2,
+            ),
             pp: if rng.below(10) == 0 {
                 None
             } else {
@@ -414,7 +417,10 @@ fn gen_cell(rng: &mut Rng, error_pct: u64) -> GradeCell {
     // Invalid cell: a non-zero 3-bit mask picks 1–3 simultaneous error causes,
     // exercising Probatum's multi-error accumulation.
     let kinds = 1 + rng.below(7);
-    let mut score = Decimal::new(rng.below(10_001) as i64, 2);
+    let mut score = Decimal::new(
+        i64::try_from(rng.below(10_001)).expect("bounded rng output fits in i64"),
+        2,
+    );
     let mut pp = Some(Decimal::new(10_000, 2));
     let mut has_scheme = true;
     let mut needs_scheme = false;
@@ -422,7 +428,10 @@ fn gen_cell(rng: &mut Rng, error_pct: u64) -> GradeCell {
         pp = Some(Decimal::ZERO); // InvalidPointsPossible
     }
     if kinds & 2 != 0 {
-        score = Decimal::new(-(rng.below(5_000) as i64 + 1), 2); // ScoreOutOfRange
+        score = Decimal::new(
+            -(i64::try_from(rng.below(5_000)).expect("bounded rng output fits in i64") + 1),
+            2,
+        ); // ScoreOutOfRange
     }
     if kinds & 4 != 0 {
         has_scheme = false; // MissingGradingScheme
@@ -445,7 +454,12 @@ pub fn generate(cfg: &Config) -> WorkloadData {
                 .map(|ai| format!("{}", 50 + (ai * 7) % 51))
                 .collect();
             let weights: Vec<Decimal> = (0..cfg.assignments)
-                .map(|_| Decimal::new((rng.below(5) + 1) as i64, 0))
+                .map(|_| {
+                    Decimal::new(
+                        i64::try_from(rng.below(5) + 1).expect("bounded rng output fits in i64"),
+                        0,
+                    )
+                })
                 .collect();
             let cells: Vec<GradeCell> = (0..cfg.students * cfg.assignments)
                 .map(|_| gen_cell(&mut rng, cfg.error_pct))
@@ -522,18 +536,18 @@ pub struct RepOutcome {
     pub errors: u64,
 }
 
-pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
+/// Running counters for one [`run_rep`] pass, threaded through the phase fns.
+struct RepAccum {
+    cs: u64,
+    valid_grades: u64,
+    errored_students: u64,
+    errors: u64,
+}
+
+/// Phase 1: validate — per-grade Probatum map2 accumulation (#1 surface).
+fn phase_validate(data: &WorkloadData, st: &mut State, acc: &mut RepAccum) {
     let s_count = data.students;
     let a_count = data.assignments;
-    let mut cs: u64 = 0xcbf2_9ce4_8422_2325;
-    let mut phase_ns = [0u64; 5];
-    let mut valid_grades = 0u64;
-    let mut errored_students = 0u64;
-    let mut errors = 0u64;
-    st.course_avgs.clear();
-
-    // Phase 1: validate — per-grade Probatum map2 accumulation (#1 surface).
-    let t = Instant::now();
     for (ci, course) in data.courses.iter().enumerate() {
         for si in 0..s_count {
             let slot = ci * s_count + si;
@@ -551,7 +565,7 @@ pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
                 );
                 match v {
                     Probatum::Valid(()) => {
-                        valid_grades += 1;
+                        acc.valid_grades += 1;
                         st.scores[slot].push(cell.score);
                         st.pairs[slot].push((cell.score, course.weights[ai]));
                     }
@@ -560,41 +574,46 @@ pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
             }
         }
     }
-    phase_ns[0] = t.elapsed().as_nanos() as u64;
+}
 
-    // Phase 2: route — per-student NonEmpty/Disiunctio error coproduct +
-    // boundary Display rendering (the explicit error/cold path).
-    let t = Instant::now();
+/// Phase 2: route — per-student NonEmpty/Disiunctio error coproduct +
+/// boundary Display rendering (the explicit error/cold path).
+fn phase_route(data: &WorkloadData, st: &mut State, acc: &mut RepAccum) {
+    let s_count = data.students;
     for ci in 0..data.courses.len() {
         for si in 0..s_count {
             let slot = ci * s_count + si;
             let routed: Disiunctio<NonEmpty<GradeInputError>, usize> = if st.errs[slot].is_empty() {
                 Disiunctio::Dexter(st.scores[slot].len())
             } else {
-                let mut drained = st.errs[slot].drain(..);
-                let head = drained.next().expect("checked non-empty");
-                let tail: Vec<GradeInputError> = drained.collect();
+                let mut owned = std::mem::take(&mut st.errs[slot]).into_iter();
+                let head = owned.next().expect("checked non-empty");
+                let tail: Vec<GradeInputError> = owned.collect();
                 Disiunctio::Sinister(NonEmpty::new(head, tail))
             };
             match routed {
-                Disiunctio::Dexter(n) => cs = cs.wrapping_add(n as u64),
+                Disiunctio::Dexter(n) => acc.cs = acc.cs.wrapping_add(n as u64),
                 Disiunctio::Sinister(ne) => {
-                    errored_students += 1;
-                    errors += ne.len() as u64;
+                    acc.errored_students += 1;
+                    acc.errors += ne.len() as u64;
                     st.render_buf.clear();
                     for e in ne.iter() {
                         let _ = write!(st.render_buf, "{e}; ");
                     }
-                    cs = cs.wrapping_add(st.render_buf.len() as u64).rotate_left(7);
+                    acc.cs = acc
+                        .cs
+                        .wrapping_add(st.render_buf.len() as u64)
+                        .rotate_left(7);
                 }
             }
         }
     }
-    phase_ns[1] = t.elapsed().as_nanos() as u64;
+}
 
-    // Phase 3: aggregate — Semigroup/Monoid folds (per-student stats fold,
-    // per-course combine, per-student weighted average).
-    let t = Instant::now();
+/// Phase 3: aggregate — Semigroup/Monoid folds (per-student stats fold,
+/// per-course combine, per-student weighted average).
+fn phase_aggregate(data: &WorkloadData, st: &mut State, acc: &mut RepAccum) {
+    let s_count = data.students;
     for ci in 0..data.courses.len() {
         let mut course_stats = GradeStatistics::empty();
         for si in 0..s_count {
@@ -602,22 +621,26 @@ pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
             let student_stats = calculate_statistics(&st.scores[slot]);
             course_stats = course_stats.combine(&student_stats);
             if let Some(avg) = weighted_average(&st.pairs[slot]) {
-                cs = cs.wrapping_add(avg.mantissa() as u64);
+                acc.cs = acc.cs.wrapping_add(
+                    u64::try_from(avg.mantissa() & i128::from(u64::MAX))
+                        .expect("masked to low 64 bits"),
+                );
             }
         }
         if course_stats.count > 0 {
             let avg = course_stats.sum / Decimal::from(course_stats.count);
             st.course_avgs.push((ci, avg));
-            cs = cs
-                .wrapping_add(course_stats.count)
-                .wrapping_add(course_stats.sum.mantissa() as u64);
+            acc.cs = acc.cs.wrapping_add(course_stats.count).wrapping_add(
+                u64::try_from(course_stats.sum.mantissa() & i128::from(u64::MAX))
+                    .expect("masked to low 64 bits"),
+            );
         }
     }
-    phase_ns[2] = t.elapsed().as_nanos() as u64;
+}
 
-    // Phase 4: optics — per-enrollment nested read via composed cloning
-    // Aspectus (the consumer's import).
-    let t = Instant::now();
+/// Phase 4: optics — per-enrollment nested read via composed cloning
+/// Aspectus (the consumer's import).
+fn phase_optics(data: &WorkloadData, acc: &mut RepAccum) {
     let course_lens = aspectus(
         |e: &Enrollment| e.course.clone(),
         |e: &Enrollment, course: Course| Enrollment {
@@ -639,14 +662,15 @@ pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
     for course in &data.courses {
         for e in &course.enrollments {
             let name = course_name.get(e);
-            cs = cs.wrapping_add(name.len() as u64);
+            acc.cs = acc.cs.wrapping_add(name.len() as u64);
         }
     }
-    phase_ns[3] = t.elapsed().as_nanos() as u64;
+}
 
-    // Phase 5: pfds — persistent OrdMap course index: per-course insert
-    // (owned String key), per-student &str lookup (Borrow-generic path).
-    let t = Instant::now();
+/// Phase 5: pfds — persistent `OrdMap` course index: per-course insert
+/// (owned String key), per-student &str lookup (Borrow-generic path).
+fn phase_pfds(data: &WorkloadData, st: &State, acc: &mut RepAccum) {
+    let s_count = data.students;
     let mut index: OrdMap<String, Decimal> = OrdMap::new();
     for (ci, avg) in &st.course_avgs {
         index = index.insert(data.courses[*ci].name.clone(), *avg);
@@ -654,17 +678,56 @@ pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
     for course in &data.courses {
         for _ in 0..s_count {
             if let Some(avg) = index.get(course.name.as_str()) {
-                cs = cs.wrapping_add(avg.mantissa() as u64 & 0xFFFF);
+                acc.cs = acc.cs.wrapping_add(
+                    u64::try_from(avg.mantissa() & i128::from(u64::MAX))
+                        .expect("masked to low 64 bits")
+                        & 0xFFFF,
+                );
             }
         }
     }
-    phase_ns[4] = t.elapsed().as_nanos() as u64;
+}
+
+pub fn run_rep(data: &WorkloadData, st: &mut State) -> RepOutcome {
+    let mut acc = RepAccum {
+        cs: 0xcbf2_9ce4_8422_2325,
+        valid_grades: 0,
+        errored_students: 0,
+        errors: 0,
+    };
+    let mut phase_ns = [0u64; 5];
+    st.course_avgs.clear();
+
+    let t = Instant::now();
+    phase_validate(data, st, &mut acc);
+    phase_ns[0] =
+        u64::try_from(t.elapsed().as_nanos()).expect("benchmark duration fits in u64 nanoseconds");
+
+    let t = Instant::now();
+    phase_route(data, st, &mut acc);
+    phase_ns[1] =
+        u64::try_from(t.elapsed().as_nanos()).expect("benchmark duration fits in u64 nanoseconds");
+
+    let t = Instant::now();
+    phase_aggregate(data, st, &mut acc);
+    phase_ns[2] =
+        u64::try_from(t.elapsed().as_nanos()).expect("benchmark duration fits in u64 nanoseconds");
+
+    let t = Instant::now();
+    phase_optics(data, &mut acc);
+    phase_ns[3] =
+        u64::try_from(t.elapsed().as_nanos()).expect("benchmark duration fits in u64 nanoseconds");
+
+    let t = Instant::now();
+    phase_pfds(data, st, &mut acc);
+    phase_ns[4] =
+        u64::try_from(t.elapsed().as_nanos()).expect("benchmark duration fits in u64 nanoseconds");
 
     RepOutcome {
-        checksum: cs,
+        checksum: acc.cs,
         phase_ns,
-        valid_grades,
-        errored_students,
-        errors,
+        valid_grades: acc.valid_grades,
+        errored_students: acc.errored_students,
+        errors: acc.errors,
     }
 }

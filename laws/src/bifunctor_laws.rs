@@ -19,26 +19,26 @@
 //! use ordofp_laws::bifunctor_laws;
 //!
 //! // Test identity law for Result
-//! assert!(bifunctor_laws::result_identity(Ok::<i32, String>(42)));
-//! assert!(bifunctor_laws::result_identity(Err::<i32, String>("error".into())));
+//! assert!(bifunctor_laws::result_identity(&Ok::<i32, String>(42)));
+//! assert!(bifunctor_laws::result_identity(&Err::<i32, String>("error".into())));
 //!
 //! // Test identity law for tuple
-//! assert!(bifunctor_laws::tuple_identity((42, "hello")));
+//! assert!(bifunctor_laws::tuple_identity(&(42, "hello")));
 //! ```
 
 use crate::is_eq::IsEq;
 use ordofp::bifunctor::Bifunctor;
 
 /// The identity function.
-pub fn id<T>(x: T) -> T {
+pub const fn id<T>(x: T) -> T {
     x
 }
 
 // ==================== Result Laws ====================
 
 /// **Identity Law** for Result: `x.bimap(id, id) == x`
-pub fn result_identity<A: Clone + Eq, E: Clone + Eq>(fa: Result<A, E>) -> bool {
-    fa.clone().bimap(id, id) == fa
+pub fn result_identity<A: Clone + Eq, E: Clone + Eq>(fa: &Result<A, E>) -> bool {
+    fa.clone().bimap(id, id) == *fa
 }
 
 /// **Composition Law** for Result:
@@ -71,13 +71,13 @@ where
 }
 
 /// **`map_left` Identity Law** for Result: `x.map_left(id) == x`
-pub fn result_map_left_identity<A: Clone + Eq, E: Clone + Eq>(fa: Result<A, E>) -> bool {
-    fa.clone().map_left(id) == fa
+pub fn result_map_left_identity<A: Clone + Eq, E: Clone + Eq>(fa: &Result<A, E>) -> bool {
+    fa.clone().map_left(id) == *fa
 }
 
 /// **`map_right` Identity Law** for Result: `x.map_right(id) == x`
-pub fn result_map_right_identity<A: Clone + Eq, E: Clone + Eq>(fa: Result<A, E>) -> bool {
-    fa.clone().map_right(id) == fa
+pub fn result_map_right_identity<A: Clone + Eq, E: Clone + Eq>(fa: &Result<A, E>) -> bool {
+    fa.clone().map_right(id) == *fa
 }
 
 /// **bimap decomposition** for Result: `x.bimap(f, g) == x.map_left(f).map_right(g)`
@@ -103,8 +103,8 @@ pub fn result_identity_eq<A: Clone, E: Clone>(fa: Result<A, E>) -> IsEq<Result<A
 // ==================== Tuple Laws ====================
 
 /// **Identity Law** for tuple: `x.bimap(id, id) == x`
-pub fn tuple_identity<A: Clone + Eq, B: Clone + Eq>(fa: (A, B)) -> bool {
-    fa.clone().bimap(id, id) == fa
+pub fn tuple_identity<A: Clone + Eq, B: Clone + Eq>(fa: &(A, B)) -> bool {
+    fa.clone().bimap(id, id) == *fa
 }
 
 /// **Composition Law** for tuple:
@@ -137,13 +137,13 @@ where
 }
 
 /// **`map_left` Identity Law** for tuple: `x.map_left(id) == x`
-pub fn tuple_map_left_identity<A: Clone + Eq, B: Clone + Eq>(fa: (A, B)) -> bool {
-    fa.clone().map_left(id) == fa
+pub fn tuple_map_left_identity<A: Clone + Eq, B: Clone + Eq>(fa: &(A, B)) -> bool {
+    fa.clone().map_left(id) == *fa
 }
 
 /// **`map_right` Identity Law** for tuple: `x.map_right(id) == x`
-pub fn tuple_map_right_identity<A: Clone + Eq, B: Clone + Eq>(fa: (A, B)) -> bool {
-    fa.clone().map_right(id) == fa
+pub fn tuple_map_right_identity<A: Clone + Eq, B: Clone + Eq>(fa: &(A, B)) -> bool {
+    fa.clone().map_right(id) == *fa
 }
 
 /// **bimap decomposition** for tuple: `x.bimap(f, g) == x.map_left(f).map_right(g)`
@@ -209,24 +209,36 @@ mod tests {
 
     #[test]
     fn test_result_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Result<i32, String>) -> bool {
-            result_identity(fa)
+            result_identity(&fa)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
 
     #[test]
     fn test_result_map_left_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Result<i32, String>) -> bool {
-            result_map_left_identity(fa)
+            result_map_left_identity(&fa)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
 
     #[test]
     fn test_result_map_right_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: Result<i32, String>) -> bool {
-            result_map_right_identity(fa)
+            result_map_right_identity(&fa)
         }
         quickcheck(test as fn(Result<i32, String>) -> bool);
     }
@@ -273,24 +285,36 @@ mod tests {
 
     #[test]
     fn test_tuple_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: (i32, String)) -> bool {
-            tuple_identity(fa)
+            tuple_identity(&fa)
         }
         quickcheck(test as fn((i32, String)) -> bool);
     }
 
     #[test]
     fn test_tuple_map_left_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: (i32, String)) -> bool {
-            tuple_map_left_identity(fa)
+            tuple_map_left_identity(&fa)
         }
         quickcheck(test as fn((i32, String)) -> bool);
     }
 
     #[test]
     fn test_tuple_map_right_identity_law() {
+        #[allow(
+            clippy::needless_pass_by_value,
+            reason = "quickcheck implements Testable only for fn items taking owned Arbitrary values"
+        )]
         fn test(fa: (i32, String)) -> bool {
-            tuple_map_right_identity(fa)
+            tuple_map_right_identity(&fa)
         }
         quickcheck(test as fn((i32, String)) -> bool);
     }
@@ -321,14 +345,14 @@ mod tests {
 
     #[test]
     fn manual_result_identity_tests() {
-        assert!(result_identity(Ok::<i32, String>(42)));
-        assert!(result_identity(Err::<i32, String>("error".into())));
+        assert!(result_identity(&Ok::<i32, String>(42)));
+        assert!(result_identity(&Err::<i32, String>("error".into())));
     }
 
     #[test]
     fn manual_tuple_identity_tests() {
-        assert!(tuple_identity((42, "hello")));
-        assert!(tuple_identity((0, "")));
+        assert!(tuple_identity(&(42, "hello")));
+        assert!(tuple_identity(&(0, "")));
     }
 
     #[test]

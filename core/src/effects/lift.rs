@@ -47,8 +47,8 @@ pub struct PureLift<A, E> {
 impl<A, E: Effectus> PureLift<A, E> {
     /// Create a new pure lift.
     #[inline]
-    pub fn new(value: A) -> Self {
-        PureLift {
+    pub const fn new(value: A) -> Self {
+        Self {
             value,
             _effect: core::marker::PhantomData,
         }
@@ -77,7 +77,7 @@ impl<A, E: Effectus> LiftEffectus<E> for PureLift<A, E> {
 /// assert_eq!(lifted.run(), 42);
 /// ```
 #[inline]
-pub fn lift_pure<A, E: Effectus>(value: A) -> PureLift<A, E> {
+pub const fn lift_pure<A, E: Effectus>(value: A) -> PureLift<A, E> {
     PureLift::new(value)
 }
 
@@ -97,7 +97,7 @@ pub fn lift_pure<A, E: Effectus>(value: A) -> PureLift<A, E> {
 /// assert_eq!(io_op.run(), 42);
 /// ```
 #[inline]
-pub fn lift_io<A, F>(f: F) -> IoLift<A, F>
+pub const fn lift_io<A, F>(f: F) -> IoLift<A, F>
 where
     F: FnOnce() -> A,
 {
@@ -138,7 +138,7 @@ impl<A, F: FnOnce() -> A> LiftEffectus<super::IoEffectus> for IoLift<A, F> {
 /// assert_eq!(result.run(), Ok(42));
 /// ```
 #[inline]
-pub fn lift_error<A, E, F>(f: F) -> ErrorLift<A, E, F>
+pub const fn lift_error<A, E, F>(f: F) -> ErrorLift<A, E, F>
 where
     F: FnOnce() -> Result<A, E>,
 {
@@ -181,7 +181,7 @@ impl<A, E: Send + Sync + 'static, F: FnOnce() -> Result<A, E>> LiftEffectus<supe
 /// assert_eq!(value, 5);
 /// ```
 #[inline]
-pub fn lift_state<S, A, F>(f: F) -> StateLift<S, A, F>
+pub const fn lift_state<S, A, F>(f: F) -> StateLift<S, A, F>
 where
     F: FnOnce(S) -> (S, A),
 {
@@ -221,7 +221,7 @@ impl<S: Send + Sync + 'static, A, F: FnOnce(S) -> (S, A)> StateLift<S, A, F> {
 /// let _future = async_op.into_future();
 /// ```
 #[inline]
-pub fn lift_async<A, F>(f: F) -> AsyncLift<F>
+pub const fn lift_async<A, F>(f: F) -> AsyncLift<F>
 where
     F: Future<Output = A>,
 {
@@ -255,7 +255,7 @@ impl<A, F: Future<Output = A>> AsyncLift<F> {
 /// assert_eq!(result, 5);
 /// ```
 #[inline]
-pub fn lift_reader<R, A, F>(f: F) -> ReaderLift<R, A, F>
+pub const fn lift_reader<R, A, F>(f: F) -> ReaderLift<R, A, F>
 where
     F: FnOnce(&R) -> A,
 {

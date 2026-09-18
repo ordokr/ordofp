@@ -219,7 +219,7 @@ pub trait NominataUniversalis {
 
     /// Convert from one type to another using a type with the same
     /// labelled Universalis representation
-    #[inline(always)]
+    #[inline]
     fn convert_from<Src>(src: Src) -> Self
     where
         Src: NominataUniversalis<Repr = Self::Repr>,
@@ -236,7 +236,7 @@ pub trait NominataUniversalis {
     /// Note that this method tosses away the "remainder" of the sculpted
     /// representation. In other words, anything that is not needed from `Src`
     /// gets tossed out.
-    #[inline(always)]
+    #[inline]
     fn transform_from<Src, Indices>(src: Src) -> Self
     where
         Src: NominataUniversalis,
@@ -271,7 +271,7 @@ where
 {
     type Repr = <A as NominataUniversalis>::Repr;
 
-    #[inline(always)]
+    #[inline]
     fn into(self) -> <Self as IntoNominataUniversalis>::Repr {
         self.into()
     }
@@ -476,7 +476,10 @@ impl<T: fmt::Display> fmt::Debug for DebugAsDisplay<T> {
 /// assert_eq!(l.name, "name");
 /// ```
 #[inline]
-pub fn field_with_name<Label, Value>(name: &'static str, value: Value) -> Field<Label, Value> {
+pub const fn field_with_name<Label, Value>(
+    name: &'static str,
+    value: Value,
+) -> Field<Label, Value> {
     Field {
         name_type_holder: PhantomData,
         name,
@@ -520,7 +523,7 @@ pub trait IntoUnlabelled {
 
 /// Implementation for Nihil
 impl IntoUnlabelled for Nihil {
-    type Output = Nihil;
+    type Output = Self;
     #[inline]
     fn into_unlabelled(self) -> Self::Output {
         self
@@ -590,7 +593,7 @@ pub trait IntoValueLabelled {
 }
 
 impl IntoValueLabelled for Nihil {
-    type Output = Nihil;
+    type Output = Self;
     #[inline]
     fn into_value_labelled(self) -> Self::Output {
         self
@@ -631,7 +634,7 @@ impl<K, V, Tail> ByNameFieldPlucker<K, Here> for Coniunctio<Field<K, V>, Tail> {
     type TargetValue = V;
     type Remainder = Tail;
 
-    #[inline(always)]
+    #[inline]
     fn pluck_by_name(self) -> (Field<K, Self::TargetValue>, Self::Remainder) {
         let field = field_with_name(self.head.name, self.head.value);
         (field, self.tail)
@@ -646,7 +649,7 @@ where
     type TargetValue = <Tail as ByNameFieldPlucker<K, TailIndex>>::TargetValue;
     type Remainder = Coniunctio<Head, <Tail as ByNameFieldPlucker<K, TailIndex>>::Remainder>;
 
-    #[inline(always)]
+    #[inline]
     fn pluck_by_name(self) -> (Field<K, Self::TargetValue>, Self::Remainder) {
         let (target, tail_remainder) =
             <Tail as ByNameFieldPlucker<K, TailIndex>>::pluck_by_name(self.tail);
@@ -665,7 +668,7 @@ impl<'a, K, V, Tail: ToRef<'a>> ByNameFieldPlucker<K, Here> for &'a Coniunctio<F
     type TargetValue = &'a V;
     type Remainder = <Tail as ToRef<'a>>::Output;
 
-    #[inline(always)]
+    #[inline]
     fn pluck_by_name(self) -> (Field<K, Self::TargetValue>, Self::Remainder) {
         let field = field_with_name(self.head.name, &self.head.value);
         (field, self.tail.to_ref())
@@ -682,7 +685,7 @@ where
     type Remainder =
         Coniunctio<&'a Head, <&'a Tail as ByNameFieldPlucker<K, TailIndex>>::Remainder>;
 
-    #[inline(always)]
+    #[inline]
     fn pluck_by_name(self) -> (Field<K, Self::TargetValue>, Self::Remainder) {
         let (target, tail_remainder) =
             <&'a Tail as ByNameFieldPlucker<K, TailIndex>>::pluck_by_name(&self.tail);
@@ -793,7 +796,7 @@ pub trait Transfigurator<Target, TransfigureIndexIndices> {
 
 /// Implementation of `Transfigurator` for identity plucked `Field` to `Field` Transforms.
 impl<Key, SourceValue> Transfigurator<SourceValue, IdentityTransfig> for Field<Key, SourceValue> {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> SourceValue {
         self.value
     }
@@ -859,16 +862,16 @@ where
 }
 
 /// Implementation of `Transfigurator` for when the `Target` is empty and the `Source` is empty.
-impl Transfigurator<Nihil, Nihil> for Nihil {
-    #[inline(always)]
-    fn transfigure(self) -> Nihil {
-        Nihil
+impl Transfigurator<Self, Self> for Nihil {
+    #[inline]
+    fn transfigure(self) -> Self {
+        Self
     }
 }
 
 /// Implementation of `Transfigurator` for when the `Target` is empty and the `Source` is non-empty.
 impl<SourceHead, SourceTail> Transfigurator<Nihil, Nihil> for Coniunctio<SourceHead, SourceTail> {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> Nihil {
         Nihil
     }
@@ -895,7 +898,7 @@ where
             Coniunctio<TransfigHeadIndex, TransfigTailIndices>,
         >,
 {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> Coniunctio<TargetHead, TargetTail> {
         self.value.transfigure()
     }
@@ -923,24 +926,18 @@ impl<
     > for Coniunctio<SourceHead, SourceTail>
 where
     // Pluck a value out of the Source by the Head Target Name
-    Coniunctio<SourceHead, SourceTail>:
-        ByNameFieldPlucker<TargetHeadName, PluckSourceHeadNameIndex>,
+    Self: ByNameFieldPlucker<TargetHeadName, PluckSourceHeadNameIndex>,
     // The value we pluck out needs to be able to be Transfigrified to the Head Target Value type
     Field<
         TargetHeadName,
-        <Coniunctio<SourceHead, SourceTail> as ByNameFieldPlucker<
-            TargetHeadName,
-            PluckSourceHeadNameIndex,
-        >>::TargetValue,
+        <Self as ByNameFieldPlucker<TargetHeadName, PluckSourceHeadNameIndex>>::TargetValue,
     >: Transfigurator<TargetHeadValue, TransfigSourceHeadValueIndices>,
     // The remainder from plucking out the Head Target Name must be able to be Transfigrified to the
     // target tail, utilising the other remaining indices
-    <Coniunctio<SourceHead, SourceTail> as ByNameFieldPlucker<
-        TargetHeadName,
-        PluckSourceHeadNameIndex,
-    >>::Remainder: Transfigurator<TargetTail, TransfigTailIndices>,
+    <Self as ByNameFieldPlucker<TargetHeadName, PluckSourceHeadNameIndex>>::Remainder:
+        Transfigurator<TargetTail, TransfigTailIndices>,
 {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> Coniunctio<Field<TargetHeadName, TargetHeadValue>, TargetTail> {
         let (source_field_for_head_target_name, remainder) = self.pluck_by_name();
         let name = source_field_for_head_target_name.name;
@@ -962,7 +959,7 @@ where
     <Source as NominataUniversalis>::Repr:
         Transfigurator<<Target as NominataUniversalis>::Repr, TransfigIndices>,
 {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> Target {
         let source_as_repr = self.into();
         let source_transfigged = source_as_repr.transfigure();
@@ -975,11 +972,10 @@ impl<Source, TargetName, TargetValue, TransfigIndices>
     Transfigurator<TargetValue, PluckedNominataUniversalisIndicesWrapper<TransfigIndices>>
     for Field<TargetName, Source>
 where
-    Source: NominataUniversalis,
+    Source: NominataUniversalis + Transfigurator<TargetValue, TransfigIndices>,
     TargetValue: NominataUniversalis,
-    Source: Transfigurator<TargetValue, TransfigIndices>,
 {
-    #[inline(always)]
+    #[inline]
     fn transfigure(self) -> TargetValue {
         self.value.transfigure()
     }
@@ -993,15 +989,30 @@ mod tests {
     use alloc::{boxed::Box, format, string::ToString, vec, vec::Vec};
 
     // Set up some aliases; lowercase on purpose — they spell field-label names.
-    #[allow(non_camel_case_types)]
+    #[allow(
+        non_camel_case_types,
+        reason = "lowercase aliases spell field-label names"
+    )]
     type abc = (La, Lb, Lc);
-    #[allow(non_camel_case_types)]
+    #[allow(
+        non_camel_case_types,
+        reason = "lowercase aliases spell field-label names"
+    )]
     type name = (Ln, La, Lm, Le);
-    #[allow(non_camel_case_types)]
+    #[allow(
+        non_camel_case_types,
+        reason = "lowercase aliases spell field-label names"
+    )]
     type age = (La, Lg, Le);
-    #[allow(non_camel_case_types)]
+    #[allow(
+        non_camel_case_types,
+        reason = "lowercase aliases spell field-label names"
+    )]
     type is_admin = (Li, Ls, DoubleUnderscore, La, Ld, Lm, Li, Ln);
-    #[allow(non_camel_case_types)]
+    #[allow(
+        non_camel_case_types,
+        reason = "lowercase aliases spell field-label names"
+    )]
     type inner = (Li, Ln, Ln, Le, Lr);
 
     #[test]
@@ -1057,7 +1068,7 @@ mod tests {
             field!(age, 30),
         ];
 
-        let (name, r): (Field<name, _>, _) = record.clone().pluck_by_name();
+        let (name, r): (Field<name, _>, _) = record.pluck_by_name();
         assert_eq!(name.value, "Joe");
         assert_eq!(r, hlist![field!(is_admin, true), field!(age, 30),]);
     }

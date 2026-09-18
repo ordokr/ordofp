@@ -62,13 +62,13 @@ fn bench_state_operations(c: &mut Criterion) {
 // =============================================================================
 
 fn bench_reader_operations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("reader_operations");
-
     #[derive(Clone)]
     struct Config {
         value: i64,
         multiplier: i64,
     }
+
+    let mut group = c.benchmark_group("reader_operations");
 
     let config = Config {
         value: 42,
@@ -222,7 +222,9 @@ fn bench_arena_allocation(c: &mut Criterion) {
                             sum += x.0 + x.1;
                         }
                         _ => {
-                            let x: &mut [u8; 16] = arena.alloc([i as u8; 16]).into_mut();
+                            let x: &mut [u8; 16] = arena
+                                .alloc([u8::try_from(i).expect("benchmark value fits in u8"); 16])
+                                .into_mut();
                             sum += i64::from(x[0]);
                         }
                     }
@@ -273,7 +275,9 @@ fn bench_combinators(c: &mut Criterion) {
     // Benchmark repeat
     group.bench_function("repeat_1000", |b| {
         b.iter(|| {
-            let results: Vec<i32> = repeat(1000, |i| (i * i) as i32);
+            let results: Vec<i32> = repeat(1000, |i| {
+                i32::try_from(i * i).expect("squared benchmark input fits in i32")
+            });
             black_box(results.len())
         });
     });
@@ -304,7 +308,9 @@ fn bench_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("throughput");
 
     for size in &[100, 1000, 10000] {
-        group.throughput(Throughput::Elements(*size as u64));
+        group.throughput(Throughput::Elements(
+            u64::try_from(*size).expect("benchmark size is non-negative"),
+        ));
 
         group.bench_with_input(BenchmarkId::new("state_updates", size), size, |b, &size| {
             b.iter(|| {

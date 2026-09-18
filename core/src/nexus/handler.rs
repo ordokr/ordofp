@@ -108,8 +108,8 @@ pub struct StateHandler<S> {
 impl<S> StateHandler<S> {
     /// Create a new state handler with initial state.
     #[inline]
-    pub fn new(initial: S) -> Self {
-        StateHandler { initial }
+    pub const fn new(initial: S) -> Self {
+        Self { initial }
     }
 }
 
@@ -152,7 +152,7 @@ pub struct ReaderHandler<'e, E> {
 impl<'e, E> ReaderHandler<'e, E> {
     /// Create a new reader handler with environment.
     #[inline]
-    pub fn new(env: &'e E) -> Self {
+    pub const fn new(env: &'e E) -> Self {
         ReaderHandler { env }
     }
 }
@@ -193,8 +193,9 @@ pub struct ErrorHandler<Err> {
 impl<Err> ErrorHandler<Err> {
     /// Create a new error handler.
     #[inline]
-    pub fn new() -> Self {
-        ErrorHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _marker: PhantomData,
         }
     }
@@ -388,8 +389,8 @@ pub struct ComposedHandler<H1, H2> {
 impl<H1, H2> ComposedHandler<H1, H2> {
     /// Create a composed handler.
     #[inline]
-    pub fn new(first: H1, second: H2) -> Self {
-        ComposedHandler { first, second }
+    pub const fn new(first: H1, second: H2) -> Self {
+        Self { first, second }
     }
 }
 

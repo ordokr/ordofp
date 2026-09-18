@@ -88,8 +88,8 @@ pub enum Aut<L, R> {
 impl<L: Debug, R: Debug> Debug for Aut<L, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Aut::Sinister(l) => f.debug_tuple("Sinister").field(l).finish(),
-            Aut::Dexter(r) => f.debug_tuple("Dexter").field(r).finish(),
+            Self::Sinister(l) => f.debug_tuple("Sinister").field(l).finish(),
+            Self::Dexter(r) => f.debug_tuple("Dexter").field(r).finish(),
         }
     }
 }
@@ -109,7 +109,7 @@ impl<L, R> Aut<L, R> {
     /// ```
     #[inline]
     pub const fn sinister(l: L) -> Self {
-        Aut::Sinister(l)
+        Self::Sinister(l)
     }
 
     /// Creates a `Dexter` (right) value.
@@ -124,19 +124,19 @@ impl<L, R> Aut<L, R> {
     /// ```
     #[inline]
     pub const fn dexter(r: R) -> Self {
-        Aut::Dexter(r)
+        Self::Dexter(r)
     }
 
     /// Alias for `sinister` - creates a left value.
     #[inline]
     pub const fn left(l: L) -> Self {
-        Aut::Sinister(l)
+        Self::Sinister(l)
     }
 
     /// Alias for `dexter` - creates a right value.
     #[inline]
     pub const fn right(r: R) -> Self {
-        Aut::Dexter(r)
+        Self::Dexter(r)
     }
 
     // ========== Predicates ==========
@@ -156,7 +156,7 @@ impl<L, R> Aut<L, R> {
     /// ```
     #[inline]
     pub const fn is_sinister(&self) -> bool {
-        matches!(self, Aut::Sinister(_))
+        matches!(self, Self::Sinister(_))
     }
 
     /// Returns `true` if this is a `Dexter` (right) value.
@@ -174,7 +174,7 @@ impl<L, R> Aut<L, R> {
     /// ```
     #[inline]
     pub const fn is_dexter(&self) -> bool {
-        matches!(self, Aut::Dexter(_))
+        matches!(self, Self::Dexter(_))
     }
 
     /// Alias for `is_sinister`.
@@ -207,8 +207,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub const fn sinister_ref(&self) -> Option<&L> {
         match self {
-            Aut::Sinister(l) => Some(l),
-            Aut::Dexter(_) => None,
+            Self::Sinister(l) => Some(l),
+            Self::Dexter(_) => None,
         }
     }
 
@@ -228,8 +228,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub const fn dexter_ref(&self) -> Option<&R> {
         match self {
-            Aut::Sinister(_) => None,
-            Aut::Dexter(r) => Some(r),
+            Self::Sinister(_) => None,
+            Self::Dexter(r) => Some(r),
         }
     }
 
@@ -261,8 +261,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn sinister_option(self) -> Option<L> {
         match self {
-            Aut::Sinister(l) => Some(l),
-            Aut::Dexter(_) => None,
+            Self::Sinister(l) => Some(l),
+            Self::Dexter(_) => None,
         }
     }
 
@@ -282,8 +282,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn dexter_option(self) -> Option<R> {
         match self {
-            Aut::Sinister(_) => None,
-            Aut::Dexter(r) => Some(r),
+            Self::Sinister(_) => None,
+            Self::Dexter(r) => Some(r),
         }
     }
 
@@ -309,8 +309,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn unwrap_sinister(self) -> L {
         match self {
-            Aut::Sinister(l) => l,
-            Aut::Dexter(_) => panic!("called `unwrap_sinister` on a `Dexter` value"),
+            Self::Sinister(l) => l,
+            Self::Dexter(_) => panic!("called `unwrap_sinister` on a `Dexter` value"),
         }
     }
 
@@ -322,8 +322,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn unwrap_dexter(self) -> R {
         match self {
-            Aut::Sinister(_) => panic!("called `unwrap_dexter` on a `Sinister` value"),
-            Aut::Dexter(r) => r,
+            Self::Sinister(_) => panic!("called `unwrap_dexter` on a `Sinister` value"),
+            Self::Dexter(r) => r,
         }
     }
 
@@ -343,8 +343,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn sinister_or(self, default: L) -> L {
         match self {
-            Aut::Sinister(l) => l,
-            Aut::Dexter(_) => default,
+            Self::Sinister(l) => l,
+            Self::Dexter(_) => default,
         }
     }
 
@@ -352,8 +352,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn dexter_or(self, default: R) -> R {
         match self {
-            Aut::Sinister(_) => default,
-            Aut::Dexter(r) => r,
+            Self::Sinister(_) => default,
+            Self::Dexter(r) => r,
         }
     }
 
@@ -364,8 +364,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(R) -> L,
     {
         match self {
-            Aut::Sinister(l) => l,
-            Aut::Dexter(r) => f(r),
+            Self::Sinister(l) => l,
+            Self::Dexter(r) => f(r),
         }
     }
 
@@ -376,8 +376,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(L) -> R,
     {
         match self {
-            Aut::Sinister(l) => f(l),
-            Aut::Dexter(r) => r,
+            Self::Sinister(l) => f(l),
+            Self::Dexter(r) => r,
         }
     }
 
@@ -402,8 +402,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(R) -> U,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(l),
-            Aut::Dexter(r) => Aut::Dexter(f(r)),
+            Self::Sinister(l) => Aut::Sinister(l),
+            Self::Dexter(r) => Aut::Dexter(f(r)),
         }
     }
 
@@ -426,8 +426,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(L) -> U,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(f(l)),
-            Aut::Dexter(r) => Aut::Dexter(r),
+            Self::Sinister(l) => Aut::Sinister(f(l)),
+            Self::Dexter(r) => Aut::Dexter(r),
         }
     }
 
@@ -460,8 +460,8 @@ impl<L, R> Aut<L, R> {
         G: FnOnce(R) -> V,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(f(l)),
-            Aut::Dexter(r) => Aut::Dexter(g(r)),
+            Self::Sinister(l) => Aut::Sinister(f(l)),
+            Self::Dexter(r) => Aut::Dexter(g(r)),
         }
     }
 
@@ -496,8 +496,8 @@ impl<L, R> Aut<L, R> {
         F: FnOnce(R) -> Aut<L, U>,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(l),
-            Aut::Dexter(r) => f(r),
+            Self::Sinister(l) => Aut::Sinister(l),
+            Self::Dexter(r) => f(r),
         }
     }
 
@@ -526,20 +526,21 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn swap(self) -> Aut<R, L> {
         match self {
-            Aut::Sinister(l) => Aut::Dexter(l),
-            Aut::Dexter(r) => Aut::Sinister(r),
+            Self::Sinister(l) => Aut::Dexter(l),
+            Self::Dexter(r) => Aut::Sinister(r),
         }
     }
 
     /// Flattens a nested `Aut<L, Aut<L, R>>` into `Aut<L, R>`.
     #[inline]
-    pub fn flatten(self) -> Aut<L, R>
+    #[must_use]
+    pub fn flatten(self) -> Self
     where
-        R: Into<Aut<L, R>>,
+        R: Into<Self>,
     {
         match self {
-            Aut::Sinister(l) => Aut::Sinister(l),
-            Aut::Dexter(r) => r.into(),
+            Self::Sinister(l) => Self::Sinister(l),
+            Self::Dexter(r) => r.into(),
         }
     }
 
@@ -563,8 +564,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
         match result {
-            Ok(r) => Aut::Dexter(r),
-            Err(l) => Aut::Sinister(l),
+            Ok(r) => Self::Dexter(r),
+            Err(l) => Self::Sinister(l),
         }
     }
 
@@ -592,8 +593,8 @@ impl<L, R> Aut<L, R> {
     #[inline]
     pub fn into_result(self) -> Result<R, L> {
         match self {
-            Aut::Sinister(l) => Err(l),
-            Aut::Dexter(r) => Ok(r),
+            Self::Sinister(l) => Err(l),
+            Self::Dexter(r) => Ok(r),
         }
     }
 
@@ -621,8 +622,8 @@ impl<L, R> Aut<L, R> {
         G: FnOnce(R) -> U,
     {
         match self {
-            Aut::Sinister(l) => on_left(l),
-            Aut::Dexter(r) => on_right(r),
+            Self::Sinister(l) => on_left(l),
+            Self::Dexter(r) => on_right(r),
         }
     }
 
@@ -645,8 +646,8 @@ impl<L, R> Aut<L, R> {
         L: From<R>,
     {
         match self {
-            Aut::Sinister(l) => l,
-            Aut::Dexter(r) => L::from(r),
+            Self::Sinister(l) => l,
+            Self::Dexter(r) => L::from(r),
         }
     }
 }
@@ -654,7 +655,7 @@ impl<L, R> Aut<L, R> {
 impl<L, R> From<Result<R, L>> for Aut<L, R> {
     #[inline]
     fn from(result: Result<R, L>) -> Self {
-        Aut::from_result(result)
+        Self::from_result(result)
     }
 }
 
@@ -669,7 +670,7 @@ impl<L: Default, R> Default for Aut<L, R> {
     /// Default is a `Sinister` with the default left value.
     #[inline]
     fn default() -> Self {
-        Aut::Sinister(L::default())
+        Self::Sinister(L::default())
     }
 }
 
@@ -891,10 +892,9 @@ mod tests {
         let left: Aut<&str, i32> = Aut::sinister("error");
 
         let right_vals: Vec<i32> = right.into_iter().collect();
-        let left_vals: Vec<i32> = left.into_iter().collect();
 
         assert_eq!(right_vals, vec![42]);
-        assert!(left_vals.is_empty());
+        assert!(left.into_iter().next().is_none());
     }
 
     #[test]
@@ -990,7 +990,8 @@ mod tests {
 
         // sinister_or_else: Dexter branch applies the closure to the right value.
         let right2: Aut<i32, &str> = Aut::dexter("hello");
-        let s2 = right2.sinister_or_else(|r| r.len() as i32);
+        let s2 = right2
+            .sinister_or_else(|r| i32::try_from(r.len()).expect("test string length fits in i32"));
         assert_eq!(
             s2, 5,
             "Dexter.sinister_or_else must apply the closure to the right value"

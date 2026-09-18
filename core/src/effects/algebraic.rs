@@ -96,13 +96,13 @@ pub struct Operatio<E: EffectusAlgebraicus> {
 impl<E: EffectusAlgebraicus> Operatio<E> {
     /// Create a new operation.
     #[inline]
-    pub fn new(effect: E) -> Self {
-        Operatio { effect }
+    pub const fn new(effect: E) -> Self {
+        Self { effect }
     }
 
     /// Get a reference to the effect.
     #[inline]
-    pub fn effect(&self) -> &E {
+    pub const fn effect(&self) -> &E {
         &self.effect
     }
 
@@ -126,27 +126,27 @@ pub enum ComputatioStatus<E: EffectusAlgebraicus, A> {
         /// The effect operation being performed.
         operatio: E,
         /// Continuation to resume after handling the effect.
-        continuatio: ContinuatioSemel<E::Result, ComputatioStatus<E, A>>,
+        continuatio: ContinuatioSemel<E::Result, Self>,
     },
 }
 
 impl<E: EffectusAlgebraicus, A> ComputatioStatus<E, A> {
     /// Create a completed status.
     #[inline]
-    pub fn complete(value: A) -> Self {
-        ComputatioStatus::Completus(value)
+    pub const fn complete(value: A) -> Self {
+        Self::Completus(value)
     }
 
     /// Check if the computation is complete.
     #[inline]
-    pub fn is_complete(&self) -> bool {
-        matches!(self, ComputatioStatus::Completus(_))
+    pub const fn is_complete(&self) -> bool {
+        matches!(self, Self::Completus(_))
     }
 
     /// Check if the computation is suspended.
     #[inline]
-    pub fn is_suspended(&self) -> bool {
-        matches!(self, ComputatioStatus::Suspensus { .. })
+    pub const fn is_suspended(&self) -> bool {
+        matches!(self, Self::Suspensus { .. })
     }
 
     /// Extract the completed value, panicking if suspended.
@@ -158,8 +158,8 @@ impl<E: EffectusAlgebraicus, A> ComputatioStatus<E, A> {
     #[inline]
     pub fn unwrap(self) -> A {
         match self {
-            ComputatioStatus::Completus(a) => a,
-            ComputatioStatus::Suspensus { .. } => panic!("Computation is suspended"),
+            Self::Completus(a) => a,
+            Self::Suspensus { .. } => panic!("Computation is suspended"),
         }
     }
 
@@ -172,8 +172,8 @@ impl<E: EffectusAlgebraicus, A> ComputatioStatus<E, A> {
     #[inline]
     pub fn expect(self, msg: &str) -> A {
         match self {
-            ComputatioStatus::Completus(a) => a,
-            ComputatioStatus::Suspensus { .. } => panic!("{}", msg),
+            Self::Completus(a) => a,
+            Self::Suspensus { .. } => panic!("{}", msg),
         }
     }
 }
@@ -356,7 +356,7 @@ where
 /// let comp: ComputatioStatus<MyEffect, i32> = pure_effect(42);
 /// assert!(comp.is_complete());
 /// ```
-pub fn pure_effect<E: EffectusAlgebraicus, A>(value: A) -> ComputatioStatus<E, A> {
+pub const fn pure_effect<E: EffectusAlgebraicus, A>(value: A) -> ComputatioStatus<E, A> {
     ComputatioStatus::Completus(value)
 }
 
@@ -416,8 +416,8 @@ where
     OpFn: FnMut(E, ContinuatioSemel<E::Result, A>) -> A,
 {
     /// Create a new closure-based handler.
-    pub fn new(return_fn: RetFn, operation_fn: OpFn) -> Self {
-        ClosureHandler {
+    pub const fn new(return_fn: RetFn, operation_fn: OpFn) -> Self {
+        Self {
             return_fn,
             operation_fn,
             _phantom: PhantomData,
@@ -481,7 +481,7 @@ where
 /// });
 /// assert_eq!(result, 7);
 /// ```
-pub fn make_handler<E, A, RetFn, OpFn>(
+pub const fn make_handler<E, A, RetFn, OpFn>(
     return_fn: RetFn,
     operation_fn: OpFn,
 ) -> ClosureHandler<E, A, RetFn, OpFn>
@@ -511,8 +511,9 @@ where
     E::Result: Default,
 {
     /// Create a new default handler.
-    pub fn new() -> Self {
-        DefaultHandler {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _effect: PhantomData,
             _output: PhantomData,
         }
@@ -564,7 +565,8 @@ where
 ///
 /// let _handler = default_handler::<MyEffect, i32>();
 /// ```
-pub fn default_handler<E, A>() -> DefaultHandler<E, A>
+#[must_use]
+pub const fn default_handler<E, A>() -> DefaultHandler<E, A>
 where
     E: EffectusAlgebraicus,
     A: 'static,
@@ -589,14 +591,15 @@ impl<E: EffectusAlgebraicus> Default for HandlerConfig<E> {
 
 impl<E: EffectusAlgebraicus> HandlerConfig<E> {
     /// Create a new handler configuration.
-    pub fn new() -> Self {
-        HandlerConfig {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             _effect: PhantomData,
         }
     }
 
     /// Build a handler from closures.
-    pub fn with_closures<A, RetFn, OpFn>(
+    pub const fn with_closures<A, RetFn, OpFn>(
         self,
         return_fn: RetFn,
         operation_fn: OpFn,
@@ -609,7 +612,8 @@ impl<E: EffectusAlgebraicus> HandlerConfig<E> {
     }
 
     /// Build an identity handler.
-    pub fn identity(self) -> IdentityHandler {
+    #[must_use]
+    pub const fn identity(self) -> IdentityHandler {
         IdentityHandler
     }
 }
@@ -636,7 +640,7 @@ mod tests {
 
     impl TestHandler {
         fn new(initial: i32) -> Self {
-            TestHandler { state: initial }
+            Self { state: initial }
         }
     }
 
@@ -715,7 +719,7 @@ mod tests {
         let op = Operatio::new(TestOp::GetValue);
         match op.effect() {
             TestOp::GetValue => {}
-            _ => panic!("Wrong operation"),
+            TestOp::SetValue(_) => panic!("Wrong operation"),
         }
     }
 

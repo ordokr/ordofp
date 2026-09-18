@@ -108,7 +108,7 @@ pub(crate) struct SlotCustos<A> {
 impl<A> SlotCustos<A> {
     /// Guard `fut`, restoring it to `slot` if dropped while still armed.
     pub(crate) fn new(fut: BoxFuture<A>, slot: FutureSlot<A>) -> Self {
-        SlotCustos {
+        Self {
             fut: Some(fut),
             slot,
         }
@@ -146,7 +146,7 @@ pub(crate) struct CedeSemel {
 }
 
 /// Yield to the executor once. *Cede semel* = yield once.
-pub(crate) fn cede_semel() -> CedeSemel {
+pub(crate) const fn cede_semel() -> CedeSemel {
     CedeSemel { yielded: false }
 }
 

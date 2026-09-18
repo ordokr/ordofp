@@ -10,17 +10,10 @@
 
 use ordofp_core::prelude::*;
 
-fn main() {
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║           Welcome to OrdoFP - Functional Programming         ║");
-    println!("║              for Rust with Effect Tracking                   ║");
-    println!("╚══════════════════════════════════════════════════════════════╝");
-    println!();
+// Type aliases make complex types readable
+type PersonData = HList![String, u32, bool];
 
-    // =========================================================================
-    // PART 1: HList - Heterogeneous Lists
-    // =========================================================================
-
+fn part1_hlist() {
     println!("━━━ Part 1: HList (Heterogeneous Lists) ━━━");
     println!();
 
@@ -31,29 +24,31 @@ fn main() {
     println!("   Second element: {}", my_list.tail.head);
     println!();
 
-    // Type aliases make complex types readable
-    type PersonData = HList![String, u32, bool];
     let person: PersonData = hlist!["Alice".to_string(), 30, true];
     println!(
         "   Person data: ({}, {}, {})",
         person.head, person.tail.head, person.tail.tail.head
     );
     println!();
+}
 
-    // =========================================================================
-    // PART 2: Optics - Lens, Prism, Iso
-    // =========================================================================
-
-    println!("━━━ Part 2: Optics (Lens, Prism, Iso) ━━━");
-    println!();
-
-    // Lens: Focus on a field in a struct
+fn part2_optics() {
     #[derive(Clone, Debug)]
     struct User {
         name: String,
         age: u32,
     }
 
+    #[derive(Clone, Debug, PartialEq)]
+    enum Result2<T, E> {
+        Ok(T),
+        Err(E),
+    }
+
+    println!("━━━ Part 2: Optics (Lens, Prism, Iso) ━━━");
+    println!();
+
+    // Lens: Focus on a field in a struct
     let name_lens = lens(
         |u: &User| u.name.clone(),
         |u: &User, name: String| User { name, age: u.age },
@@ -72,12 +67,6 @@ fn main() {
     println!();
 
     // Prism: Focus on a variant in an enum
-    #[derive(Clone, Debug, PartialEq)]
-    enum Result2<T, E> {
-        Ok(T),
-        Err(E),
-    }
-
     let ok_prism = prism(
         |r: &Result2<i32, &str>| match r {
             Result2::Ok(v) => Some(*v),
@@ -87,15 +76,14 @@ fn main() {
     );
 
     let success = Result2::Ok(42);
-    let _failure: Result2<i32, &str> = Result2::Err("error"); // Demonstrate Err variant
+    let failure: Result2<i32, &str> = Result2::Err("error");
     println!("   Prism preview Ok(42): {:?}", ok_prism.preview(&success));
+    println!("   Prism preview Err(_): {:?}", ok_prism.preview(&failure));
     println!("   Prism review 100: {:?}", ok_prism.review(100));
     println!();
+}
 
-    // =========================================================================
-    // PART 3: Either/Aut - Sum Types
-    // =========================================================================
-
+fn part3_aut() {
     println!("━━━ Part 3: Either/Aut (Sum Types) ━━━");
     println!();
 
@@ -108,10 +96,14 @@ fn main() {
     println!("   Is success right? {}", success.is_dexter());
     println!("   Is failure left? {}", failure.is_sinister());
     println!();
+}
 
-    // =========================================================================
-    // PART 4: Easy API - Simplified Effect Handling
-    // =========================================================================
+fn part4_easy_api() {
+    #[derive(Clone)]
+    struct Config {
+        multiplier: i32,
+        offset: i32,
+    }
 
     println!("━━━ Part 4: Easy API (Simplified Effects) ━━━");
     println!();
@@ -126,12 +118,6 @@ fn main() {
     println!("   State computation: 0 -> +1 -> +2 -> *3 = {counter_result}");
 
     // Reader/Config pattern
-    #[derive(Clone)]
-    struct Config {
-        multiplier: i32,
-        offset: i32,
-    }
-
     let config = Config {
         multiplier: 2,
         offset: 10,
@@ -159,11 +145,9 @@ fn main() {
     let fallback_result: Result<i32, &str> = fallback(|| Err("primary failed"), || Ok(100));
     println!("   Fallback result: {fallback_result:?}");
     println!();
+}
 
-    // =========================================================================
-    // PART 5: IO Computations
-    // =========================================================================
-
+fn part5_io() {
     println!("━━━ Part 5: IO Computations ━━━");
     println!();
 
@@ -181,11 +165,9 @@ fn main() {
 
     println!("   Chained IO (10 -> *2 -> +22): {}", chained.run());
     println!();
+}
 
-    // =========================================================================
-    // PART 6: Arena Allocation
-    // =========================================================================
-
+fn part6_arena() {
     println!("━━━ Part 6: Arena Allocation ━━━");
     println!();
 
@@ -202,11 +184,9 @@ fn main() {
     println!("   Arena computation result: {arena_result}");
     println!("   (All arena allocations freed automatically)");
     println!();
+}
 
-    // =========================================================================
-    // PART 7: Combinators
-    // =========================================================================
-
+fn part7_combinators() {
     println!("━━━ Part 7: Combinators ━━━");
     println!();
 
@@ -224,14 +204,14 @@ fn main() {
     println!("   when(42 > 0) = \"{conditional}\"");
 
     // Repeat a computation
-    let squares: Vec<i32> = repeat(5, |i| (i * i) as i32);
+    let squares: Vec<i32> = repeat(5, |i| {
+        i32::try_from(i * i).expect("squared input fits in i32")
+    });
     println!("   repeat(5, i^2) = {squares:?}");
     println!();
+}
 
-    // =========================================================================
-    // SUMMARY
-    // =========================================================================
-
+fn print_summary() {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║                     OrdoFP Features Summary                   ║");
     println!("╠══════════════════════════════════════════════════════════════╣");
@@ -248,4 +228,60 @@ fn main() {
     println!("║    cargo run --example 10_vernacular_api                     ║");
     println!("║    cargo run --example 11_effects_intro --features async     ║");
     println!("╚══════════════════════════════════════════════════════════════╝");
+}
+
+fn main() {
+    println!("╔══════════════════════════════════════════════════════════════╗");
+    println!("║           Welcome to OrdoFP - Functional Programming         ║");
+    println!("║              for Rust with Effect Tracking                   ║");
+    println!("╚══════════════════════════════════════════════════════════════╝");
+    println!();
+
+    // =========================================================================
+    // PART 1: HList - Heterogeneous Lists
+    // =========================================================================
+
+    part1_hlist();
+
+    // =========================================================================
+    // PART 2: Optics - Lens, Prism, Iso
+    // =========================================================================
+
+    part2_optics();
+
+    // =========================================================================
+    // PART 3: Either/Aut - Sum Types
+    // =========================================================================
+
+    part3_aut();
+
+    // =========================================================================
+    // PART 4: Easy API - Simplified Effect Handling
+    // =========================================================================
+
+    part4_easy_api();
+
+    // =========================================================================
+    // PART 5: IO Computations
+    // =========================================================================
+
+    part5_io();
+
+    // =========================================================================
+    // PART 6: Arena Allocation
+    // =========================================================================
+
+    part6_arena();
+
+    // =========================================================================
+    // PART 7: Combinators
+    // =========================================================================
+
+    part7_combinators();
+
+    // =========================================================================
+    // SUMMARY
+    // =========================================================================
+
+    print_summary();
 }

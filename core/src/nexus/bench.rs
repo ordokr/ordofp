@@ -57,8 +57,9 @@ pub struct Measurement {
 impl Measurement {
     /// Create a new measurement.
     #[inline]
-    pub fn new(iterations: u64, correct: bool) -> Self {
-        Measurement {
+    #[must_use]
+    pub const fn new(iterations: u64, correct: bool) -> Self {
+        Self {
             iterations,
             correct,
         }
@@ -269,8 +270,9 @@ impl OverheadReport {
     /// * `actual`  — Measured overhead as a fraction.  Values ≤ `target`
     ///   cause `meets_target` to be `true`.
     #[inline]
+    #[must_use]
     pub fn new(pattern: &'static str, target: f64, actual: f64) -> Self {
-        OverheadReport {
+        Self {
             pattern,
             target,
             meets_target: actual <= target,

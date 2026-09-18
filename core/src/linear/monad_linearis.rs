@@ -56,7 +56,7 @@ pub trait MonadLinearis: FunctorLinearis {
 impl<T> MonadLinearis for Linearis<T> {
     #[inline]
     fn purus_linear(value: T) -> Self {
-        Linearis::new(value)
+        Self::new(value)
     }
 
     #[inline]

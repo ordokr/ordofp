@@ -25,14 +25,14 @@ fn combine_option_string(c: &mut Criterion) {
 }
 
 fn std_add_option_string(c: &mut Criterion) {
-    let x: Option<String> = Some("hello".to_owned());
-    let y: Option<String> = Some(" world".to_owned());
+    let left: Option<String> = Some("hello".to_owned());
+    let right: Option<String> = Some(" world".to_owned());
     c.bench_function("std_add_option_string", |b| {
         b.iter(|| {
             // cloning is required otherwise we get `cannot move out of captured outer variable in an `FnMut` closure` errors
-            let a = x.clone();
-            let b = y.clone();
-            black_box(a.and_then(|first| b.map(|second| first + &second)))
+            let left_copy = left.clone();
+            let right_copy = right.clone();
+            black_box(left_copy.and_then(|first| right_copy.map(|second| first + &second)))
         });
     });
 }

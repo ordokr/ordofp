@@ -16,7 +16,7 @@ use std::vec::Vec;
 struct Rng(u64);
 impl Rng {
     fn new(seed: u64) -> Self {
-        Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
+        Self(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
     }
     fn next_u64(&mut self) -> u64 {
         let mut x = self.0;
@@ -27,7 +27,15 @@ impl Rng {
         x.wrapping_mul(0x2545_F491_4F6C_DD1D)
     }
     fn below(&mut self, n: u32) -> u32 {
-        (self.next_u64() % u64::from(n)) as u32
+        u32::try_from(self.next_u64() % u64::from(n))
+            .expect("remainder is less than the u32 modulus")
+    }
+
+    /// A uniformly random `i32` from the low 32 bits of the generator.
+    fn next_i32(&mut self) -> i32 {
+        u32::try_from(self.next_u64() & u64::from(u32::MAX))
+            .expect("masked to low 32 bits")
+            .cast_signed()
     }
 }
 
@@ -87,7 +95,7 @@ fn ordmap_model_check_vs_std() {
         let mut ours: OrdMap<i32, i32> = OrdMap::new();
         let mut oracle: BTreeMap<i32, i32> = BTreeMap::new();
         for step in 0..STEPS {
-            let k = rng.below(KEY_SPACE as u32) as i32;
+            let k = rng.below(KEY_SPACE as u32).cast_signed();
             let remove = if step > STEPS / 2 {
                 rng.below(3) != 0
             } else {
@@ -97,7 +105,7 @@ fn ordmap_model_check_vs_std() {
                 ours = ours.remove(&k);
                 oracle.remove(&k);
             } else {
-                let v = rng.next_u64() as i32;
+                let v = rng.next_i32();
                 ours = ours.insert(k, v);
                 oracle.insert(k, v);
             }
@@ -168,7 +176,7 @@ fn ordset_model_check_vs_std() {
         let mut ours: OrdSet<i32> = OrdSet::new();
         let mut oracle: BTreeSet<i32> = BTreeSet::new();
         for step in 0..STEPS {
-            let x = rng.below(KEY_SPACE as u32) as i32;
+            let x = rng.below(KEY_SPACE as u32).cast_signed();
             let remove = if step > STEPS / 2 {
                 rng.below(3) != 0
             } else {
@@ -250,7 +258,7 @@ fn seq_model_check_vs_std() {
                 rng.below(2) == 0
             };
             if push {
-                let v = rng.next_u64() as i32;
+                let v = rng.next_i32();
                 if rng.below(2) == 0 {
                     ours = ours.push_front(v);
                     oracle.push_front(v);
@@ -369,7 +377,7 @@ fn deque_model_check_vs_std() {
                 rng.below(2) == 0
             };
             if push {
-                let v = rng.next_u64() as i32;
+                let v = rng.next_i32();
                 if rng.below(2) == 0 {
                     ours = ours.push_front(v);
                     oracle.push_front(v);

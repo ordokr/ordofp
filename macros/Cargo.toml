@@ -8,6 +8,7 @@ description = "Derive and procedural macros for OrdoFP (Universalis, NominataUni
 license = "Apache-2.0"
 documentation = "https://docs.rs/ordofp_macros"
 repository = "https://github.com/ordokr/ordofp"
+readme = "../README.md"
 keywords = ["derive", "macros", "functional", "hlist"]
 categories = ["development-tools::procedural-macro-helpers"]
 

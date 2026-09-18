@@ -73,7 +73,7 @@ impl<A, M: Usage> MonasLinearis<M> for Qtt<A, M> {
 
     #[inline]
     fn purus(value: A) -> Self {
-        Qtt::new(value)
+        Self::new(value)
     }
 
     #[inline]
@@ -113,16 +113,16 @@ pub struct QttMonad<A, M: Usage> {
 impl<A, M: Usage> QttMonad<A, M> {
     /// Create a pure `QttMonad`.
     #[inline]
-    pub fn purus(value: A) -> Self {
-        QttMonad {
+    pub const fn purus(value: A) -> Self {
+        Self {
             value: Qtt::new(value),
         }
     }
 
     /// Create from an existing Qtt.
     #[inline]
-    pub fn from_qtt(qtt: Qtt<A, M>) -> Self {
-        QttMonad { value: qtt }
+    pub const fn from_qtt(qtt: Qtt<A, M>) -> Self {
+        Self { value: qtt }
     }
 
     /// Run the monad, extracting the value.
@@ -182,8 +182,9 @@ where
     Qtt<A, M>: Clone,
 {
     /// Duplicate the monad if the multiplicity allows.
-    pub fn dup(&self) -> QttMonad<A, M> {
-        QttMonad {
+    #[must_use]
+    pub fn dup(&self) -> Self {
+        Self {
             value: self.value.clone(),
         }
     }
@@ -195,7 +196,7 @@ where
 
 /// Create a pure quantitative value.
 #[inline]
-pub fn purus_qtt<A, M: Usage>(value: A) -> Qtt<A, M> {
+pub const fn purus_qtt<A, M: Usage>(value: A) -> Qtt<A, M> {
     Qtt::new(value)
 }
 

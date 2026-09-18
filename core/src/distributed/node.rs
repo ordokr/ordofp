@@ -31,36 +31,44 @@ pub struct NodusIdentitas {
 
 impl NodusIdentitas {
     /// Create a new node ID from two 64-bit values.
+    #[must_use]
     pub const fn new(alta: u64, ima: u64) -> Self {
-        NodusIdentitas { alta, ima }
+        Self { alta, ima }
     }
 
     /// Create from a 128-bit value.
-    // Both casts intentionally split `value` into its high/low 64-bit
-    // halves; no bits are discarded (`to_u128` reconstructs the original
-    // value exactly), so the truncation clippy warns about is by design.
-    #[allow(clippy::cast_possible_truncation)]
+    // Split into high/low 64-bit halves (`to_u128` reconstructs the
+    // original value exactly).
+    #[must_use]
     pub const fn from_u128(value: u128) -> Self {
-        NodusIdentitas {
-            alta: (value >> 64) as u64,
-            ima: value as u64,
+        let (low, high) = crate::hints::split_u128_limbs(value);
+        Self {
+            alta: high,
+            ima: low,
         }
     }
 
     /// Convert to 128-bit value.
+    #[must_use]
     pub const fn to_u128(&self) -> u128 {
         ((self.alta as u128) << 64) | (self.ima as u128)
     }
 
     /// Nil/zero ID.
-    pub const NIL: Self = NodusIdentitas { alta: 0, ima: 0 };
+    pub const NIL: Self = Self { alta: 0, ima: 0 };
 
     /// Check if this is the nil ID.
+    #[must_use]
     pub const fn is_nil(&self) -> bool {
         self.alta == 0 && self.ima == 0
     }
 
     /// Generate a random node ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the system time does not fit in `u64` nanoseconds
+    /// (i.e. past the year 2554).
     #[cfg(feature = "std")]
     pub fn generate() -> Self {
         use core::sync::atomic::{AtomicU64, Ordering};
@@ -68,14 +76,15 @@ impl NodusIdentitas {
 
         // Timestamp + counter suffices for a single-process discriminator;
         // add a hostname hash if IDs must be unique across hosts.
-        #[allow(clippy::cast_possible_truncation)] // nanos-since-epoch fits
-        // u64 until ~2554 (u64::MAX ns is ~584 years), which safely outlives
-        // any process using this as a node-ID discriminator.
+        // Nanos-since-epoch fits u64 until ~2554 (u64::MAX ns is ~584 years),
+        // which safely outlives any process using this as a node-ID discriminator.
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_nanos() as u64);
+            .map_or(0, |d| {
+                u64::try_from(d.as_nanos()).expect("system time fits in u64 nanoseconds")
+            });
 
-        NodusIdentitas {
+        Self {
             alta: timestamp,
             ima: COUNTER.fetch_add(1, Ordering::SeqCst),
         }
@@ -115,7 +124,7 @@ pub struct InscriptioNodi {
 impl InscriptioNodi {
     /// Create a new node address.
     pub fn new(hospes: impl Into<String>, portus: u16) -> Self {
-        InscriptioNodi {
+        Self {
             hospes: hospes.into(),
             portus,
             schema: ProtocollumSchema::Grpc,
@@ -124,7 +133,7 @@ impl InscriptioNodi {
 
     /// Create with explicit protocol.
     pub fn with_schema(hospes: impl Into<String>, portus: u16, schema: ProtocollumSchema) -> Self {
-        InscriptioNodi {
+        Self {
             hospes: hospes.into(),
             portus,
             schema,
@@ -132,6 +141,7 @@ impl InscriptioNodi {
     }
 
     /// Format as URI string.
+    #[must_use]
     pub fn to_uri(&self) -> String {
         let schema = match self.schema {
             ProtocollumSchema::Grpc => "grpc",
@@ -195,8 +205,9 @@ pub struct InformationesNodi {
 impl InformationesNodi {
     /// Create basic node info.
     #[inline]
+    #[must_use]
     pub fn new(identitas: NodusIdentitas, inscriptio: InscriptioNodi) -> Self {
-        InformationesNodi {
+        Self {
             identitas,
             inscriptio,
             munus: MunusNodi::Executor,
@@ -208,12 +219,14 @@ impl InformationesNodi {
     }
 
     /// Set node role.
-    pub fn with_role(mut self, munus: MunusNodi) -> Self {
+    #[must_use]
+    pub const fn with_role(mut self, munus: MunusNodi) -> Self {
         self.munus = munus;
         self
     }
 
     /// Add a label.
+    #[must_use]
     pub fn with_label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.tituli.push((key.into(), value.into()));
         self
@@ -221,13 +234,15 @@ impl InformationesNodi {
 
     /// Check if node is healthy.
     #[inline]
-    pub fn is_healthy(&self) -> bool {
+    #[must_use]
+    pub const fn is_healthy(&self) -> bool {
         matches!(self.status, StatusNodi::Sanus)
     }
 
     /// Check if node can execute computations.
     #[inline]
-    pub fn can_execute(&self) -> bool {
+    #[must_use]
+    pub const fn can_execute(&self) -> bool {
         self.is_healthy()
             && matches!(
                 self.munus,
@@ -258,11 +273,11 @@ pub enum MunusNodi {
 impl fmt::Display for MunusNodi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MunusNodi::Coordinator => write!(f, "coordinator"),
-            MunusNodi::Executor => write!(f, "executor"),
-            MunusNodi::All => write!(f, "all"),
-            MunusNodi::Porta => write!(f, "gateway"),
-            MunusNodi::Repositorium => write!(f, "storage"),
+            Self::Coordinator => write!(f, "coordinator"),
+            Self::Executor => write!(f, "executor"),
+            Self::All => write!(f, "all"),
+            Self::Porta => write!(f, "gateway"),
+            Self::Repositorium => write!(f, "storage"),
         }
     }
 }
@@ -292,21 +307,22 @@ pub enum StatusNodi {
 
 impl StatusNodi {
     /// Check if the node can accept new work.
-    pub fn can_accept_work(&self) -> bool {
-        matches!(self, StatusNodi::Sanus)
+    #[must_use]
+    pub const fn can_accept_work(&self) -> bool {
+        matches!(self, Self::Sanus)
     }
 }
 
 impl fmt::Display for StatusNodi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StatusNodi::Unknown => write!(f, "unknown"),
-            StatusNodi::Sanus => write!(f, "healthy"),
-            StatusNodi::Surgit => write!(f, "starting"),
-            StatusNodi::Descendit => write!(f, "stopping"),
-            StatusNodi::Aegrotus => write!(f, "unhealthy"),
-            StatusNodi::Inaccessibilis => write!(f, "unreachable"),
-            StatusNodi::Exhaurit => write!(f, "draining"),
+            Self::Unknown => write!(f, "unknown"),
+            Self::Sanus => write!(f, "healthy"),
+            Self::Surgit => write!(f, "starting"),
+            Self::Descendit => write!(f, "stopping"),
+            Self::Aegrotus => write!(f, "unhealthy"),
+            Self::Inaccessibilis => write!(f, "unreachable"),
+            Self::Exhaurit => write!(f, "draining"),
         }
     }
 }
@@ -340,6 +356,7 @@ pub struct FacultatesNodi {
 impl FacultatesNodi {
     /// Calculate load factor (0.0 - 1.0).
     #[inline]
+    #[must_use]
     pub fn load_factor(&self) -> f64 {
         if self.munera_maxima == 0 {
             1.0
@@ -350,12 +367,14 @@ impl FacultatesNodi {
 
     /// Check if node has capacity for more work.
     #[inline]
-    pub fn has_capacity(&self) -> bool {
+    #[must_use]
+    pub const fn has_capacity(&self) -> bool {
         self.munera_currentia < self.munera_maxima
     }
 
     /// Check if node can handle a specific effect.
     #[inline]
+    #[must_use]
     pub fn can_handle_effect(&self, effect_id: u64) -> bool {
         self.effectus_tractati.contains(&effect_id)
     }
@@ -404,65 +423,65 @@ pub enum AffinitasNodi {
     Facultates(RequirementaFacultatum),
 
     /// Weighted preferences.
-    Ponderata(Vec<(AffinitasNodi, u32)>),
+    Ponderata(Vec<(Self, u32)>),
 
     /// Anti-affinity (avoid these nodes).
-    Non(Box<AffinitasNodi>),
+    Non(Box<Self>),
 }
 
 impl AffinitasNodi {
     /// Check if a node matches this affinity.
+    #[must_use]
     pub fn matches(&self, node: &InformationesNodi) -> bool {
         match self {
-            AffinitasNodi::Quodlibet => true,
-            AffinitasNodi::Localis => false, // Must be handled by caller
-            AffinitasNodi::Nodus(id) => node.identitas == *id,
-            AffinitasNodi::Tituli(labels) => labels
+            Self::Quodlibet => true,
+            Self::Localis => false, // Must be handled by caller
+            Self::Nodus(id) => node.identitas == *id,
+            Self::Tituli(labels) => labels
                 .iter()
                 .all(|(k, v)| node.tituli.iter().any(|(nk, nv)| nk == k && nv == v)),
-            AffinitasNodi::Regio(region) => {
-                node.tituli.iter().any(|(k, v)| k == "regio" && v == region)
-            }
-            AffinitasNodi::Facultates(req) => req.satisfies(&node.facultates),
-            AffinitasNodi::Ponderata(affinities) => affinities.iter().any(|(a, _)| a.matches(node)),
-            AffinitasNodi::Non(inner) => !inner.matches(node),
+            Self::Regio(region) => node.tituli.iter().any(|(k, v)| k == "regio" && v == region),
+            Self::Facultates(req) => req.satisfies(&node.facultates),
+            Self::Ponderata(affinities) => affinities.iter().any(|(a, _)| a.matches(node)),
+            Self::Non(inner) => !inner.matches(node),
         }
     }
 
     /// Calculate affinity score for a node (higher is better).
+    #[must_use]
     pub fn score(&self, node: &InformationesNodi) -> u32 {
         match self {
-            AffinitasNodi::Quodlibet => 1,
-            AffinitasNodi::Localis => 0, // Must be handled by caller
-            AffinitasNodi::Nodus(id) => {
+            Self::Quodlibet => 1,
+            Self::Localis => 0, // Must be handled by caller
+            Self::Nodus(id) => {
                 if node.identitas == *id {
                     100
                 } else {
                     0
                 }
             }
-            AffinitasNodi::Tituli(labels) => {
+            Self::Tituli(labels) => {
                 let matching = labels
                     .iter()
                     .filter(|(k, v)| node.tituli.iter().any(|(nk, nv)| nk == k && nv == v))
                     .count();
-                (matching * 10) as u32
+                u32::try_from(matching * 10).unwrap_or(u32::MAX)
             }
-            AffinitasNodi::Regio(region) => {
+            Self::Regio(region) => {
                 if node.tituli.iter().any(|(k, v)| k == "regio" && v == region) {
                     50
                 } else {
                     0
                 }
             }
-            AffinitasNodi::Facultates(req) => {
+            Self::Facultates(req) => {
                 if req.satisfies(&node.facultates) {
                     30
                 } else {
                     0
                 }
             }
-            AffinitasNodi::Ponderata(affinities) => affinities
+            Self::Ponderata(affinities) => affinities
                 .iter()
                 // A score is a ranking value, not an exact quantity — on
                 // overflow, saturating to u32::MAX still ranks this
@@ -471,7 +490,7 @@ impl AffinitasNodi {
                 .map(|(a, weight)| a.score(node).saturating_mul(*weight))
                 .max()
                 .unwrap_or(0),
-            AffinitasNodi::Non(inner) => {
+            Self::Non(inner) => {
                 if inner.matches(node) {
                     0
                 } else {
@@ -497,6 +516,7 @@ pub struct RequirementaFacultatum {
 
 impl RequirementaFacultatum {
     /// Check if capabilities satisfy requirements.
+    #[must_use]
     pub fn satisfies(&self, cap: &FacultatesNodi) -> bool {
         if let Some(min_cpu) = self.nuclei_cpu_min
             && cap.nuclei_cpu < min_cpu

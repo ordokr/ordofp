@@ -82,7 +82,8 @@ impl Absurdum {
     /// }
     /// ```
     #[inline]
-    pub fn absurd<T>(self) -> T {
+    #[must_use]
+    pub const fn absurd<T>(self) -> T {
         match self {}
     }
 }
@@ -130,8 +131,9 @@ pub struct Unitas(());
 impl Unitas {
     /// The single value of the unit type.
     #[inline]
+    #[must_use]
     pub const fn unit() -> Self {
-        Unitas(())
+        Self(())
     }
 
     /// Extract the inner `()`.
@@ -144,15 +146,16 @@ impl Unitas {
     ///
     /// This is the unique morphism from any type to the terminal object.
     #[inline]
+    #[must_use]
     pub fn from_any<T>(_: T) -> Self {
-        Unitas(())
+        Self(())
     }
 }
 
 impl From<()> for Unitas {
     #[inline]
     fn from((): ()) -> Self {
-        Unitas(())
+        Self(())
     }
 }
 
@@ -198,14 +201,16 @@ pub struct Phantasma<T>(PhantomData<T>);
 impl<T> Phantasma<T> {
     /// Create a new phantom marker.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
-        Phantasma(PhantomData)
+        Self(PhantomData)
     }
 
     /// Convert to a different phantom type.
     ///
     /// This is safe because phantom types have no runtime representation.
     #[inline]
+    #[must_use]
     pub const fn transmute<U>(self) -> Phantasma<U> {
         Phantasma(PhantomData)
     }

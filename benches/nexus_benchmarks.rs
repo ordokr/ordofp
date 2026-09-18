@@ -34,11 +34,11 @@ mod handwritten {
 
     impl<S: 'static, A: 'static> State<S, A> {
         pub fn new<F: FnOnce(S) -> (A, S) + 'static>(f: F) -> Self {
-            State(Box::new(f))
+            Self(Box::new(f))
         }
 
         pub fn pure(value: A) -> Self {
-            State::new(move |s| (value, s))
+            Self::new(move |s| (value, s))
         }
 
         pub fn run(self, initial: S) -> (A, S) {
@@ -85,8 +85,8 @@ mod handwritten {
     }
 
     impl<W, A> Writer<W, A> {
-        pub fn new(value: A) -> Self {
-            Writer {
+        pub const fn new(value: A) -> Self {
+            Self {
                 value,
                 log: Vec::new(),
             }
@@ -100,7 +100,7 @@ mod handwritten {
         }
 
         pub fn and_then<B, F: FnOnce(A) -> Writer<W, B>>(self, f: F) -> Writer<W, B> {
-            let Writer { value, mut log } = self;
+            let Self { value, mut log } = self;
             let mut next = f(value);
             log.append(&mut next.log);
             Writer {
@@ -431,7 +431,7 @@ fn bench_region_vs_heap(c: &mut Criterion) {
                 sum += *b;
                 boxes.push(b);
             }
-            black_box(sum)
+            black_box((sum, boxes))
         });
     });
 
@@ -482,7 +482,7 @@ fn bench_region_vs_heap(c: &mut Criterion) {
                 total_len += s.len();
                 strings.push(s);
             }
-            black_box(total_len)
+            black_box((total_len, strings))
         });
     });
 
@@ -602,7 +602,7 @@ fn bench_throughput(c: &mut Criterion) {
                     with_region_capacity(size * 8, |region| {
                         let mut sum = 0i32;
                         for i in 0..size {
-                            sum += *region.alloc(i as i32);
+                            sum += *region.alloc(i32::try_from(i).expect("loop index fits in i32"));
                         }
                         black_box(sum)
                     })
@@ -614,7 +614,7 @@ fn bench_throughput(c: &mut Criterion) {
             b.iter(|| {
                 let mut comp = ErrorComputation::<String, i32>::ok(0);
                 for i in 0..size {
-                    comp = comp.map(move |x| x + i as i32);
+                    comp = comp.map(move |x| x + i32::try_from(i).expect("loop index fits in i32"));
                 }
                 black_box(comp.run())
             });
@@ -629,8 +629,6 @@ fn bench_throughput(c: &mut Criterion) {
 // =============================================================================
 
 fn bench_real_world(c: &mut Criterion) {
-    let mut group = c.benchmark_group("real_world");
-
     // Config-based computation (Reader pattern)
     #[derive(Clone)]
     struct AppConfig {
@@ -638,6 +636,8 @@ fn bench_real_world(c: &mut Criterion) {
         cache_ttl: i32,
         max_retries: i32,
     }
+
+    let mut group = c.benchmark_group("real_world");
 
     let app_config = AppConfig {
         db_pool_size: 10,

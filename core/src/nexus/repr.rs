@@ -31,19 +31,19 @@ pub struct PureRepr<A> {
 
 impl<A> PureRepr<A> {
     /// Create a new pure representation.
-    #[inline(always)]
+    #[inline]
     pub const fn new(value: A) -> Self {
-        PureRepr { value }
+        Self { value }
     }
 
     /// Extract the value.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> A {
         self.value
     }
 
     /// Map over the value.
-    #[inline(always)]
+    #[inline]
     pub fn map<B, F: FnOnce(A) -> B>(self, f: F) -> PureRepr<B> {
         PureRepr::new(f(self.value))
     }
@@ -67,7 +67,7 @@ impl<S: 'static, A: 'static> StateRepr<S, A> {
     /// Create a new state representation.
     #[inline]
     pub fn new<F: FnOnce(S) -> (A, S) + 'static>(f: F) -> Self {
-        StateRepr {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -96,6 +96,7 @@ impl<S: 'static, A: 'static> StateRepr<S, A> {
     /// assert_eq!(comp.run(10), (11, 10)); // result = 11, state unchanged
     /// ```
     #[inline]
+    #[must_use]
     pub fn get() -> StateRepr<S, S>
     where
         S: Clone,
@@ -153,7 +154,7 @@ impl<E: 'static, A: 'static> ReaderRepr<E, A> {
     /// Create a new reader representation.
     #[inline]
     pub fn new<F: FnOnce(&E) -> A + 'static>(f: F) -> Self {
-        ReaderRepr {
+        Self {
             run_fn: Box::new(f),
         }
     }
@@ -166,6 +167,7 @@ impl<E: 'static, A: 'static> ReaderRepr<E, A> {
 
     /// Get the environment.
     #[inline]
+    #[must_use]
     pub fn ask() -> ReaderRepr<E, E>
     where
         E: Clone,
@@ -176,7 +178,7 @@ impl<E: 'static, A: 'static> ReaderRepr<E, A> {
     /// Extract from the environment.
     #[inline]
     pub fn asks<F: FnOnce(&E) -> A + 'static>(f: F) -> Self {
-        ReaderRepr::new(f)
+        Self::new(f)
     }
 
     /// Map over the result.
@@ -210,15 +212,15 @@ pub struct ErrorRepr<E, A> {
 
 impl<E, A> ErrorRepr<E, A> {
     /// Create a success value.
-    #[inline(always)]
+    #[inline]
     pub const fn ok(value: A) -> Self {
-        ErrorRepr { result: Ok(value) }
+        Self { result: Ok(value) }
     }
 
     /// Create an error value.
-    #[inline(always)]
+    #[inline]
     pub const fn err(error: E) -> Self {
-        ErrorRepr { result: Err(error) }
+        Self { result: Err(error) }
     }
 
     /// Run the error computation.
@@ -229,7 +231,7 @@ impl<E, A> ErrorRepr<E, A> {
     /// failure (built via [`err`](Self::err) or a short-circuited
     /// `and_then` chain). The representation *is* the `Result`, so
     /// running adds no failure modes of its own.
-    #[inline(always)]
+    #[inline]
     pub fn run(self) -> Result<A, E> {
         self.result
     }
@@ -268,13 +270,14 @@ pub struct ContRepr<R: EffectRow, A> {
 impl<R: EffectRow + 'static, A: 'static> ContRepr<R, A> {
     /// Create from a pure value.
     pub fn pure(value: A) -> Self {
-        ContRepr {
+        Self {
             inner: Box::new(move || value),
             _marker: PhantomData,
         }
     }
 
     /// Run the computation.
+    #[must_use]
     pub fn run(self) -> A {
         (self.inner)()
     }

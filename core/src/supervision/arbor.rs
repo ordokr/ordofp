@@ -31,12 +31,13 @@ impl ArborId {
     /// Generate a new unique arbor ID.
     #[inline]
     pub fn new() -> Self {
-        ArborId(ARBOR_COUNTER.fetch_add(1, Ordering::Relaxed))
+        Self(ARBOR_COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Get the raw ID value.
     #[inline]
-    pub fn value(&self) -> u64 {
+    #[must_use]
+    pub const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -122,7 +123,7 @@ pub struct Arbor {
 impl Arbor {
     /// Create a new supervision tree.
     pub fn new(name: impl Into<String>) -> Self {
-        Arbor {
+        Self {
             id: ArborId::new(),
             name: name.into(),
             strategy: StrategiaSupervisionis::default(),
@@ -136,6 +137,7 @@ impl Arbor {
 
     /// Set the supervision strategy.
     #[inline]
+    #[must_use]
     pub fn with_strategy(mut self, strategy: StrategiaSupervisionis) -> Self {
         self.strategy = strategy;
         self
@@ -143,13 +145,15 @@ impl Arbor {
 
     /// Set the shutdown order.
     #[inline]
-    pub fn with_shutdown_order(mut self, order: OrdoTerminatio) -> Self {
+    #[must_use]
+    pub const fn with_shutdown_order(mut self, order: OrdoTerminatio) -> Self {
         self.shutdown_order = order;
         self
     }
 
     /// Add a child specification.
     #[inline]
+    #[must_use]
     pub fn add_child(mut self, spec: InfansSpec) -> Self {
         self.children_specs.push(spec);
         self
@@ -157,6 +161,7 @@ impl Arbor {
 
     /// Add multiple child specifications.
     #[inline]
+    #[must_use]
     pub fn add_children(mut self, specs: impl IntoIterator<Item = InfansSpec>) -> Self {
         self.children_specs.extend(specs);
         self
@@ -164,7 +169,7 @@ impl Arbor {
 
     /// Get the arbor ID.
     #[inline]
-    pub fn id(&self) -> ArborId {
+    pub const fn id(&self) -> ArborId {
         self.id
     }
 
@@ -176,19 +181,19 @@ impl Arbor {
 
     /// Get the current status.
     #[inline]
-    pub fn status(&self) -> StatusArbor {
+    pub const fn status(&self) -> StatusArbor {
         self.status
     }
 
     /// Get the number of children.
     #[inline]
-    pub fn child_count(&self) -> usize {
+    pub const fn child_count(&self) -> usize {
         self.children_specs.len()
     }
 
     /// Get the strategy.
     #[inline]
-    pub fn strategy(&self) -> &StrategiaSupervisionis {
+    pub const fn strategy(&self) -> &StrategiaSupervisionis {
         &self.strategy
     }
 
@@ -314,9 +319,8 @@ impl Arbor {
     pub fn shutdown_indices(&self) -> Vec<usize> {
         let count = self.children.len();
         match self.shutdown_order {
-            OrdoTerminatio::Primus => (0..count).collect(),
             OrdoTerminatio::Ultimus => (0..count).rev().collect(),
-            OrdoTerminatio::Simul => (0..count).collect(),
+            OrdoTerminatio::Primus | OrdoTerminatio::Simul => (0..count).collect(),
         }
     }
 
@@ -412,17 +416,25 @@ pub struct ArborSummary {
 impl ArborSummary {
     /// Check if all children are healthy (running).
     #[inline]
-    pub fn is_healthy(&self) -> bool {
+    #[must_use]
+    pub const fn is_healthy(&self) -> bool {
         self.running == self.total && self.failed == 0
     }
 
     /// Get the percentage of running children.
+    ///
+    /// # Panics
+    ///
+    /// Panics if child counts exceed `u32::MAX`.
     #[inline]
+    #[must_use]
     pub fn health_percentage(&self) -> f64 {
         if self.total == 0 {
             100.0
         } else {
-            (self.running as f64 / self.total as f64) * 100.0
+            (f64::from(u32::try_from(self.running).expect("child count fits in u32"))
+                / f64::from(u32::try_from(self.total).expect("child count fits in u32")))
+                * 100.0
         }
     }
 }
@@ -439,36 +451,41 @@ pub struct ArborBuilder {
 impl ArborBuilder {
     /// Create a new arbor builder.
     pub fn new(name: impl Into<String>) -> Self {
-        ArborBuilder {
+        Self {
             arbor: Arbor::new(name),
         }
     }
 
     /// Set the supervision strategy.
+    #[must_use]
     pub fn strategy(mut self, strategy: StrategiaSupervisionis) -> Self {
         self.arbor.strategy = strategy;
         self
     }
 
     /// Set the shutdown order.
-    pub fn shutdown_order(mut self, order: OrdoTerminatio) -> Self {
+    #[must_use]
+    pub const fn shutdown_order(mut self, order: OrdoTerminatio) -> Self {
         self.arbor.shutdown_order = order;
         self
     }
 
     /// Add a worker child.
+    #[must_use]
     pub fn worker(mut self, id: impl Into<String>) -> Self {
         self.arbor.children_specs.push(InfansSpec::worker(id));
         self
     }
 
     /// Add a supervisor child.
+    #[must_use]
     pub fn supervisor(mut self, id: impl Into<String>) -> Self {
         self.arbor.children_specs.push(InfansSpec::supervisor(id));
         self
     }
 
     /// Add a child with a custom specification.
+    #[must_use]
     pub fn child(mut self, spec: InfansSpec) -> Self {
         self.arbor.children_specs.push(spec);
         self

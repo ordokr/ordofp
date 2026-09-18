@@ -95,7 +95,7 @@ impl<R: EffectRow, A> Computatio<R, A> {
     where
         F: FnOnce() -> A + Send + 'static,
     {
-        Computatio {
+        Self {
             inner: Box::new(f),
             _row: PhantomData,
         }
@@ -115,6 +115,7 @@ impl<R: EffectRow, A> Computatio<R, A> {
     /// assert_eq!(comp.run(), 42);
     /// ```
     #[inline]
+    #[must_use]
     pub fn run(self) -> A {
         (self.inner)()
     }
@@ -137,7 +138,7 @@ impl<A: Send + 'static> Computatio<EffectSet<0>, A> {
     /// ```
     #[inline]
     pub fn purus(value: A) -> Self {
-        Computatio {
+        Self {
             inner: Box::new(move || value),
             _row: PhantomData,
         }
@@ -167,7 +168,7 @@ impl<const MASK: u128, A: Send + 'static> Computatio<EffectSet<MASK>, A> {
     where
         F: FnOnce() -> A + Send + 'static,
     {
-        Computatio {
+        Self {
             inner: Box::new(f),
             _row: PhantomData,
         }
@@ -213,6 +214,7 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let result = value.ap(func);
     /// assert_eq!(result.run(), 42);
     /// ```
+    #[must_use]
     pub fn ap<B: Send + 'static, F: FnOnce(A) -> B + Send + 'static>(
         self,
         func: Computatio<R, F>,
@@ -243,6 +245,7 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let result = first.then(second);
     /// assert_eq!(result.run(), 42);
     /// ```
+    #[must_use]
     pub fn then<B: Send + 'static>(self, other: Computatio<R, B>) -> Computatio<R, B> {
         let inner_self = self.inner;
         let inner_other = other.inner;
@@ -269,10 +272,11 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let result = first.before(second);
     /// assert_eq!(result.run(), 42);
     /// ```
-    pub fn before<B: Send + 'static>(self, other: Computatio<R, B>) -> Computatio<R, A> {
+    #[must_use]
+    pub fn before<B: Send + 'static>(self, other: Computatio<R, B>) -> Self {
         let inner_self = self.inner;
         let inner_other = other.inner;
-        Computatio {
+        Self {
             inner: Box::new(move || {
                 let a = (inner_self)();
                 let _ = (inner_other)();
@@ -329,9 +333,10 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let flat = nested.flatten();
     /// assert_eq!(flat.run(), 42);
     /// ```
-    pub fn flatten(self) -> Computatio<R, A>
+    #[must_use]
+    pub fn flatten(self) -> Self
     where
-        A: Into<Computatio<R, A>>,
+        A: Into<Self>,
     {
         self.bind(core::convert::Into::into)
     }
@@ -351,6 +356,7 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let lifted: Computatio<IoRow, i32> = pure.lift();
     /// assert_eq!(lifted.run(), 42);
     /// ```
+    #[must_use]
     pub fn lift<const SUPER: u128>(self) -> Computatio<EffectSet<SUPER>, A> {
         // Compile-time subset check, replacing the old `SubRow<SUPER>` bound.
         assert_subrow::<R, SUPER>();
@@ -372,6 +378,7 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
     /// let zipped = a.zip(b);
     /// assert_eq!(zipped.run(), (1, 2));
     /// ```
+    #[must_use]
     pub fn zip<B: Send + 'static>(self, other: Computatio<R, B>) -> Computatio<R, (A, B)> {
         let inner_self = self.inner;
         let inner_other = other.inner;
@@ -430,6 +437,7 @@ impl<R: EffectRow, A: Send + 'static> Computatio<R, A> {
 /// let combined: Computatio<EffectSet<0>, _> = combine_effectus(io, state);
 /// let _ = combined.run();
 /// ```
+#[must_use]
 pub fn combine_effectus<
     const M1: u128,
     const M2: u128,
@@ -470,6 +478,7 @@ pub fn combine_effectus<
 /// let sequenced = sequence(comps);
 /// assert_eq!(sequenced.run(), vec![1, 2, 3]);
 /// ```
+#[must_use]
 pub fn sequence<R: EffectRow, A: Send + 'static>(
     computations: alloc::vec::Vec<Computatio<R, A>>,
 ) -> Computatio<R, alloc::vec::Vec<A>> {

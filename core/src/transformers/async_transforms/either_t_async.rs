@@ -102,7 +102,7 @@ where
     where
         Fut: Future<Output = Result<A, E>> + Send + 'static,
     {
-        EitherTAsync {
+        Self {
             inner: Box::pin(fut),
         }
     }
@@ -134,7 +134,7 @@ where
     /// ```
     #[inline]
     pub fn right(value: A) -> Self {
-        EitherTAsync::new(async move { Ok(value) })
+        Self::new(async move { Ok(value) })
     }
 
     /// Create an `EitherTAsync` containing an error value.
@@ -164,7 +164,7 @@ where
     /// ```
     #[inline]
     pub fn left(err: E) -> Self {
-        EitherTAsync::new(async move { Err(err) })
+        Self::new(async move { Err(err) })
     }
 
     /// Alias for `right` - create a pure success value.
@@ -434,11 +434,12 @@ where
     /// assert_eq!(block_on(either.run()), Ok(0));
     /// ```
     #[inline]
-    pub fn handle_error<F>(self, handler: F) -> EitherTAsync<E, A>
+    #[must_use]
+    pub fn handle_error<F>(self, handler: F) -> Self
     where
-        F: FnOnce(E) -> EitherTAsync<E, A> + Send + 'static,
+        F: FnOnce(E) -> Self + Send + 'static,
     {
-        EitherTAsync::new(async move {
+        Self::new(async move {
             match self.inner.await {
                 Ok(a) => Ok(a),
                 Err(e) => handler(e).run().await,
@@ -472,9 +473,10 @@ where
     /// assert_eq!(block_on(with_default.run()), Ok(0));
     /// ```
     #[inline]
-    pub fn or_else<F>(self, default: F) -> EitherTAsync<E, A>
+    #[must_use]
+    pub fn or_else<F>(self, default: F) -> Self
     where
-        F: FnOnce(E) -> EitherTAsync<E, A> + Send + 'static,
+        F: FnOnce(E) -> Self + Send + 'static,
     {
         self.handle_error(default)
     }
@@ -505,14 +507,14 @@ where
         EitherTAsync::new(async move {
             match (self.inner.await, other.inner.await) {
                 (Ok(a), Ok(b)) => Ok(f(a, b)),
-                (Err(e), _) => Err(e),
-                (_, Err(e)) => Err(e),
+                (Err(e), _) | (_, Err(e)) => Err(e),
             }
         })
     }
 
     /// Sequence this computation before another, discarding the first result.
     #[inline]
+    #[must_use]
     pub fn then<B>(self, next: EitherTAsync<E, B>) -> EitherTAsync<E, B>
     where
         B: Send + 'static,
@@ -534,6 +536,7 @@ where
 
     /// Convert to Option, discarding the error.
     #[inline]
+    #[must_use]
     pub fn to_option(self) -> super::OptionTAsync<A> {
         super::OptionTAsync::new(async move { self.inner.await.ok() })
     }
@@ -565,12 +568,13 @@ where
     /// assert_eq!(result, Ok(5));
     /// ```
     #[inline]
-    pub fn ensure<F, G>(self, predicate: F, err: G) -> EitherTAsync<E, A>
+    #[must_use]
+    pub fn ensure<F, G>(self, predicate: F, err: G) -> Self
     where
         F: FnOnce(&A) -> bool + Send + 'static,
         G: FnOnce() -> E + Send + 'static,
     {
-        EitherTAsync::new(async move {
+        Self::new(async move {
             match self.inner.await {
                 Ok(a) if predicate(&a) => Ok(a),
                 Ok(_) => Err(err()),
@@ -581,6 +585,7 @@ where
 
     /// Swap the error and success types.
     #[inline]
+    #[must_use]
     pub fn swap(self) -> EitherTAsync<A, E> {
         EitherTAsync::new(async move {
             match self.inner.await {
@@ -595,7 +600,7 @@ where
 impl<E: Send + 'static, A: Send + 'static> From<Result<A, E>> for EitherTAsync<E, A> {
     #[inline]
     fn from(result: Result<A, E>) -> Self {
-        EitherTAsync::new(async move { result })
+        Self::new(async move { result })
     }
 }
 
@@ -611,7 +616,7 @@ where
     where
         Fut: Future<Output = Result<A, E>> + Send + 'static,
     {
-        EitherTAsync::new(fut)
+        Self::new(fut)
     }
 }
 

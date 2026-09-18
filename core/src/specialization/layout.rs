@@ -15,43 +15,51 @@ pub struct LayoutInfo<T> {
 
 impl<T> LayoutInfo<T> {
     /// Create layout info for a type.
+    #[must_use]
     pub const fn new() -> Self {
-        LayoutInfo {
+        Self {
             _marker: core::marker::PhantomData,
         }
     }
 
     /// Get the size of the type in bytes.
+    #[must_use]
     pub const fn size() -> usize {
         mem::size_of::<T>()
     }
 
     /// Get the alignment of the type in bytes.
+    #[must_use]
     pub const fn align() -> usize {
         mem::align_of::<T>()
     }
 
     /// Check if the type is zero-sized.
+    #[must_use]
     pub const fn is_zst() -> bool {
         mem::size_of::<T>() == 0
     }
 
     /// Check if the type fits in a register (typically 8 bytes or less).
+    #[must_use]
     pub const fn fits_in_register() -> bool {
         mem::size_of::<T>() <= mem::size_of::<usize>()
     }
 
     /// Check if the type fits in two registers.
+    #[must_use]
     pub const fn fits_in_two_registers() -> bool {
         mem::size_of::<T>() <= 2 * mem::size_of::<usize>()
     }
 
     /// Check if the type is pointer-sized.
+    #[must_use]
     pub const fn is_pointer_sized() -> bool {
         mem::size_of::<T>() == mem::size_of::<usize>()
     }
 
     /// Get the number of bytes needed for proper alignment.
+    #[must_use]
     pub const fn padding_needed(current_offset: usize) -> usize {
         let align = mem::align_of::<T>();
         let misalign = current_offset % align;
@@ -86,38 +94,39 @@ pub enum SizeCategory {
 
 impl SizeCategory {
     /// Categorize a size.
+    #[must_use]
     pub const fn from_size(size: usize) -> Self {
         if size == 0 {
-            SizeCategory::Zero
+            Self::Zero
         } else if size <= 8 {
-            SizeCategory::Tiny
+            Self::Tiny
         } else if size <= 32 {
-            SizeCategory::Small
+            Self::Small
         } else if size <= 256 {
-            SizeCategory::Medium
+            Self::Medium
         } else {
-            SizeCategory::Large
+            Self::Large
         }
     }
 
     /// Categorize a type.
+    #[must_use]
     pub const fn of<T>() -> Self {
         Self::from_size(mem::size_of::<T>())
     }
 
     /// Whether this category should be passed by value.
     #[inline]
+    #[must_use]
     pub const fn pass_by_value(self) -> bool {
-        matches!(
-            self,
-            SizeCategory::Zero | SizeCategory::Tiny | SizeCategory::Small
-        )
+        matches!(self, Self::Zero | Self::Tiny | Self::Small)
     }
 
     /// Whether this category benefits from inlining.
     #[inline]
+    #[must_use]
     pub const fn inline_beneficial(self) -> bool {
-        matches!(self, SizeCategory::Zero | SizeCategory::Tiny)
+        matches!(self, Self::Zero | Self::Tiny)
     }
 }
 
@@ -132,32 +141,37 @@ pub struct OptimizationHints<T> {
 
 impl<T> OptimizationHints<T> {
     /// Create optimization hints for a type.
+    #[must_use]
     pub const fn new() -> Self {
-        OptimizationHints {
+        Self {
             _marker: core::marker::PhantomData,
         }
     }
 
     /// Whether to pass this type by value.
     #[inline]
+    #[must_use]
     pub const fn pass_by_value() -> bool {
         SizeCategory::of::<T>().pass_by_value()
     }
 
     /// Whether to inline functions operating on this type.
     #[inline]
+    #[must_use]
     pub const fn should_inline() -> bool {
         SizeCategory::of::<T>().inline_beneficial()
     }
 
     /// Whether to box this type for storage.
     #[inline]
+    #[must_use]
     pub const fn should_box() -> bool {
         matches!(SizeCategory::of::<T>(), SizeCategory::Large)
     }
 
     /// Whether to use arena allocation.
     #[inline]
+    #[must_use]
     pub const fn use_arena() -> bool {
         matches!(
             SizeCategory::of::<T>(),
@@ -180,11 +194,13 @@ impl<T> Default for OptimizationHints<T> {
 pub const CACHE_LINE_SIZE: usize = 64;
 
 /// Check if a type fits within a cache line.
+#[must_use]
 pub const fn fits_in_cache_line<T>() -> bool {
     mem::size_of::<T>() <= CACHE_LINE_SIZE
 }
 
 /// Calculate how many instances of T fit in a cache line.
+#[must_use]
 pub const fn instances_per_cache_line<T>() -> usize {
     if mem::size_of::<T>() == 0 {
         usize::MAX
@@ -201,13 +217,13 @@ pub struct CacheAligned<T>(pub T);
 impl<T> CacheAligned<T> {
     /// Create a cache-aligned wrapper.
     pub const fn new(value: T) -> Self {
-        CacheAligned(value)
+        Self(value)
     }
 }
 
 impl<T: Default> Default for CacheAligned<T> {
     fn default() -> Self {
-        CacheAligned(T::default())
+        Self(T::default())
     }
 }
 

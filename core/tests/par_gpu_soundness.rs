@@ -33,6 +33,8 @@ mod tests {
 
     #[test]
     fn test_collect_ub() {
+        use ordofp_core::par::backend::Backend;
+
         // Only run if we can create a GPU device
         let Ok(backend) = GpuWgpu::new() else {
             println!("Skipping test: No GPU available");
@@ -42,7 +44,6 @@ mod tests {
         let node = EvilNode;
 
         // This should crash or produce UB if not protected
-        use ordofp_core::par::backend::Backend;
         let result: Vec<String> = backend.collect(&node);
         assert_eq!(result, vec!["safe fallback".to_string()]);
     }

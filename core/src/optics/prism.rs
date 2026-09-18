@@ -521,7 +521,7 @@ mod tests {
         let left_divisio: Divisio<Either<i32, String>, i32, _, _> = divisio(
             |e| match e {
                 Either::Left(l) => Some(*l),
-                _ => None,
+                Either::Right(_) => None,
             },
             Either::Left,
         );
@@ -539,7 +539,7 @@ mod tests {
         let left_divisio: Divisio<Either<i32, String>, i32, _, _> = divisio(
             |e| match e {
                 Either::Left(l) => Some(*l),
-                _ => None,
+                Either::Right(_) => None,
             },
             Either::Left,
         );
@@ -559,7 +559,7 @@ mod tests {
         let a_divisio: Divisio<Nested, Either<i32, String>, _, _> = divisio(
             |n| match n {
                 Nested::A(e) => Some(e.clone()),
-                _ => None,
+                Nested::B => None,
             },
             Nested::A,
         );
@@ -567,7 +567,7 @@ mod tests {
         let left_divisio: Divisio<Either<i32, String>, i32, _, _> = divisio(
             |e| match e {
                 Either::Left(l) => Some(*l),
-                _ => None,
+                Either::Right(_) => None,
             },
             Either::Left,
         );
@@ -588,7 +588,7 @@ mod tests {
     fn test_divisio_ref() {
         let left_ref: DivisioRef<Either<i32, String>, i32, _> = DivisioRef::new(|e| match e {
             Either::Left(l) => Some(l),
-            _ => None,
+            Either::Right(_) => None,
         });
 
         let left: Either<i32, String> = Either::Left(42);

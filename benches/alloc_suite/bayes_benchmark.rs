@@ -8,6 +8,7 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::{Rng, RngExt};
 use std::borrow::Cow;
+use std::cmp::Ordering;
 
 struct BenchModel;
 
@@ -45,7 +46,7 @@ impl TraceableModel<f64> for BenchModel {
 
             // Approximate standard normal from uniform
             // (u - 0.5) * sqrt(12) approx Normal(0, 1)
-            x += (u - 0.5) * 3.4641;
+            x = (u - 0.5).mul_add(3.4641, x);
         }
 
         let log_weight = -0.5 * x * x;
@@ -64,7 +65,7 @@ impl TraceableModel<f64> for BenchModel {
 
         for _ in 0..100 {
             if let Some(&v) = iter.next() {
-                x += (v - 0.5) * 3.4641;
+                x = (v - 0.5).mul_add(3.4641, x);
                 vars_len += 1;
             } else {
                 // Run out of variables, must sample new ones
@@ -80,27 +81,24 @@ impl TraceableModel<f64> for BenchModel {
                 if let Some(ref mut v) = new_vars {
                     v.push(u);
                 }
-                x += (u - 0.5) * 3.4641;
+                x = (u - 0.5).mul_add(3.4641, x);
             }
         }
 
         let log_weight = -0.5 * x * x;
 
-        if let Some(v) = new_vars {
-            (x, log_weight, Cow::Owned(v))
-        } else {
-            // No reallocation happened, so the input covered all 100 draws.
-            // execute_with_trace's contract: the returned trace holds exactly
-            // the variables used — borrow the input (or its consumed prefix).
-            if variables.len() == 100 {
-                (x, log_weight, Cow::Borrowed(variables))
-            } else if variables.len() > 100 {
-                (x, log_weight, Cow::Borrowed(&variables[0..100]))
-            } else {
+        // No reallocation happened, so the input covered all 100 draws.
+        // execute_with_trace's contract: the returned trace holds exactly
+        // the variables used — borrow the input (or its consumed prefix).
+        new_vars.map_or_else(
+            || match variables.len().cmp(&100) {
+                Ordering::Equal => (x, log_weight, Cow::Borrowed(variables)),
+                Ordering::Greater => (x, log_weight, Cow::Borrowed(&variables[0..100])),
                 // Should not happen if new_vars logic is correct
-                unreachable!()
-            }
-        }
+                Ordering::Less => unreachable!(),
+            },
+            |v| (x, log_weight, Cow::Owned(v)),
+        )
     }
 }
 

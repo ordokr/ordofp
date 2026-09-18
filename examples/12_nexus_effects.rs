@@ -67,14 +67,14 @@ fn example_state_counter() {
 
 #[cfg(feature = "nexus")]
 fn example_reader_config() {
-    println!("=== Example 2: Reader Effect ===\n");
-
     #[derive(Clone)]
     struct AppConfig {
         database_url: String,
         max_connections: i32,
         timeout_ms: i32,
     }
+
+    println!("=== Example 2: Reader Effect ===\n");
 
     let config = AppConfig {
         database_url: "postgres://localhost/mydb".to_string(),
@@ -114,8 +114,6 @@ fn example_reader_config() {
 
 #[cfg(feature = "nexus")]
 fn example_error_validation() {
-    println!("=== Example 3: Error Effect ===\n");
-
     #[derive(Debug, Clone)]
     struct User {
         name: String,
@@ -146,6 +144,8 @@ fn example_error_validation() {
             ErrorComputation::err("Age must be between 18 and 120".to_string())
         }
     }
+
+    println!("=== Example 3: Error Effect ===\n");
 
     // Valid user
     let valid_result = validate_name("Alice").and_then(|name| {
@@ -186,14 +186,14 @@ fn example_error_validation() {
 
 #[cfg(feature = "nexus")]
 fn example_writer_logging() {
-    println!("=== Example 4: Writer Effect ===\n");
-
     fn process_item(item: i32) -> WriterComputation<Vec<String>, i32> {
         WriterComputation::tell(vec![format!("Processing item: {}", item)]).and_then(move |()| {
             let result = item * 2;
             WriterComputation::tell(vec![format!("Result: {}", result)]).map(move |()| result)
         })
     }
+
+    println!("=== Example 4: Writer Effect ===\n");
 
     let computation = process_item(5).and_then(|r1| {
         process_item(r1).and_then(move |r2| {
@@ -338,13 +338,13 @@ fn example_checkpoint_resumable() {
 
 #[cfg(feature = "nexus")]
 fn example_combined_transaction() {
-    println!("=== Example 9: Combined Effects ===\n");
-
     #[derive(Clone)]
     struct Account {
         id: String,
         balance: i32,
     }
+
+    println!("=== Example 9: Combined Effects ===\n");
 
     // Simulate a transaction with state + error handling
     let transaction = StatefulComputation::<Account, Result<String, String>>::new(|account| {
@@ -392,14 +392,14 @@ fn example_combined_transaction() {
 
 #[cfg(feature = "nexus")]
 fn example_parser_pattern() {
-    println!("=== Example 10: Parser Pattern ===\n");
-
     #[derive(Debug)]
     enum Token<'a> {
         Identifier(&'a str),
         Number(i32),
         Operator(&'a str),
     }
+
+    println!("=== Example 10: Parser Pattern ===\n");
 
     // Parse a simple expression using region allocation
     let tokens = with_region(|region| {
@@ -409,13 +409,16 @@ fn example_parser_pattern() {
         let mut tokens = RegionVec::<Token>::with_capacity(region, 10);
 
         for part in input.split_whitespace() {
-            let token = if let Ok(n) = part.parse::<i32>() {
-                Token::Number(n)
-            } else if part == "+" || part == "*" || part == "-" || part == "/" {
-                Token::Operator(region.alloc_str(part))
-            } else {
-                Token::Identifier(region.alloc_str(part))
-            };
+            let token = part.parse::<i32>().map_or_else(
+                |_| {
+                    if part == "+" || part == "*" || part == "-" || part == "/" {
+                        Token::Operator(region.alloc_str(part))
+                    } else {
+                        Token::Identifier(region.alloc_str(part))
+                    }
+                },
+                Token::Number,
+            );
             tokens.push(token);
         }
 

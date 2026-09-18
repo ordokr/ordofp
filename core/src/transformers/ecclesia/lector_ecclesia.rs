@@ -84,6 +84,7 @@ impl<R, M> LectorEcclesiaT<R, M> {
 
     /// Ask for the environment (`ReaderT` operation).
     #[inline]
+    #[must_use]
     pub fn ask() -> LectorEcclesiaT<R, R>
     where
         R: Clone + Send + Sync + 'static,
@@ -93,14 +94,15 @@ impl<R, M> LectorEcclesiaT<R, M> {
 
     /// Local modification of environment (`ReaderT` operation).
     #[inline]
-    pub fn local<F>(self, f: F) -> LectorEcclesiaT<R, M>
+    #[must_use]
+    pub fn local<F>(self, f: F) -> Self
     where
         F: Fn(R) -> R + Send + Sync + 'static,
         M: 'static,
         R: Clone + 'static,
     {
         let run_old = self.run;
-        LectorEcclesiaT::new(move |env: R| {
+        Self::new(move |env: R| {
             let modified_env = f(env);
             run_old(modified_env)
         })

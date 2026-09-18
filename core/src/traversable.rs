@@ -108,13 +108,13 @@ pub trait Traversable<A> {
 
 // Implementation for Vec
 #[cfg(feature = "alloc")]
-impl<A> Traversable<A> for Vec<A> {
+impl<T> Traversable<T> for Vec<T> {
     type Output<B> = Vec<B>;
 
     #[inline]
     fn traverse_option<F, B>(&self, f: F) -> Option<Vec<B>>
     where
-        F: Fn(&A) -> Option<B>,
+        F: Fn(&T) -> Option<B>,
     {
         let mut result = Vec::with_capacity(self.len());
         for item in self {
@@ -129,7 +129,7 @@ impl<A> Traversable<A> for Vec<A> {
     #[inline]
     fn traverse_result<F, B, E>(&self, f: F) -> Result<Vec<B>, E>
     where
-        F: Fn(&A) -> Result<B, E>,
+        F: Fn(&T) -> Result<B, E>,
     {
         let mut result = Vec::with_capacity(self.len());
         for item in self {
@@ -144,7 +144,7 @@ impl<A> Traversable<A> for Vec<A> {
     #[inline]
     fn traverse_option_owned<F, B>(this: Self, mut f: F) -> Option<Vec<B>>
     where
-        F: FnMut(A) -> Option<B>,
+        F: FnMut(T) -> Option<B>,
     {
         let mut result = Vec::with_capacity(this.len());
         for item in this {
@@ -159,7 +159,7 @@ impl<A> Traversable<A> for Vec<A> {
     #[inline]
     fn traverse_result_owned<F, B, E>(this: Self, mut f: F) -> Result<Vec<B>, E>
     where
-        F: FnMut(A) -> Result<B, E>,
+        F: FnMut(T) -> Result<B, E>,
     {
         let mut result = Vec::with_capacity(this.len());
         for item in this {
@@ -181,10 +181,7 @@ impl<A> Traversable<A> for Option<A> {
     where
         F: Fn(&A) -> Option<B>,
     {
-        match self {
-            Some(a) => f(a).map(Some),
-            None => Some(None),
-        }
+        self.as_ref().map_or_else(|| Some(None), |a| f(a).map(Some))
     }
 
     #[inline]
@@ -192,10 +189,7 @@ impl<A> Traversable<A> for Option<A> {
     where
         F: Fn(&A) -> Result<B, E>,
     {
-        match self {
-            Some(a) => f(a).map(Some),
-            None => Ok(None),
-        }
+        self.as_ref().map_or_else(|| Ok(None), |a| f(a).map(Some))
     }
 
     #[inline]
@@ -203,10 +197,7 @@ impl<A> Traversable<A> for Option<A> {
     where
         F: FnMut(A) -> Option<B>,
     {
-        match this {
-            Some(a) => f(a).map(Some),
-            None => Some(None),
-        }
+        this.map_or_else(|| Some(None), |a| f(a).map(Some))
     }
 
     #[inline]
@@ -214,10 +205,7 @@ impl<A> Traversable<A> for Option<A> {
     where
         F: FnMut(A) -> Result<B, E>,
     {
-        match this {
-            Some(a) => f(a).map(Some),
-            None => Ok(None),
-        }
+        this.map_or_else(|| Ok(None), |a| f(a).map(Some))
     }
 }
 

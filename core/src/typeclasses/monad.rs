@@ -117,11 +117,11 @@ impl<A, E> Monad for Result<A, E> {
 // ============================================================================
 
 #[cfg(feature = "alloc")]
-impl<A: Clone> Monad for Vec<A> {
+impl<T: Clone> Monad for Vec<T> {
     #[inline]
     fn flat_map<B, F>(self, f: F) -> Vec<B>
     where
-        F: FnMut(A) -> Vec<B>,
+        F: FnMut(T) -> Vec<B>,
     {
         self.into_iter().flat_map(f).collect()
     }

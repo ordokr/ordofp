@@ -129,14 +129,14 @@ impl<A, E> Functor for Result<A, E> {
 // ============================================================================
 
 #[cfg(feature = "alloc")]
-impl<A> Functor for Vec<A> {
-    type Inner = A;
+impl<Elem> Functor for Vec<Elem> {
+    type Inner = Elem;
     type Target<T> = Vec<T>;
 
     #[inline]
     fn map<B, F>(self, f: F) -> Vec<B>
     where
-        F: FnMut(A) -> B,
+        F: FnMut(Elem) -> B,
     {
         self.into_iter().map(f).collect()
     }
@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::map_identity)] // map(id) == id is the law under test
+    #[allow(clippy::map_identity, reason = "map(id) == id is the law under test")]
     fn test_identity_law() {
         let opt = Some(42);
         let result = opt.map(|x| x);

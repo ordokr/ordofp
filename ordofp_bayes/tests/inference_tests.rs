@@ -1,9 +1,4 @@
 //! Tests for inference algorithms with seeded RNG for reproducibility.
-// Sample counts ≪ 2^52 — the usize→f64 mean casts are exact.
-#![allow(clippy::cast_precision_loss)]
-// Exact float assertions are intentional: the operations under test must
-// preserve log-densities bit-for-bit.
-#![allow(clippy::float_cmp)]
 #![cfg(feature = "std")]
 
 use ordofp_bayes::distributions::{Normal, Uniform};
@@ -37,7 +32,8 @@ fn test_smc_basic() {
 
     assert_eq!(samples.len(), 100);
     // Mean should be approximately 0 (prior mean)
-    let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
+    let mean: f64 = samples.iter().sum::<f64>()
+        / f64::from(u32::try_from(samples.len()).expect("sample count fits in u32"));
     assert!(mean.abs() < 1.0, "Mean should be close to 0, got {mean}");
 }
 
@@ -152,7 +148,8 @@ fn test_distributions_normal() {
     let samples: Vec<f64> = (0..100).map(|_| normal.sample(&mut rng)).collect();
 
     // Mean should be approximately 5.0
-    let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
+    let mean: f64 = samples.iter().sum::<f64>()
+        / f64::from(u32::try_from(samples.len()).expect("sample count fits in u32"));
     assert!(
         (mean - 5.0).abs() < 1.0,
         "Mean should be close to 5.0, got {mean}"
@@ -178,7 +175,8 @@ fn test_smc_parallel() {
     assert_eq!(samples.len(), 1000);
 
     // Mean should be approximately 0
-    let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
+    let mean: f64 = samples.iter().sum::<f64>()
+        / f64::from(u32::try_from(samples.len()).expect("sample count fits in u32"));
     assert!(mean.abs() < 0.5, "Mean should be close to 0, got {mean}");
 }
 
@@ -212,7 +210,8 @@ fn test_smc_weighted_parallel() {
 
     // Mean should shift towards 0.5 due to weighting
     // Prior mean 0.0, Likelihood mean 0.5, Posterior mean should be approx 0.25 (since variance is same)
-    let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
+    let mean: f64 = samples.iter().sum::<f64>()
+        / f64::from(u32::try_from(samples.len()).expect("sample count fits in u32"));
     assert!(
         (mean - 0.25).abs() < 0.2,
         "Mean should be close to 0.25, got {mean}"
@@ -270,7 +269,8 @@ fn test_trace_pure_has_no_variables_and_zero_log_prob() {
         "Trace::pure must record no random variables"
     );
     assert_eq!(
-        trace.log_prob_density, 0.0,
+        trace.log_prob_density.to_bits(),
+        0.0f64.to_bits(),
         "Trace::pure log-prob must be 0 (i.e. log(1))"
     );
 }
@@ -285,7 +285,8 @@ fn test_trace_map_transforms_output_preserving_variables_and_log_prob() {
     assert_eq!(mapped.output, 5);
     assert_eq!(mapped.variables, vec![0.1, 0.9]);
     assert_eq!(
-        mapped.log_prob_density, -2.5,
+        mapped.log_prob_density.to_bits(),
+        (-2.5f64).to_bits(),
         "Trace::map must not alter log_prob_density"
     );
 }
@@ -296,7 +297,8 @@ fn test_particle_factor_accumulates_log_weight() {
 
     let mut particle = Particle::new(1.0_f64);
     assert_eq!(
-        particle.log_weight, 0.0,
+        particle.log_weight.to_bits(),
+        0.0f64.to_bits(),
         "unit particle must start at log-weight 0"
     );
 
@@ -364,7 +366,8 @@ fn test_distributions_uniform() {
     assert!(samples.iter().all(|&x| (0.0..=10.0).contains(&x)));
 
     // Mean should be approximately 5.0
-    let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
+    let mean: f64 = samples.iter().sum::<f64>()
+        / f64::from(u32::try_from(samples.len()).expect("sample count fits in u32"));
     assert!(
         (mean - 5.0).abs() < 1.0,
         "Mean should be close to 5.0, got {mean}"

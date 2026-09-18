@@ -25,17 +25,18 @@ fn stack_of(values: &[i32]) -> Stack<i32> {
 #[test]
 fn stack_model_equivalence_at_safe_depth() {
     let depth = 1000;
+    let depth_n = usize::try_from(depth).expect("test depth fits in usize");
     let s = (0..depth).fold(Stack::new(), ordofp_core::pfds::Stack::push);
     let model: Vec<i32> = (0..depth).rev().collect();
 
-    assert_eq!(s.len(), depth as usize);
+    assert_eq!(s.len(), depth_n);
     assert_eq!(s.to_vec(), model);
 
     // get(i) is the i-th element from the top.
     assert_eq!(s.get(0), Some(&(depth - 1)));
     assert_eq!(s.get(500), Some(&(depth - 1 - 500)));
-    assert_eq!(s.get((depth - 1) as usize), Some(&0));
-    assert_eq!(s.get(depth as usize), None);
+    assert_eq!(s.get(depth_n - 1), Some(&0));
+    assert_eq!(s.get(depth_n), None);
 
     // fold visits top-first, agreeing with to_vec order.
     let folded = s.fold(Vec::new(), |mut acc, &x| {
@@ -101,17 +102,18 @@ fn stack_ops_handle_deep_stacks_without_overflow() {
     // Regression guard: len/get/update/fold were formerly recursive
     // and overflowed the thread stack at this depth.
     let depth: i32 = 100_000;
+    let depth_n = usize::try_from(depth).expect("test depth fits in usize");
     let s = (0..depth).fold(Stack::new(), ordofp_core::pfds::Stack::push);
 
-    assert_eq!(s.len(), depth as usize);
-    assert_eq!(s.get((depth - 1) as usize), Some(&0));
+    assert_eq!(s.len(), depth_n);
+    assert_eq!(s.get(depth_n - 1), Some(&0));
     assert_eq!(
         s.fold(0i64, |acc, &x| acc + i64::from(x)),
         (0..i64::from(depth)).sum::<i64>()
     );
 
-    let updated = s.update((depth - 1) as usize, -1).unwrap();
-    assert_eq!(updated.get((depth - 1) as usize), Some(&-1));
+    let updated = s.update(depth_n - 1, -1).unwrap();
+    assert_eq!(updated.get(depth_n - 1), Some(&-1));
     assert_eq!(updated.get(0), Some(&(depth - 1)));
 
     // Stack's Drop is iterative (Task 9), so these deep stacks can drop

@@ -67,7 +67,7 @@ impl<A, E> SpeculativeResult<A, E> {
     #[inline]
     pub fn ok(self) -> Option<A> {
         match self {
-            SpeculativeResult::Success(a) => Some(a),
+            Self::Success(a) => Some(a),
             _ => None,
         }
     }
@@ -83,16 +83,16 @@ impl<A, E> SpeculativeResult<A, E> {
     #[inline]
     pub fn to_result(self) -> Result<A, Vec<E>> {
         match self {
-            SpeculativeResult::Success(a) => Ok(a),
-            SpeculativeResult::AllFailed(errs) => Err(errs),
-            SpeculativeResult::NoBranches => Err(Vec::new()),
+            Self::Success(a) => Ok(a),
+            Self::AllFailed(errs) => Err(errs),
+            Self::NoBranches => Err(Vec::new()),
         }
     }
 
     /// Check if execution succeeded.
     #[inline]
-    pub fn is_success(&self) -> bool {
-        matches!(self, SpeculativeResult::Success(_))
+    pub const fn is_success(&self) -> bool {
+        matches!(self, Self::Success(_))
     }
 }
 
@@ -119,6 +119,7 @@ impl<A, E> SpeculativeResult<A, E> {
 /// assert!(matches!(result, SpeculativeResult::Success(42)));
 /// ```
 #[inline]
+#[must_use]
 pub fn speculative<A, E>(branches: Vec<ErrorComputation<E, A>>) -> SpeculativeResult<A, E> {
     if branches.is_empty() {
         return SpeculativeResult::NoBranches;
@@ -193,7 +194,7 @@ pub struct HedgeConfig {
 
 impl Default for HedgeConfig {
     fn default() -> Self {
-        HedgeConfig {
+        Self {
             max_attempts: DEFAULT_MAX_RETRIES,
             cancel_on_success: true,
         }
@@ -259,10 +260,7 @@ where
     F1: FnOnce() -> ErrorComputation<E, A>,
     F2: FnOnce() -> ErrorComputation<E, A>,
 {
-    match primary().run() {
-        Ok(a) => Ok(a),
-        Err(_) => fallback().run(),
-    }
+    primary().run().map_or_else(|_| fallback().run(), |a| Ok(a))
 }
 
 /// Chain of fallbacks - try each in order until one succeeds.
@@ -318,8 +316,8 @@ pub struct TimedComputation<A, E> {
 
 impl<A, E> TimedComputation<A, E> {
     /// Create a timed computation.
-    pub fn new(computation: ErrorComputation<E, A>, timeout_ms: u64) -> Self {
-        TimedComputation {
+    pub const fn new(computation: ErrorComputation<E, A>, timeout_ms: u64) -> Self {
+        Self {
             computation,
             _timeout_ms: timeout_ms,
         }
@@ -337,7 +335,7 @@ impl<A, E> TimedComputation<A, E> {
 }
 
 /// Create a timed computation.
-pub fn with_timeout<A, E>(
+pub const fn with_timeout<A, E>(
     computation: ErrorComputation<E, A>,
     timeout_ms: u64,
 ) -> TimedComputation<A, E> {
@@ -362,7 +360,7 @@ pub struct RetryConfig {
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        RetryConfig {
+        Self {
             max_retries: DEFAULT_MAX_RETRIES,
             exponential_backoff: true,
         }
@@ -439,8 +437,9 @@ pub struct CircuitBreaker {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker.
-    pub fn new(failure_threshold: usize, success_threshold: usize) -> Self {
-        CircuitBreaker {
+    #[must_use]
+    pub const fn new(failure_threshold: usize, success_threshold: usize) -> Self {
+        Self {
             state: CircuitState::Closed,
             failure_count: 0,
             failure_threshold,
@@ -451,7 +450,8 @@ impl CircuitBreaker {
 
     /// Check if requests are allowed.
     #[inline]
-    pub fn is_allowed(&self) -> bool {
+    #[must_use]
+    pub const fn is_allowed(&self) -> bool {
         !matches!(self.state, CircuitState::Open)
     }
 
@@ -470,7 +470,7 @@ impl CircuitBreaker {
 
     /// Record a failure.
     #[inline]
-    pub fn record_failure(&mut self) {
+    pub const fn record_failure(&mut self) {
         self.failure_count += 1;
         self.success_count = 0;
         if self.failure_count >= self.failure_threshold {
@@ -488,7 +488,8 @@ impl CircuitBreaker {
 
     /// Get the current state.
     #[inline]
-    pub fn state(&self) -> CircuitState {
+    #[must_use]
+    pub const fn state(&self) -> CircuitState {
         self.state
     }
 }

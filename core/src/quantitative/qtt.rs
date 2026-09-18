@@ -64,7 +64,7 @@ impl<A, M: Usage> Qtt<A, M> {
     /// ```
     #[inline]
     pub const fn new(value: A) -> Self {
-        Qtt {
+        Self {
             value,
             _multiplicity: PhantomData,
         }
@@ -155,7 +155,7 @@ impl<A> Qtt<A, Nihil> {
     /// and are removed during compilation.
     #[inline]
     pub const fn erased(value: A) -> Self {
-        Qtt::new(value)
+        Self::new(value)
     }
 
     /// Witness that erased values can be freely discarded.
@@ -169,7 +169,7 @@ impl<A> Qtt<A, Nihil> {
     /// Since erased values don't exist at runtime, duplication
     /// is trivial.
     #[inline]
-    pub fn phantom_dup(&self) -> Qtt<(), Nihil>
+    pub const fn phantom_dup(&self) -> Qtt<(), Nihil>
     where
         A: Copy,
     {
@@ -196,7 +196,7 @@ impl<A> Qtt<A, Semel> {
     /// ```
     #[inline]
     pub const fn linear(value: A) -> Self {
-        Qtt::new(value)
+        Self::new(value)
     }
 
     /// Split a linear value into two parts using a function.
@@ -254,18 +254,19 @@ impl<A> Qtt<A, Omega> {
     /// ```
     #[inline]
     pub const fn unrestricted(value: A) -> Self {
-        Qtt::new(value)
+        Self::new(value)
     }
 
     /// Duplicate the value.
     ///
     /// Only available for unrestricted values.
     #[inline]
-    pub fn dup(&self) -> Qtt<A, Omega>
+    #[must_use]
+    pub fn dup(&self) -> Self
     where
         A: Clone,
     {
-        Qtt::new(self.value.clone())
+        Self::new(self.value.clone())
     }
 
     /// Discard the value without using it.
@@ -278,7 +279,7 @@ impl<A> Qtt<A, Omega> {
 
     /// Get a reference to the inner value.
     #[inline]
-    pub fn get_ref(&self) -> &A {
+    pub const fn get_ref(&self) -> &A {
         &self.value
     }
 
@@ -300,11 +301,14 @@ impl<A> Qtt<A, Omega> {
 // Clone only for Omega - use bitwise copy for Copy types, clone otherwise
 // This implementation satisfies both Copy types (bitwise) and non-Copy Clone types,
 // so it is deliberately broader than the Copy impl below.
-#[allow(clippy::expl_impl_clone_on_copy)]
+#[allow(
+    clippy::expl_impl_clone_on_copy,
+    reason = "generic Clone covers non-Copy A; Copy impl below is narrower"
+)]
 impl<A: Clone> Clone for Qtt<A, Omega> {
     #[inline]
     fn clone(&self) -> Self {
-        Qtt::new(self.value.clone())
+        Self::new(self.value.clone())
     }
 }
 
@@ -344,7 +348,7 @@ impl<A: core::hash::Hash, M: Usage> core::hash::Hash for Qtt<A, M> {
 impl<A: Default, M: Usage> Default for Qtt<A, M> {
     #[inline]
     fn default() -> Self {
-        Qtt::new(A::default())
+        Self::new(A::default())
     }
 }
 
@@ -366,7 +370,7 @@ impl<A: fmt::Display, M: Usage> fmt::Display for Qtt<A, M> {
 impl<A, M: Usage> From<A> for Qtt<A, M> {
     #[inline]
     fn from(value: A) -> Self {
-        Qtt::new(value)
+        Self::new(value)
     }
 }
 

@@ -208,11 +208,12 @@ pub struct AssertPure<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertPure<R> {
     /// Create the assertion. Only succeeds if R is pure.
+    #[must_use]
     pub const fn new() -> Self
     where
         R: IsPure,
     {
-        AssertPure(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -228,11 +229,12 @@ pub struct AssertIdempotent<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertIdempotent<R> {
     /// Create the assertion. Only succeeds if R is idempotent.
+    #[must_use]
     pub const fn new() -> Self
     where
         R: IsIdempotent,
     {
-        AssertIdempotent(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -248,11 +250,12 @@ pub struct AssertTotal<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertTotal<R> {
     /// Create the assertion. Only succeeds if R is total.
+    #[must_use]
     pub const fn new() -> Self
     where
         R: IsTotal,
     {
-        AssertTotal(PhantomData)
+        Self(PhantomData)
     }
 }
 
@@ -283,6 +286,7 @@ pub enum OptimizationHint {
 }
 
 /// Compute the best optimization hint for an effect row.
+#[must_use]
 pub const fn optimization_hint<R: EffectRow>() -> OptimizationHint {
     if R::IS_PURE {
         OptimizationHint::Parallelize
@@ -308,66 +312,72 @@ mod tests {
 
     #[test]
     fn test_pure_is_pure() {
-        assert!(<Pure as IsPure>::IS_PURE);
-        assert!(<Row<0> as IsPure>::IS_PURE);
+        const _: () = assert!(<Pure as IsPure>::IS_PURE);
+        const _: () = assert!(<Row<0> as IsPure>::IS_PURE);
     }
 
     #[test]
     fn test_state_is_not_pure() {
-        assert!(!<Row<STATE_BIT> as IsPure>::IS_PURE);
+        const _: () = assert!(!<Row<STATE_BIT> as IsPure>::IS_PURE);
     }
 
     #[test]
     fn test_reader_is_idempotent() {
-        assert!(<Row<READER_BIT> as IsIdempotent>::IS_IDEMPOTENT);
+        const _: () = assert!(<Row<READER_BIT> as IsIdempotent>::IS_IDEMPOTENT);
     }
 
     #[test]
     fn test_writer_is_not_idempotent() {
-        assert!(!<Row<WRITER_BIT> as IsIdempotent>::IS_IDEMPOTENT);
+        const _: () = assert!(!<Row<WRITER_BIT> as IsIdempotent>::IS_IDEMPOTENT);
     }
 
     #[test]
     fn test_error_is_not_total() {
-        assert!(!<Row<ERROR_BIT> as IsTotal>::IS_TOTAL);
+        const _: () = assert!(!<Row<ERROR_BIT> as IsTotal>::IS_TOTAL);
     }
 
     #[test]
     fn test_state_is_total() {
-        assert!(<Row<STATE_BIT> as IsTotal>::IS_TOTAL);
+        const _: () = assert!(<Row<STATE_BIT> as IsTotal>::IS_TOTAL);
     }
 
     #[test]
     fn test_effect_properties_pure() {
-        assert!(EffectProperties::<Pure>::IS_PURE);
-        assert!(EffectProperties::<Pure>::IS_IDEMPOTENT);
-        assert!(EffectProperties::<Pure>::IS_TOTAL);
-        assert!(EffectProperties::<Pure>::CAN_PARALLELIZE);
-        assert!(EffectProperties::<Pure>::CAN_MEMOIZE);
-        assert!(EffectProperties::<Pure>::CAN_SPECULATE);
+        const _: () = assert!(EffectProperties::<Pure>::IS_PURE);
+        const _: () = assert!(EffectProperties::<Pure>::IS_IDEMPOTENT);
+        const _: () = assert!(EffectProperties::<Pure>::IS_TOTAL);
+        const _: () = assert!(EffectProperties::<Pure>::CAN_PARALLELIZE);
+        const _: () = assert!(EffectProperties::<Pure>::CAN_MEMOIZE);
+        const _: () = assert!(EffectProperties::<Pure>::CAN_SPECULATE);
     }
 
     #[test]
     fn test_effect_properties_reader() {
-        assert!(!EffectProperties::<Row<READER_BIT>>::IS_PURE);
-        assert!(EffectProperties::<Row<READER_BIT>>::IS_IDEMPOTENT);
-        assert!(EffectProperties::<Row<READER_BIT>>::IS_TOTAL);
-        assert!(!EffectProperties::<Row<READER_BIT>>::CAN_PARALLELIZE);
-        assert!(EffectProperties::<Row<READER_BIT>>::CAN_MEMOIZE);
-        assert!(EffectProperties::<Row<READER_BIT>>::CAN_SPECULATE);
+        const _: () = assert!(!EffectProperties::<Row<READER_BIT>>::IS_PURE);
+        const _: () = assert!(EffectProperties::<Row<READER_BIT>>::IS_IDEMPOTENT);
+        const _: () = assert!(EffectProperties::<Row<READER_BIT>>::IS_TOTAL);
+        const _: () = assert!(!EffectProperties::<Row<READER_BIT>>::CAN_PARALLELIZE);
+        const _: () = assert!(EffectProperties::<Row<READER_BIT>>::CAN_MEMOIZE);
+        const _: () = assert!(EffectProperties::<Row<READER_BIT>>::CAN_SPECULATE);
     }
 
     #[test]
     fn test_optimization_hint() {
-        assert_eq!(optimization_hint::<Pure>(), OptimizationHint::Parallelize);
-        assert_eq!(
+        const _: () = assert!(matches!(
+            optimization_hint::<Pure>(),
+            OptimizationHint::Parallelize
+        ));
+        const _: () = assert!(matches!(
             optimization_hint::<Row<READER_BIT>>(),
             OptimizationHint::Memoize
-        );
-        assert_eq!(
+        ));
+        const _: () = assert!(matches!(
             optimization_hint::<Row<STATE_BIT>>(),
             OptimizationHint::Speculate
-        );
-        assert_eq!(optimization_hint::<Row<IO_BIT>>(), OptimizationHint::None);
+        ));
+        const _: () = assert!(matches!(
+            optimization_hint::<Row<IO_BIT>>(),
+            OptimizationHint::None
+        ));
     }
 }

@@ -28,7 +28,7 @@ struct SimpleLayerReversed {
 
 impl SimpleLayer {
     fn new() -> Self {
-        SimpleLayer {
+        Self {
             a: 6,
             b: 7,
             c: 8f64,
@@ -66,7 +66,7 @@ struct NestedLayerReversed {
 
 impl NestedLayer {
     fn new() -> Self {
-        NestedLayer {
+        Self {
             inner: SimpleLayer::new(),
             x: 42,
             y: std::f64::consts::PI,
@@ -97,7 +97,7 @@ struct DeepLayerReversed {
 
 impl DeepLayer {
     fn new() -> Self {
-        DeepLayer {
+        Self {
             nested: NestedLayer::new(),
             z: "deep".to_string(),
         }

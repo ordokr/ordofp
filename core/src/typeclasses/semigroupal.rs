@@ -47,7 +47,7 @@ use alloc::collections::{BTreeMap, BTreeSet, LinkedList, VecDeque};
 use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use core::hash::Hash;
+use core::hash::{BuildHasher, Hash};
 #[cfg(feature = "std")]
 use std::collections::{HashMap, HashSet};
 
@@ -126,8 +126,7 @@ impl<A, E> ResultProductExt<A, E> for Result<A, E> {
     fn productum<B>(self, other: Result<B, E>) -> Result<(A, B), E> {
         match (self, other) {
             (Ok(a), Ok(b)) => Ok((a, b)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
+            (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
 }
@@ -153,9 +152,9 @@ pub trait VecProductExt<A> {
     fn productum<B: Clone>(self, other: Vec<B>) -> Vec<(A, B)>;
 }
 
-impl<A: Clone> VecProductExt<A> for Vec<A> {
+impl<T: Clone> VecProductExt<T> for Vec<T> {
     #[inline]
-    fn productum<B: Clone>(self, other: Vec<B>) -> Vec<(A, B)> {
+    fn productum<B: Clone>(self, other: Vec<B>) -> Vec<(T, B)> {
         let mut result = Vec::with_capacity(self.len() * other.len());
         for a in &self {
             for b in &other {
@@ -176,9 +175,9 @@ pub trait VecDequeProductExt<A> {
     fn productum<B: Clone>(self, other: VecDeque<B>) -> VecDeque<(A, B)>;
 }
 
-impl<A: Clone> VecDequeProductExt<A> for VecDeque<A> {
+impl<T: Clone> VecDequeProductExt<T> for VecDeque<T> {
     #[inline]
-    fn productum<B: Clone>(self, other: VecDeque<B>) -> VecDeque<(A, B)> {
+    fn productum<B: Clone>(self, other: VecDeque<B>) -> VecDeque<(T, B)> {
         let mut result = VecDeque::with_capacity(self.len() * other.len());
         for a in &self {
             for b in &other {
@@ -199,9 +198,9 @@ pub trait LinkedListProductExt<A> {
     fn productum<B: Clone>(self, other: LinkedList<B>) -> LinkedList<(A, B)>;
 }
 
-impl<A: Clone> LinkedListProductExt<A> for LinkedList<A> {
+impl<T: Clone> LinkedListProductExt<T> for LinkedList<T> {
     #[inline]
-    fn productum<B: Clone>(self, other: LinkedList<B>) -> LinkedList<(A, B)> {
+    fn productum<B: Clone>(self, other: LinkedList<B>) -> LinkedList<(T, B)> {
         let mut result = LinkedList::new();
         for a in &self {
             for b in &other {
@@ -224,11 +223,11 @@ pub trait BTreeSetProductExt<A> {
         A: Ord;
 }
 
-impl<A: Clone + Ord> BTreeSetProductExt<A> for BTreeSet<A> {
+impl<T: Clone + Ord> BTreeSetProductExt<T> for BTreeSet<T> {
     #[inline]
-    fn productum<B: Clone + Ord>(self, other: BTreeSet<B>) -> BTreeSet<(A, B)>
+    fn productum<B: Clone + Ord>(self, other: BTreeSet<B>) -> BTreeSet<(T, B)>
     where
-        A: Ord,
+        T: Ord,
     {
         let mut result = BTreeSet::new();
         for a in &self {
@@ -246,21 +245,31 @@ impl<A: Clone + Ord> BTreeSetProductExt<A> for BTreeSet<A> {
 
 #[cfg(feature = "std")]
 /// Extension trait for `HashSet` to provide Semigroupal product operation.
-pub trait HashSetProductExt<A> {
+pub trait HashSetProductExt<A, S> {
     /// Forms the cartesian product of two `HashSets`.
-    fn productum<B: Clone + Hash + Eq>(self, other: HashSet<B>) -> HashSet<(A, B)>
+    ///
+    /// The result keeps `self`'s hasher; `other` may use any hasher.
+    fn productum<B: Clone + Hash + Eq, S2: BuildHasher>(
+        self,
+        other: HashSet<B, S2>,
+    ) -> HashSet<(A, B), S>
     where
-        A: Hash + Eq;
+        A: Hash + Eq,
+        S: BuildHasher + Default;
 }
 
 #[cfg(feature = "std")]
-impl<A: Clone + Hash + Eq> HashSetProductExt<A> for HashSet<A> {
+impl<T: Clone + Hash + Eq, S: BuildHasher + Default> HashSetProductExt<T, S> for HashSet<T, S> {
     #[inline]
-    fn productum<B: Clone + Hash + Eq>(self, other: HashSet<B>) -> HashSet<(A, B)>
+    fn productum<B: Clone + Hash + Eq, S2: BuildHasher>(
+        self,
+        other: HashSet<B, S2>,
+    ) -> HashSet<(T, B), S>
     where
-        A: Hash + Eq,
+        T: Hash + Eq,
+        S: BuildHasher + Default,
     {
-        let mut result = HashSet::with_capacity(self.len() * other.len());
+        let mut result = HashSet::with_capacity_and_hasher(self.len() * other.len(), S::default());
         for a in &self {
             for b in &other {
                 result.insert((a.clone(), b.clone()));
@@ -327,21 +336,33 @@ impl<K: Ord + Clone, V: Clone> BTreeMapProductExt<K, V> for BTreeMap<K, V> {
 
 #[cfg(feature = "std")]
 /// Extension trait for `HashMap` to provide Semigroupal product operation.
-pub trait HashMapProductExt<K, V> {
+pub trait HashMapProductExt<K, V, S> {
     /// Forms a product of two `HashMaps` over their common keys.
-    fn productum<V2: Clone>(self, other: HashMap<K, V2>) -> HashMap<K, (V, V2)>
+    ///
+    /// The result keeps `self`'s hasher; `other` may use any hasher.
+    fn productum<V2: Clone, S2: BuildHasher>(
+        self,
+        other: HashMap<K, V2, S2>,
+    ) -> HashMap<K, (V, V2), S>
     where
-        K: Hash + Eq;
+        K: Hash + Eq,
+        S: BuildHasher + Default;
 }
 
 #[cfg(feature = "std")]
-impl<K: Hash + Eq + Clone, V: Clone> HashMapProductExt<K, V> for HashMap<K, V> {
+impl<K: Hash + Eq + Clone, V: Clone, S: BuildHasher + Default> HashMapProductExt<K, V, S>
+    for HashMap<K, V, S>
+{
     #[inline]
-    fn productum<V2: Clone>(self, other: HashMap<K, V2>) -> HashMap<K, (V, V2)>
+    fn productum<V2: Clone, S2: BuildHasher>(
+        self,
+        other: HashMap<K, V2, S2>,
+    ) -> HashMap<K, (V, V2), S>
     where
         K: Hash + Eq,
+        S: BuildHasher + Default,
     {
-        let mut result = HashMap::new();
+        let mut result: HashMap<K, (V, V2), S> = HashMap::default();
         for (k, v1) in &self {
             if let Some(v2) = other.get(k) {
                 result.insert(k.clone(), (v1.clone(), v2.clone()));
@@ -451,17 +472,17 @@ mod tests {
 
     #[test]
     fn test_option_productum() {
-        let a = Some(1);
-        let b = Some("hello");
-        assert_eq!(a.productum(b), Some((1, "hello")));
+        let lhs = Some(1);
+        let rhs = Some("hello");
+        assert_eq!(lhs.productum(rhs), Some((1, "hello")));
 
-        let c: Option<i32> = None;
-        let d = Some(42);
-        assert_eq!(c.productum(d), None);
+        let none_lhs: Option<i32> = None;
+        let rhs_num = Some(42);
+        assert_eq!(none_lhs.productum(rhs_num), None);
 
-        let e = Some(1);
-        let f: Option<i32> = None;
-        assert_eq!(e.productum(f), None);
+        let some_lhs = Some(1);
+        let none_rhs: Option<i32> = None;
+        assert_eq!(some_lhs.productum(none_rhs), None);
     }
 
     #[test]

@@ -64,6 +64,7 @@ pub trait Alternative: Sized + Clone {
     /// assert_eq!(a.alt(&b), Some(1));
     /// assert_eq!(c.alt(&b), Some(2));
     /// ```
+    #[must_use]
     fn alt(&self, other: &Self) -> Self;
 
     /// Conditional failure.
@@ -91,6 +92,7 @@ pub trait Alternative: Sized + Clone {
     /// assert_eq!(some.or_else_alt(|| Some(10)), Some(5));
     /// ```
     #[inline]
+    #[must_use]
     fn or_else_alt<F>(&self, f: F) -> Self
     where
         F: FnOnce() -> Self,
@@ -112,6 +114,7 @@ pub trait Alternative: Sized + Clone {
     /// assert_eq!(none.filter_alt(|opt| opt.is_some()), None);
     /// ```
     #[inline]
+    #[must_use]
     fn filter_alt<F>(&self, pred: F) -> Self
     where
         F: FnOnce(&Self) -> bool,
@@ -152,7 +155,7 @@ impl<T: Clone + Default> Alternative for Option<T> {
 impl<T: Clone + Default> Alternative for Vec<T> {
     #[inline]
     fn empty() -> Self {
-        Vec::new()
+        Self::new()
     }
 
     #[inline]
@@ -169,13 +172,13 @@ impl<T: Clone + Default> Alternative for Vec<T> {
         if condition {
             alloc::vec![T::default()]
         } else {
-            Vec::new()
+            Self::new()
         }
     }
 
     #[inline]
     fn is_empty(&self) -> bool {
-        Vec::is_empty(self)
+        Self::is_empty(self)
     }
 }
 
@@ -185,6 +188,7 @@ pub trait ResultAlt<T, E> {
     fn ok_alt(self) -> Option<T>;
 
     /// Choose between two Results.
+    #[must_use]
     fn alt_result(self, other: Self) -> Self;
 }
 

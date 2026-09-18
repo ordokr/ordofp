@@ -9,6 +9,20 @@
 use ordofp_core::datatypes::{Aut, Identitas, Pigritia};
 
 fn main() {
+    // Parse with error handling and lazy evaluation
+    fn parse_lazy(input: &str) -> Aut<String, Pigritia<i32, impl FnOnce() -> i32>> {
+        match input.parse::<i32>() {
+            Ok(n) => {
+                // Wrap successful parse in lazy computation for deferred processing
+                Aut::dexter(Pigritia::new(move || {
+                    println!("  [Processing parsed value...]");
+                    n * n
+                }))
+            }
+            Err(e) => Aut::sinister(format!("Parse error: {e}")),
+        }
+    }
+
     // =========================================================================
     // Identitas - The Identity Functor
     // =========================================================================
@@ -86,20 +100,6 @@ fn main() {
     // Combining Datatypes
     // =========================================================================
     println!("\n=== Combining Datatypes ===");
-
-    // Parse with error handling and lazy evaluation
-    fn parse_lazy(input: &str) -> Aut<String, Pigritia<i32, impl FnOnce() -> i32>> {
-        match input.parse::<i32>() {
-            Ok(n) => {
-                // Wrap successful parse in lazy computation for deferred processing
-                Aut::dexter(Pigritia::new(move || {
-                    println!("  [Processing parsed value...]");
-                    n * n
-                }))
-            }
-            Err(e) => Aut::sinister(format!("Parse error: {e}")),
-        }
-    }
 
     let parsed = parse_lazy("7");
     match parsed {

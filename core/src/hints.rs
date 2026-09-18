@@ -64,7 +64,7 @@
 ///     handle_negative(x);
 /// }
 /// ```
-#[inline(always)]
+#[inline]
 #[must_use]
 pub const fn likely(b: bool) -> bool {
     // Tells LLVM to expect `b` to be true, eliminating unconditional jumps
@@ -106,7 +106,7 @@ pub const fn likely(b: bool) -> bool {
 /// assert!(process(Ok(1)).is_ok());
 /// assert!(process(Err("oops".to_string())).is_err());
 /// ```
-#[inline(always)]
+#[inline]
 #[must_use]
 pub const fn unlikely(b: bool) -> bool {
     // Tells LLVM to expect `b` to be false, placing the unlikely branch
@@ -124,7 +124,7 @@ pub const fn unlikely(b: bool) -> bool {
 /// Hint that a condition is extremely likely (>99% probability).
 ///
 /// Stronger hint than `likely` - use sparingly for truly invariant conditions.
-#[inline(always)]
+#[inline]
 #[must_use]
 pub const fn almost_certain(b: bool) -> bool {
     likely(b)
@@ -133,7 +133,7 @@ pub const fn almost_certain(b: bool) -> bool {
 /// Hint that a condition represents an error that should never happen.
 ///
 /// This is semantically equivalent to `unlikely` but documents intent better.
-#[inline(always)]
+#[inline]
 #[must_use]
 pub const fn is_error(b: bool) -> bool {
     unlikely(b)
@@ -178,7 +178,7 @@ macro_rules! cold_path {
 ///
 /// This is semantically a no-op but documents the hot path and ensures
 /// the code is inlined aggressively.
-#[inline(always)]
+#[inline]
 #[must_use]
 pub fn hot_path<T, F: FnOnce() -> T>(f: F) -> T {
     f()
@@ -203,7 +203,8 @@ pub fn hot_path<T, F: FnOnce() -> T>(f: F) -> T {
 /// assert_eq!(low, 0);
 /// assert!(carry);
 /// ```
-#[inline(always)]
+#[inline]
+#[must_use]
 pub const fn wide_add_u64(a: u64, b: u64, carry_in: bool) -> (u64, bool) {
     // Two overflowing adds cannot both carry: after the first wraps, the
     // partial sum is at most 2^64 - 2, so adding the carry bit cannot wrap
@@ -211,6 +212,22 @@ pub const fn wide_add_u64(a: u64, b: u64, carry_in: bool) -> (u64, bool) {
     let (sum, c1) = a.overflowing_add(b);
     let (sum, c2) = sum.overflowing_add(carry_in as u64);
     (sum, c1 | c2)
+}
+
+/// Split a `u128` into `(low, high)` 64-bit limbs.
+///
+/// Byte-exact and `const`-compatible: stable has no `const` fallible
+/// narrowing, so the limbs are reassembled from the little-endian bytes.
+#[must_use]
+pub(crate) const fn split_u128_limbs(product: u128) -> (u64, u64) {
+    let bytes = product.to_le_bytes();
+    let low = u64::from_le_bytes([
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+    ]);
+    let high = u64::from_le_bytes([
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+    ]);
+    (low, high)
 }
 
 /// Multiply two u64 values producing a 128-bit result.
@@ -229,14 +246,15 @@ pub const fn wide_add_u64(a: u64, b: u64, carry_in: bool) -> (u64, bool) {
 /// assert_eq!(high, 1);
 /// assert_eq!(low, u64::MAX - 1);
 /// ```
-#[inline(always)]
+#[inline]
+#[must_use]
 pub const fn wide_mul_u64(a: u64, b: u64) -> (u64, u64) {
     // Compute the full 128-bit product and split into `(low, high)` limbs.
     // Toolchain-independent: newer nightlies changed `widening_mul` to return
     // `u128`; this lowers to the same mulx/umulh codegen without depending on
     // the intrinsic's signature.
     let product = (a as u128) * (b as u128);
-    (product as u64, (product >> 64) as u64)
+    split_u128_limbs(product)
 }
 
 /// Multiply-accumulate for multi-precision arithmetic.
@@ -255,13 +273,14 @@ pub const fn wide_mul_u64(a: u64, b: u64) -> (u64, u64) {
 /// assert_eq!(low, 0);
 /// assert_eq!(high, u64::MAX);
 /// ```
-#[inline(always)]
+#[inline]
+#[must_use]
 pub const fn wide_mul_add_u64(a: u64, b: u64, c: u64) -> (u64, u64) {
     // `a * b + c` at full width: max value is (2^64-1)^2 + (2^64-1) < 2^128,
     // so the u128 accumulation cannot overflow. Split into `(low, high)`.
     // Toolchain-independent (see `wide_mul_u64`).
     let product = (a as u128) * (b as u128) + (c as u128);
-    (product as u64, (product >> 64) as u64)
+    split_u128_limbs(product)
 }
 
 /// Strict addition that panics on overflow (release mode safe).
@@ -272,7 +291,8 @@ pub const fn wide_mul_add_u64(a: u64, b: u64, c: u64) -> (u64, u64) {
 /// # Panics
 ///
 /// Panics if `a + b` would overflow.
-#[inline(always)]
+#[inline]
+#[must_use]
 pub const fn strict_add_u64(a: u64, b: u64) -> u64 {
     match a.checked_add(b) {
         Some(v) => v,
@@ -288,7 +308,8 @@ pub const fn strict_add_u64(a: u64, b: u64) -> u64 {
 /// # Panics
 ///
 /// Panics if `a * b` would overflow.
-#[inline(always)]
+#[inline]
+#[must_use]
 pub const fn strict_mul_u64(a: u64, b: u64) -> u64 {
     match a.checked_mul(b) {
         Some(v) => v,

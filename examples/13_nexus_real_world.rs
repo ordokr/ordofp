@@ -279,8 +279,8 @@ mod ast_construction {
     pub enum Expr<'a> {
         Num(i32),
         Var(&'a str),
-        Add(&'a Expr<'a>, &'a Expr<'a>),
-        Mul(&'a Expr<'a>, &'a Expr<'a>),
+        Add(&'a Self, &'a Self),
+        Mul(&'a Self, &'a Self),
     }
 
     impl Expr<'_> {
@@ -350,7 +350,7 @@ mod state_machine {
     ///
     /// (The "approved" state is named `Approbatus` to avoid colliding with
     /// the library's `Probatum` validation type.)
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum OrderState {
         Created,
         Approbatus,
@@ -372,7 +372,7 @@ mod state_machine {
 
     impl Order {
         pub fn new(id: &str, items: Vec<String>, total: i32) -> Self {
-            Order {
+            Self {
                 id: id.to_string(),
                 state: OrderState::Created,
                 items,
@@ -516,10 +516,10 @@ mod retry_pattern {
         primary: ErrorComputation<String, A>,
         fallback: impl FnOnce() -> A + 'static,
     ) -> ErrorComputation<String, A> {
-        match primary.run() {
-            Ok(result) => ErrorComputation::ok(result),
-            Err(_) => ErrorComputation::ok(fallback()),
-        }
+        primary.run().map_or_else(
+            |_| ErrorComputation::ok(fallback()),
+            |result| ErrorComputation::ok(result),
+        )
     }
 
     pub fn run_example() {
@@ -564,7 +564,7 @@ mod incremental_cache {
 
     impl MemoCache {
         pub fn new() -> Self {
-            MemoCache {
+            Self {
                 cache: RefCell::new(HashMap::new()),
                 hits: RefCell::new(0),
                 misses: RefCell::new(0),

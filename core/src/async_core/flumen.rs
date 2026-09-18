@@ -124,7 +124,7 @@ impl<T: Send + 'static> Flumen<T> {
     where
         S: Stream<Item = T> + Send + 'static,
     {
-        Flumen {
+        Self {
             inner: Box::pin(stream),
         }
     }
@@ -150,7 +150,7 @@ impl<T: Send + 'static> Flumen<T> {
         I: IntoIterator<Item = T>,
         I::IntoIter: Send + Unpin + 'static,
     {
-        Flumen::new(IterStream::new(iter.into_iter()))
+        Self::new(IterStream::new(iter.into_iter()))
     }
 
     /// Create a `Flumen` yielding a single value.
@@ -182,7 +182,7 @@ impl<T: Send + 'static> Flumen<T> {
     where
         T: Unpin,
     {
-        Flumen::from_iterator(core::iter::once(value))
+        Self::from_iterator(core::iter::once(value))
     }
 
     /// Create an empty `Flumen`.
@@ -210,11 +210,12 @@ impl<T: Send + 'static> Flumen<T> {
     /// assert_eq!(block_on(flumen.collect_vec()), Vec::<i32>::new());
     /// ```
     #[inline]
+    #[must_use]
     pub fn empty() -> Self
     where
         T: Unpin,
     {
-        Flumen::from_iterator(core::iter::empty())
+        Self::from_iterator(core::iter::empty())
     }
 
     /// Create a pure `Flumen` (alias for `once`).
@@ -253,7 +254,7 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .fmap(|x| x * 2);
     /// assert_eq!(block_on(doubled.collect_vec()), vec![2, 4, 6]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn fmap<B, F>(self, f: F) -> Flumen<B>
     where
         F: Fn(T) -> B + Send + Sync + Unpin + 'static,
@@ -287,12 +288,13 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .filter(|x| x % 2 == 0);
     /// assert_eq!(block_on(evens.collect_vec()), vec![2, 4, 6, 8, 10]);
     /// ```
-    #[inline(always)]
-    pub fn filter<F>(self, predicate: F) -> Flumen<T>
+    #[inline]
+    #[must_use]
+    pub fn filter<F>(self, predicate: F) -> Self
     where
         F: Fn(&T) -> bool + Send + Sync + Unpin + 'static,
     {
-        Flumen::new(FilterStream::new(self.inner, predicate))
+        Self::new(FilterStream::new(self.inner, predicate))
     }
 
     /// Filter and map stream items simultaneously.
@@ -320,7 +322,7 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .filter_map(|s| s.parse::<i32>().ok());
     /// assert_eq!(block_on(parsed.collect_vec()), vec![1, 3]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn filter_map<B, F>(self, f: F) -> Flumen<B>
     where
         F: Fn(T) -> Option<B> + Send + Sync + Unpin + 'static,
@@ -353,9 +355,10 @@ impl<T: Send + 'static> Flumen<T> {
     /// let first_three = Flumen::from_iterator(1..=10).take(3);
     /// assert_eq!(block_on(first_three.collect_vec()), vec![1, 2, 3]);
     /// ```
-    #[inline(always)]
-    pub fn take(self, n: usize) -> Flumen<T> {
-        Flumen::new(TakeStream::new(self.inner, n))
+    #[inline]
+    #[must_use]
+    pub fn take(self, n: usize) -> Self {
+        Self::new(TakeStream::new(self.inner, n))
     }
 
     /// Skip the first `n` items from the stream.
@@ -382,9 +385,10 @@ impl<T: Send + 'static> Flumen<T> {
     /// let after_three = Flumen::from_iterator(1..=5).skip(3);
     /// assert_eq!(block_on(after_three.collect_vec()), vec![4, 5]);
     /// ```
-    #[inline(always)]
-    pub fn skip(self, n: usize) -> Flumen<T> {
-        Flumen::new(SkipStream::new(self.inner, n))
+    #[inline]
+    #[must_use]
+    pub fn skip(self, n: usize) -> Self {
+        Self::new(SkipStream::new(self.inner, n))
     }
 
     /// Take items while a predicate holds.
@@ -412,12 +416,13 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .take_while(|x| *x < 5);
     /// assert_eq!(block_on(small.collect_vec()), vec![1, 2, 3, 4]);
     /// ```
-    #[inline(always)]
-    pub fn take_while<F>(self, predicate: F) -> Flumen<T>
+    #[inline]
+    #[must_use]
+    pub fn take_while<F>(self, predicate: F) -> Self
     where
         F: Fn(&T) -> bool + Send + Sync + Unpin + 'static,
     {
-        Flumen::new(TakeWhileStream::new(self.inner, predicate))
+        Self::new(TakeWhileStream::new(self.inner, predicate))
     }
 
     /// Skip items while a predicate holds.
@@ -445,12 +450,13 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .skip_while(|x| *x < 5);
     /// assert_eq!(block_on(large.collect_vec()), vec![5, 6, 7, 8, 9, 10]);
     /// ```
-    #[inline(always)]
-    pub fn skip_while<F>(self, predicate: F) -> Flumen<T>
+    #[inline]
+    #[must_use]
+    pub fn skip_while<F>(self, predicate: F) -> Self
     where
         F: Fn(&T) -> bool + Send + Sync + Unpin + 'static,
     {
-        Flumen::new(SkipWhileStream::new(self.inner, predicate))
+        Self::new(SkipWhileStream::new(self.inner, predicate))
     }
 
     /// Chain another stream after this one.
@@ -478,9 +484,10 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .chain(Flumen::from_iterator(vec![3, 4]));
     /// assert_eq!(block_on(chained.collect_vec()), vec![1, 2, 3, 4]);
     /// ```
-    #[inline(always)]
-    pub fn chain(self, other: Flumen<T>) -> Flumen<T> {
-        Flumen::new(ChainStream::new(self.inner, other.inner))
+    #[inline]
+    #[must_use]
+    pub fn chain(self, other: Self) -> Self {
+        Self::new(ChainStream::new(self.inner, other.inner))
     }
 
     /// Zip two streams together.
@@ -508,7 +515,8 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .zip(Flumen::from_iterator(vec!["a", "b", "c"]));
     /// assert_eq!(block_on(zipped.collect_vec()), vec![(1, "a"), (2, "b"), (3, "c")]);
     /// ```
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn zip<U: Send + 'static>(self, other: Flumen<U>) -> Flumen<(T, U)> {
         Flumen::new(ZipStream::new(self.inner, other.inner))
     }
@@ -537,7 +545,8 @@ impl<T: Send + 'static> Flumen<T> {
     /// let enumerated = Flumen::from_iterator(vec!["a", "b", "c"]).enumerate();
     /// assert_eq!(block_on(enumerated.collect_vec()), vec![(0, "a"), (1, "b"), (2, "c")]);
     /// ```
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn enumerate(self) -> Flumen<(usize, T)> {
         Flumen::new(EnumerateStream::new(self.inner))
     }
@@ -579,7 +588,7 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .scan(1, |acc, x| acc * x);
     /// assert_eq!(block_on(running_prod.collect_vec()), vec![1, 2, 6, 24]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn scan<B, F>(self, init: B, f: F) -> Flumen<B>
     where
         B: Clone + Send + Unpin + 'static,
@@ -627,7 +636,7 @@ impl<T: Send + 'static> Flumen<T> {
     ///     });
     /// assert_eq!(block_on(bounded_sum.collect_vec()), vec![1, 3, 6, 10]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn scan_with<S, B, F>(self, init: S, f: F) -> Flumen<B>
     where
         S: Send + Unpin + 'static,
@@ -679,7 +688,8 @@ impl<T: Send + 'static> Flumen<T> {
     /// Panics if `size` is zero — a zero-sized chunk could never fill and
     /// the stream would spin forever, so it is rejected eagerly at
     /// construction rather than at first poll.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn chunks(self, size: usize) -> Flumen<Vec<T>>
     where
         T: Unpin,
@@ -716,8 +726,9 @@ impl<T: Send + 'static> Flumen<T> {
     /// let items = block_on(stream.collect_vec());
     /// assert_eq!(items, vec![1, 2, 3]);
     /// ```
-    #[inline(always)]
-    pub fn inspect<F>(self, f: F) -> Flumen<T>
+    #[inline]
+    #[must_use]
+    pub fn inspect<F>(self, f: F) -> Self
     where
         F: Fn(&T) + Send + Sync + Unpin + 'static,
     {
@@ -840,7 +851,8 @@ impl<T: Send + 'static> Flumen<T> {
     /// This is the opt-in entrypoint for stream fusion: once fused, subsequent
     /// combinators can be applied without allocating new boxed stream adapters.
     #[cfg(feature = "fusion")]
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn fuse(self) -> FlumenFusus<BoxStream<T>, impl GradusStep<BoxStream<T>, T>, T> {
         FlumenFusus::new(
             self.inner,
@@ -1120,7 +1132,7 @@ impl<T: Send + 'static> Flumen<T> {
     ///     .flat_map(|x| Flumen::from_iterator(vec![x, x * 10]));
     /// assert_eq!(block_on(flattened.collect_vec()), vec![1, 10, 2, 20]);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn flat_map<B, F>(self, f: F) -> Flumen<B>
     where
         F: Fn(T) -> Flumen<B> + Send + Sync + Unpin + 'static,
@@ -1130,7 +1142,8 @@ impl<T: Send + 'static> Flumen<T> {
     }
 
     /// Flatten a stream of streams.
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn flatten(self) -> Flumen<T::Item>
     where
         T: Stream + Send + 'static,
@@ -1167,16 +1180,16 @@ struct IterStream<I> {
 }
 
 impl<I> IterStream<I> {
-    #[inline(always)]
-    fn new(iter: I) -> Self {
-        IterStream { iter }
+    #[inline]
+    const fn new(iter: I) -> Self {
+        Self { iter }
     }
 }
 
 impl<I: Iterator + Unpin> Stream for IterStream<I> {
     type Item = I::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(self.iter.next())
     }
@@ -1189,9 +1202,9 @@ struct MapStream<S, F> {
 }
 
 impl<S, F> MapStream<S, F> {
-    #[inline(always)]
-    fn new(stream: S, f: F) -> Self {
-        MapStream { stream, f }
+    #[inline]
+    const fn new(stream: S, f: F) -> Self {
+        Self { stream, f }
     }
 }
 
@@ -1202,7 +1215,7 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.stream).poll_next(cx) {
             Poll::Ready(Some(item)) => Poll::Ready(Some((self.f)(item))),
@@ -1219,9 +1232,9 @@ struct FilterStream<S, F> {
 }
 
 impl<S, F> FilterStream<S, F> {
-    #[inline(always)]
-    fn new(stream: S, predicate: F) -> Self {
-        FilterStream { stream, predicate }
+    #[inline]
+    const fn new(stream: S, predicate: F) -> Self {
+        Self { stream, predicate }
     }
 }
 
@@ -1232,7 +1245,7 @@ where
 {
     type Item = S::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             match Pin::new(&mut self.stream).poll_next(cx) {
@@ -1256,9 +1269,9 @@ struct FilterMapStream<S, F> {
 }
 
 impl<S, F> FilterMapStream<S, F> {
-    #[inline(always)]
-    fn new(stream: S, f: F) -> Self {
-        FilterMapStream { stream, f }
+    #[inline]
+    const fn new(stream: S, f: F) -> Self {
+        Self { stream, f }
     }
 }
 
@@ -1269,7 +1282,7 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             match Pin::new(&mut self.stream).poll_next(cx) {
@@ -1292,9 +1305,9 @@ struct TakeStream<S> {
 }
 
 impl<S> TakeStream<S> {
-    #[inline(always)]
-    fn new(stream: S, n: usize) -> Self {
-        TakeStream {
+    #[inline]
+    const fn new(stream: S, n: usize) -> Self {
+        Self {
             stream,
             remaining: n,
         }
@@ -1304,7 +1317,7 @@ impl<S> TakeStream<S> {
 impl<S: Stream + Unpin> Stream for TakeStream<S> {
     type Item = S::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.remaining == 0 {
             return Poll::Ready(None);
@@ -1326,9 +1339,9 @@ struct SkipStream<S> {
 }
 
 impl<S> SkipStream<S> {
-    #[inline(always)]
-    fn new(stream: S, n: usize) -> Self {
-        SkipStream {
+    #[inline]
+    const fn new(stream: S, n: usize) -> Self {
+        Self {
             stream,
             remaining: n,
         }
@@ -1338,7 +1351,7 @@ impl<S> SkipStream<S> {
 impl<S: Stream + Unpin> Stream for SkipStream<S> {
     type Item = S::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         while self.remaining > 0 {
             match Pin::new(&mut self.stream).poll_next(cx) {
@@ -1361,9 +1374,9 @@ struct TakeWhileStream<S, F> {
 }
 
 impl<S, F> TakeWhileStream<S, F> {
-    #[inline(always)]
-    fn new(stream: S, predicate: F) -> Self {
-        TakeWhileStream {
+    #[inline]
+    const fn new(stream: S, predicate: F) -> Self {
+        Self {
             stream,
             predicate,
             done: false,
@@ -1378,7 +1391,7 @@ where
 {
     type Item = S::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.done {
             return Poll::Ready(None);
@@ -1404,9 +1417,9 @@ struct SkipWhileStream<S, F> {
 }
 
 impl<S, F> SkipWhileStream<S, F> {
-    #[inline(always)]
-    fn new(stream: S, predicate: F) -> Self {
-        SkipWhileStream {
+    #[inline]
+    const fn new(stream: S, predicate: F) -> Self {
+        Self {
             stream,
             predicate: Some(predicate),
         }
@@ -1420,7 +1433,7 @@ where
 {
     type Item = S::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             match Pin::new(&mut self.stream).poll_next(cx) {
@@ -1446,9 +1459,9 @@ struct ChainStream<S1, S2> {
 }
 
 impl<S1, S2> ChainStream<S1, S2> {
-    #[inline(always)]
-    fn new(first: S1, second: S2) -> Self {
-        ChainStream {
+    #[inline]
+    const fn new(first: S1, second: S2) -> Self {
+        Self {
             first: Some(first),
             second,
         }
@@ -1462,7 +1475,7 @@ where
 {
     type Item = S1::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if let Some(ref mut first) = self.first {
             match Pin::new(first).poll_next(cx) {
@@ -1487,9 +1500,9 @@ struct ZipStream<S1: Stream, S2> {
 }
 
 impl<S1: Stream, S2> ZipStream<S1, S2> {
-    #[inline(always)]
-    fn new(stream1: S1, stream2: S2) -> Self {
-        ZipStream {
+    #[inline]
+    const fn new(stream1: S1, stream2: S2) -> Self {
+        Self {
             stream1,
             stream2,
             stash: None,
@@ -1508,7 +1521,7 @@ where
 {
     type Item = (S1::Item, S2::Item);
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let item1 = match self.stash.take() {
             Some(item) => item,
@@ -1537,16 +1550,16 @@ struct EnumerateStream<S> {
 }
 
 impl<S> EnumerateStream<S> {
-    #[inline(always)]
-    fn new(stream: S) -> Self {
-        EnumerateStream { stream, index: 0 }
+    #[inline]
+    const fn new(stream: S) -> Self {
+        Self { stream, index: 0 }
     }
 }
 
 impl<S: Stream + Unpin> Stream for EnumerateStream<S> {
     type Item = (usize, S::Item);
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.stream).poll_next(cx) {
             Poll::Ready(Some(item)) => {
@@ -1576,9 +1589,9 @@ where
     S: Stream,
     F: Fn(S::Item) -> Flumen<B>,
 {
-    #[inline(always)]
+    #[inline]
     fn new(stream: S, f: F) -> Self {
-        FlatMapStream {
+        Self {
             stream,
             f,
             current: None,
@@ -1594,7 +1607,7 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             // Try to get item from current inner stream
@@ -1634,8 +1647,8 @@ struct ScanStream<S, B, F> {
 
 impl<S, B, F> ScanStream<S, B, F> {
     #[inline]
-    fn new(stream: S, init: B, f: F) -> Self {
-        ScanStream {
+    const fn new(stream: S, init: B, f: F) -> Self {
+        Self {
             stream,
             acc: Some(init),
             f,
@@ -1678,9 +1691,9 @@ struct ScanWithStream<S, St, F> {
 }
 
 impl<S, St, F> ScanWithStream<S, St, F> {
-    #[inline(always)]
-    fn new(stream: S, init: St, f: F) -> Self {
-        ScanWithStream {
+    #[inline]
+    const fn new(stream: S, init: St, f: F) -> Self {
+        Self {
             stream,
             state: init,
             f,
@@ -1697,7 +1710,7 @@ where
 {
     type Item = B;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.done {
             return Poll::Ready(None);
@@ -1727,9 +1740,9 @@ struct ChunksStream<S: Stream> {
 }
 
 impl<S: Stream> ChunksStream<S> {
-    #[inline(always)]
+    #[inline]
     fn new(stream: S, size: usize) -> Self {
-        ChunksStream {
+        Self {
             stream,
             size,
             buffer: Vec::with_capacity(size),
@@ -1745,7 +1758,7 @@ where
 {
     type Item = Vec<S::Item>;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
 
@@ -1792,9 +1805,9 @@ where
     S: Stream,
     S::Item: Stream,
 {
-    #[inline(always)]
-    fn new(stream: S) -> Self {
-        FlattenStream {
+    #[inline]
+    const fn new(stream: S) -> Self {
+        Self {
             stream,
             current: None,
         }
@@ -1808,7 +1821,7 @@ where
 {
     type Item = <S::Item as Stream>::Item;
 
-    #[inline(always)]
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             if let Some(ref mut inner) = self.current {

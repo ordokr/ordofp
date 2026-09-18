@@ -57,7 +57,7 @@ impl<T> Pool<T> {
 
     /// Create a pool with a custom reset function.
     pub fn with_reset(factory: fn() -> T, reset: fn(&mut T)) -> Self {
-        Pool {
+        Self {
             available: RefCell::new(Vec::new()),
             factory,
             reset,
@@ -66,12 +66,14 @@ impl<T> Pool<T> {
     }
 
     /// Set the maximum pool size.
-    pub fn with_max_size(mut self, max_size: usize) -> Self {
+    #[must_use]
+    pub const fn with_max_size(mut self, max_size: usize) -> Self {
         self.max_size = max_size;
         self
     }
 
     /// Pre-populate the pool with objects.
+    #[must_use]
     pub fn with_initial(self, count: usize) -> Self {
         let mut available = self.available.borrow_mut();
         for _ in 0..count.min(self.max_size) {
@@ -173,7 +175,7 @@ impl<T, const N: usize> TypedPool<T, N> {
         assert!(N <= 64, "TypedPool size must be <= 64");
 
         // Lazy initialization: slots are claimed and filled on first use.
-        TypedPool {
+        Self {
             storage: RefCell::new([const { MaybeUninit::uninit() }; N]),
             available: RefCell::new(0),
             allocated: RefCell::new(0),
@@ -326,12 +328,13 @@ pub struct SmallContinuation {
 
 impl SmallContinuation {
     /// Get the raw storage bytes.
-    pub fn as_bytes(&self) -> &[u8] {
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8] {
         &self.data
     }
 
     /// Get mutable access to the raw storage bytes.
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+    pub const fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.data
     }
 }
@@ -344,32 +347,33 @@ pub struct MediumContinuation {
 
 impl MediumContinuation {
     /// Get the raw storage bytes.
-    pub fn as_bytes(&self) -> &[u8] {
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8] {
         &self.data
     }
 
     /// Get mutable access to the raw storage bytes.
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+    pub const fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.data
     }
 }
 
 impl Default for SmallContinuation {
     fn default() -> Self {
-        SmallContinuation { data: [0; 64] }
+        Self { data: [0; 64] }
     }
 }
 
 impl Default for MediumContinuation {
     fn default() -> Self {
-        MediumContinuation { data: [0; 256] }
+        Self { data: [0; 256] }
     }
 }
 
 impl ContinuationPool {
     /// Create a new continuation pool.
     pub fn new() -> Self {
-        ContinuationPool {
+        Self {
             small: Pool::new(SmallContinuation::default)
                 .with_max_size(256)
                 .with_initial(32),

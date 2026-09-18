@@ -15,6 +15,12 @@ use ordofp_core::easy::{
 };
 
 fn main() {
+    #[derive(Clone)]
+    struct Config {
+        timeout_ms: u64,
+        max_retries: u32,
+    }
+
     println!("=== OrdoFP Easy API Examples ===\n");
 
     // Example 1: Simple state management
@@ -40,12 +46,6 @@ fn main() {
     // Example 2: Reader for configuration
     println!("\n2. Reader/Configuration Pattern");
     println!("--------------------------------");
-
-    #[derive(Clone)]
-    struct Config {
-        timeout_ms: u64,
-        max_retries: u32,
-    }
 
     let config = Config {
         timeout_ms: 5000,
@@ -134,7 +134,9 @@ fn main() {
     println!("   Conditional (x=10): {result}");
 
     // Repeat
-    let squares: Vec<i32> = repeat(5, |i| (i * i) as i32);
+    let squares: Vec<i32> = repeat(5, |i| {
+        i32::try_from(i * i).expect("squared input fits in i32")
+    });
     println!("   Squares 0-4: {squares:?}");
 
     // Example 6: Result extensions

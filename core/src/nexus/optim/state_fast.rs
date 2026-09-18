@@ -50,13 +50,14 @@ pub enum FastState<S, A> {
 impl<S: 'static, A: 'static> FastState<S, A> {
     /// Create a pure value.
     #[inline]
-    pub fn pure(value: A) -> Self {
-        FastState::Pure(value)
+    pub const fn pure(value: A) -> Self {
+        Self::Pure(value)
     }
 
     /// Get the current state.
     #[inline]
-    pub fn get() -> FastState<S, S>
+    #[must_use]
+    pub const fn get() -> FastState<S, S>
     where
         S: Clone,
     {
@@ -65,7 +66,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
 
     /// Put a new state.
     #[inline]
-    pub fn put(value: S) -> FastState<S, ()> {
+    pub const fn put(value: S) -> FastState<S, ()> {
         FastState::Put(value, PhantomData)
     }
 
@@ -78,7 +79,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
     /// Create from a function (boxed fallback).
     #[inline]
     pub fn new<F: FnOnce(S) -> (A, S) + 'static>(f: F) -> Self {
-        FastState::Boxed(Box::new(f))
+        Self::Boxed(Box::new(f))
     }
 
     /// Run the computation with initial state.
@@ -94,8 +95,8 @@ impl<S: 'static, A: 'static> FastState<S, A> {
     #[inline]
     pub fn run(self, state: S) -> (A, S) {
         match self {
-            FastState::Pure(a) => (a, state),
-            FastState::Get(_) => {
+            Self::Pure(a) => (a, state),
+            Self::Get(_) => {
                 // Safety: We must panic if run() is called on Get variant without specialized handling
                 // because we cannot clone state here (S is not bounded by Clone).
                 // Use run_get() for the Get variant which properly requires S: Clone.
@@ -103,7 +104,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
                     "FastState::run called on Get variant. Use run_get() for optimized Get operations, or ensure Universalis run() is not used with Get."
                 );
             }
-            FastState::Put(new_state, _) => {
+            Self::Put(new_state, _) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "FastState::Put requires A = (), but found {:?}",
@@ -115,7 +116,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
                 let unit: A = downcast.take().unwrap();
                 (unit, new_state)
             }
-            FastState::Modify(f, _) => {
+            Self::Modify(f, _) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<()>(),
                     "FastState::Modify requires A = (), but found {:?}",
@@ -128,8 +129,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
                 let unit: A = downcast.take().unwrap();
                 (unit, new_state)
             }
-            FastState::Map(f) => f(state),
-            FastState::Boxed(f) => f(state),
+            Self::Map(f) | Self::Boxed(f) => f(state),
         }
     }
 
@@ -143,7 +143,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
         S: Clone,
     {
         match self {
-            FastState::Get(_) => {
+            Self::Get(_) => {
                 assert!(
                     TypeId::of::<A>() == TypeId::of::<S>(),
                     "FastState::Get requires A = S, but found {:?}",
@@ -166,7 +166,7 @@ impl<S: 'static, A: 'static> FastState<S, A> {
         S: Clone,
     {
         match self {
-            FastState::Pure(a) => FastState::Pure(f(a)),
+            Self::Pure(a) => FastState::Pure(f(a)),
             other => FastState::Map(Box::new(move |s| {
                 let (a, s2) = other.run_cloned(s);
                 (f(a), s2)
@@ -191,15 +191,14 @@ impl<S: 'static, A: 'static> FastState<S, A> {
 }
 
 // Specialized implementation for S = A case (Get)
-impl<S: Clone + 'static> FastState<S, S> {
+impl<T: Clone + 'static> FastState<T, T> {
     /// Run Get operation.
     #[inline]
-    pub fn run_get(self, state: S) -> (S, S) {
+    pub fn run_get(self, state: T) -> (T, T) {
         match self {
-            FastState::Pure(a) => (a, state),
-            FastState::Get(_) => (state.clone(), state),
-            FastState::Map(f) => f(state),
-            FastState::Boxed(f) => f(state),
+            Self::Pure(a) => (a, state),
+            Self::Get(_) => (state.clone(), state),
+            Self::Map(f) | Self::Boxed(f) => f(state),
             _ => crate::cold_panic!("Invalid FastState variant for run_get"),
         }
     }
@@ -211,12 +210,11 @@ impl<S: 'static> FastState<S, ()> {
     #[inline]
     pub fn run_unit(self, state: S) -> ((), S) {
         match self {
-            FastState::Pure(()) => ((), state),
-            FastState::Put(new_state, _) => ((), new_state),
-            FastState::Modify(f, _) => ((), f(state)),
-            FastState::Map(f) => f(state),
-            FastState::Boxed(f) => f(state),
-            FastState::Get(_) => crate::cold_panic!("Invalid FastState variant for run_unit"),
+            Self::Pure(()) => ((), state),
+            Self::Put(new_state, _) => ((), new_state),
+            Self::Modify(f, _) => ((), f(state)),
+            Self::Map(f) | Self::Boxed(f) => f(state),
+            Self::Get(_) => crate::cold_panic!("Invalid FastState variant for run_unit"),
         }
     }
 }
@@ -235,7 +233,7 @@ pub trait StateOp<S> {
     /// Run this state operation against `state`, returning the produced value
     /// and the updated state as `(output, new_state)`.
     ///
-    /// Implementors should be `#[inline(always)]` so the compiler can
+    /// Implementors should be `#[inline]` so the compiler can
     /// monomorphize and eliminate trait dispatch, preserving the zero-allocation
     /// guarantee of inlined state chains.
     fn run_op(self, state: S) -> (Self::Output, S);
@@ -246,7 +244,7 @@ pub struct PureOp<A>(pub A);
 
 impl<S, A> StateOp<S> for PureOp<A> {
     type Output = A;
-    #[inline(always)]
+    #[inline]
     fn run_op(self, state: S) -> (A, S) {
         (self.0, state)
     }
@@ -257,7 +255,7 @@ pub struct GetOp;
 
 impl<S: Clone> StateOp<S> for GetOp {
     type Output = S;
-    #[inline(always)]
+    #[inline]
     fn run_op(self, state: S) -> (S, S) {
         (state.clone(), state)
     }
@@ -268,7 +266,7 @@ pub struct PutOp<S>(pub S);
 
 impl<S> StateOp<S> for PutOp<S> {
     type Output = ();
-    #[inline(always)]
+    #[inline]
     fn run_op(self, _state: S) -> ((), S) {
         ((), self.0)
     }
@@ -279,7 +277,7 @@ pub struct ModifyOp<S, F: FnOnce(S) -> S>(pub F, PhantomData<S>);
 
 impl<S, F: FnOnce(S) -> S> StateOp<S> for ModifyOp<S, F> {
     type Output = ();
-    #[inline(always)]
+    #[inline]
     fn run_op(self, state: S) -> ((), S) {
         ((), (self.0)(state))
     }
@@ -290,7 +288,7 @@ pub struct MapOp<Op, F>(pub Op, pub F);
 
 impl<S, Op: StateOp<S>, B, F: FnOnce(Op::Output) -> B> StateOp<S> for MapOp<Op, F> {
     type Output = B;
-    #[inline(always)]
+    #[inline]
     fn run_op(self, state: S) -> (B, S) {
         let (a, s2) = self.0.run_op(state);
         ((self.1)(a), s2)
@@ -304,7 +302,7 @@ impl<S, Op1: StateOp<S>, Op2: StateOp<S>, F: FnOnce(Op1::Output) -> Op2> StateOp
     for AndThenOp<Op1, F>
 {
     type Output = Op2::Output;
-    #[inline(always)]
+    #[inline]
     fn run_op(self, state: S) -> (Op2::Output, S) {
         let (a, s2) = self.0.run_op(state);
         (self.1)(a).run_op(s2)
@@ -314,13 +312,13 @@ impl<S, Op1: StateOp<S>, Op2: StateOp<S>, F: FnOnce(Op1::Output) -> Op2> StateOp
 /// Extension trait for chaining state operations.
 pub trait StateOpExt<S>: StateOp<S> + Sized {
     /// Map over the result.
-    #[inline(always)]
+    #[inline]
     fn map_op<B, F: FnOnce(Self::Output) -> B>(self, f: F) -> MapOp<Self, F> {
         MapOp(self, f)
     }
 
     /// Chain with another operation.
-    #[inline(always)]
+    #[inline]
     fn and_then_op<Op2: StateOp<S>, F: FnOnce(Self::Output) -> Op2>(
         self,
         f: F,
@@ -336,26 +334,27 @@ impl<S, Op: StateOp<S>> StateOpExt<S> for Op {}
 // =============================================================================
 
 /// Create a pure state operation.
-#[inline(always)]
-pub fn pure_op<A>(a: A) -> PureOp<A> {
+#[inline]
+pub const fn pure_op<A>(a: A) -> PureOp<A> {
     PureOp(a)
 }
 
 /// Create a get state operation.
-#[inline(always)]
-pub fn get_op() -> GetOp {
+#[inline]
+#[must_use]
+pub const fn get_op() -> GetOp {
     GetOp
 }
 
 /// Create a put state operation.
-#[inline(always)]
-pub fn put_op<S>(s: S) -> PutOp<S> {
+#[inline]
+pub const fn put_op<S>(s: S) -> PutOp<S> {
     PutOp(s)
 }
 
 /// Create a modify state operation.
-#[inline(always)]
-pub fn modify_op<S, F: FnOnce(S) -> S>(f: F) -> ModifyOp<S, F> {
+#[inline]
+pub const fn modify_op<S, F: FnOnce(S) -> S>(f: F) -> ModifyOp<S, F> {
     ModifyOp(f, PhantomData)
 }
 

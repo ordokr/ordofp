@@ -32,8 +32,9 @@ pub struct ContextusVestigium {
 impl ContextusVestigium {
     /// Create a new trace context.
     #[inline]
+    #[must_use]
     pub fn new(trace_id: VestigiumId) -> Self {
-        ContextusVestigium {
+        Self {
             trace_id,
             span_id: SpatiumId::generate(),
             parent_span_id: None,
@@ -43,14 +44,16 @@ impl ContextusVestigium {
 
     /// Create a root context (new trace).
     #[inline]
+    #[must_use]
     pub fn root() -> Self {
         Self::new(VestigiumId::generate())
     }
 
     /// Create a child context.
     #[inline]
+    #[must_use]
     pub fn child(&self) -> Self {
-        ContextusVestigium {
+        Self {
             trace_id: self.trace_id,
             span_id: SpatiumId::generate(),
             parent_span_id: Some(self.span_id),
@@ -60,38 +63,44 @@ impl ContextusVestigium {
 
     /// Set the sampling decision.
     #[inline]
-    pub fn with_sampled(mut self, sampled: bool) -> Self {
+    #[must_use]
+    pub const fn with_sampled(mut self, sampled: bool) -> Self {
         self.sampled = sampled;
         self
     }
 
     /// Get the trace ID.
     #[inline]
-    pub fn trace_id(&self) -> VestigiumId {
+    #[must_use]
+    pub const fn trace_id(&self) -> VestigiumId {
         self.trace_id
     }
 
     /// Get the span ID.
     #[inline]
-    pub fn span_id(&self) -> SpatiumId {
+    #[must_use]
+    pub const fn span_id(&self) -> SpatiumId {
         self.span_id
     }
 
     /// Get the parent span ID.
     #[inline]
-    pub fn parent_span_id(&self) -> Option<SpatiumId> {
+    #[must_use]
+    pub const fn parent_span_id(&self) -> Option<SpatiumId> {
         self.parent_span_id
     }
 
     /// Check if this trace is sampled.
     #[inline]
-    pub fn is_sampled(&self) -> bool {
+    #[must_use]
+    pub const fn is_sampled(&self) -> bool {
         self.sampled
     }
 
     /// Convert to W3C trace context header format.
     ///
     /// Format: `{version}-{trace_id}-{span_id}-{flags}`
+    #[must_use]
     pub fn to_traceparent(&self) -> [u8; 55] {
         let mut buf = [0u8; 55];
         // Version (00)
@@ -143,8 +152,9 @@ pub struct ContextusStack {
 
 impl ContextusStack {
     /// Create a new empty context stack.
+    #[must_use]
     pub fn new() -> Self {
-        ContextusStack {
+        Self {
             stack: Vec::with_capacity(8),
         }
     }
@@ -163,6 +173,7 @@ impl ContextusStack {
 
     /// Get the current context.
     #[inline]
+    #[must_use]
     pub fn current(&self) -> Option<&ContextusVestigium> {
         self.stack.last()
     }
@@ -170,11 +181,9 @@ impl ContextusStack {
     /// Create a child context and push it.
     #[inline]
     pub fn enter(&mut self) -> ContextusVestigium {
-        let ctx = if let Some(parent) = self.current() {
-            parent.child()
-        } else {
-            ContextusVestigium::root()
-        };
+        let ctx = self
+            .current()
+            .map_or_else(ContextusVestigium::root, ContextusVestigium::child);
         self.stack.push(ctx);
         ctx
     }
@@ -187,13 +196,15 @@ impl ContextusStack {
 
     /// Check if the stack is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.stack.is_empty()
     }
 
     /// Get the depth of the stack.
     #[inline]
-    pub fn depth(&self) -> usize {
+    #[must_use]
+    pub const fn depth(&self) -> usize {
         self.stack.len()
     }
 }
@@ -245,8 +256,9 @@ pub struct SamplatorProbabilis {
 
 impl SamplatorProbabilis {
     /// Create a new probabilistic sampler.
-    pub fn new(rate: f64) -> Self {
-        SamplatorProbabilis {
+    #[must_use]
+    pub const fn new(rate: f64) -> Self {
+        Self {
             rate: rate.clamp(0.0, 1.0),
         }
     }
@@ -257,7 +269,7 @@ impl SamplatorProbabilis {
 /// `u64`s. Without this, every early trace id falls below any non-zero
 /// threshold and is always sampled.
 #[inline]
-fn splitmix64_mix(id: u64) -> u64 {
+const fn splitmix64_mix(id: u64) -> u64 {
     let mut z = id.wrapping_add(0x9E37_79B9_7F4A_7C15);
     z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
@@ -273,7 +285,8 @@ impl Samplator for SamplatorProbabilis {
     #[allow(
         clippy::cast_precision_loss,
         clippy::cast_possible_truncation,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        reason = "rate in [0,1] keeps the u64 threshold cast in range"
     )]
     fn should_sample(&self, trace_id: VestigiumId) -> bool {
         // Deterministic sampling: mix the (sequential) trace ID into a
@@ -300,8 +313,9 @@ pub struct Impedimenta {
 
 impl Impedimenta {
     /// Create new empty baggage.
+    #[must_use]
     pub fn new() -> Self {
-        Impedimenta {
+        Self {
             items: Vec::with_capacity(4),
         }
     }
@@ -322,6 +336,7 @@ impl Impedimenta {
 
     /// Get a baggage item.
     #[inline]
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
         self.items
             .iter()
@@ -343,13 +358,15 @@ impl Impedimenta {
 
     /// Check if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
     /// Get the number of items.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.items.len()
     }
 }
@@ -410,10 +427,11 @@ mod tests {
     #[test]
     fn test_sampler_probabilis_half_rate_distribution() {
         let sampler = SamplatorProbabilis::new(0.5);
-        let sampled = (1..=1000u64)
+        let hit_count = (1..=1000u64)
             .filter(|&id| sampler.should_sample(VestigiumId::new(id)))
             .count();
-        let fraction = sampled as f64 / 1000.0;
+        let fraction =
+            f64::from(u32::try_from(hit_count).expect("test sample count fits in u32")) / 1000.0;
         assert!(
             fraction > 0.35 && fraction < 0.65,
             "sampled fraction {fraction} outside (0.35, 0.65)"

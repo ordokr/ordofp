@@ -60,8 +60,9 @@ pub struct VestigiumId(u64);
 impl VestigiumId {
     /// Create a new trace ID from a raw value.
     #[inline]
-    pub fn new(id: u64) -> Self {
-        VestigiumId(id)
+    #[must_use]
+    pub const fn new(id: u64) -> Self {
+        Self(id)
     }
 
     /// Generate a new unique trace ID.
@@ -69,12 +70,13 @@ impl VestigiumId {
     pub fn generate() -> Self {
         use core::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
-        VestigiumId(COUNTER.fetch_add(1, Ordering::Relaxed))
+        Self(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Get the raw ID value.
     #[inline]
-    pub fn value(&self) -> u64 {
+    #[must_use]
+    pub const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -105,8 +107,9 @@ pub struct SpatiumId(u64);
 impl SpatiumId {
     /// Create a new span ID from a raw value.
     #[inline]
-    pub fn new(id: u64) -> Self {
-        SpatiumId(id)
+    #[must_use]
+    pub const fn new(id: u64) -> Self {
+        Self(id)
     }
 
     /// Generate a new unique span ID.
@@ -114,12 +117,13 @@ impl SpatiumId {
     pub fn generate() -> Self {
         use core::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
-        SpatiumId(COUNTER.fetch_add(1, Ordering::Relaxed))
+        Self(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Get the raw ID value.
     #[inline]
-    pub fn value(&self) -> u64 {
+    #[must_use]
+    pub const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -162,13 +166,14 @@ pub enum Gradus {
 impl Gradus {
     /// Get the level name.
     #[inline]
-    pub fn name(&self) -> &'static str {
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
         match self {
-            Gradus::Vestigium => "TRACE",
-            Gradus::Debug => "DEBUG",
-            Gradus::Info => "INFO",
-            Gradus::Monitum => "WARN",
-            Gradus::Error => "ERROR",
+            Self::Vestigium => "TRACE",
+            Self::Debug => "DEBUG",
+            Self::Info => "INFO",
+            Self::Monitum => "WARN",
+            Self::Error => "ERROR",
         }
     }
 }

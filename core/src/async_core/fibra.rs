@@ -134,12 +134,13 @@ impl FibraId {
     #[inline]
     pub(crate) fn new() -> Self {
         // Relaxed: monotonic counter, no other atomic depends on its order
-        FibraId(FIBRA_COUNTER.fetch_add(1, Ordering::Relaxed))
+        Self(FIBRA_COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 
     /// Get the raw ID value.
     #[inline]
-    pub fn value(&self) -> u64 {
+    #[must_use]
+    pub const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -199,7 +200,7 @@ pub enum FibraError {
     /// The fiber timed out.
     TemporisExcessus,
     /// A child fiber failed.
-    InfansDefectus(Box<FibraError>),
+    InfansDefectus(Box<Self>),
     /// Other error.
     Alius(String),
 }
@@ -207,11 +208,11 @@ pub enum FibraError {
 impl core::fmt::Display for FibraError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            FibraError::Abrogatus => write!(f, "fiber was cancelled"),
-            FibraError::Panic(msg) => write!(f, "fiber panicked: {msg}"),
-            FibraError::TemporisExcessus => write!(f, "fiber timed out"),
-            FibraError::InfansDefectus(e) => write!(f, "child fiber failed: {e}"),
-            FibraError::Alius(msg) => write!(f, "fiber error: {msg}"),
+            Self::Abrogatus => write!(f, "fiber was cancelled"),
+            Self::Panic(msg) => write!(f, "fiber panicked: {msg}"),
+            Self::TemporisExcessus => write!(f, "fiber timed out"),
+            Self::InfansDefectus(e) => write!(f, "child fiber failed: {e}"),
+            Self::Alius(msg) => write!(f, "fiber error: {msg}"),
         }
     }
 }
@@ -287,7 +288,7 @@ impl<A> Fibra<A> {
         let cancelled = Arc::new(TesseraAbrogationis::default());
         let cancelled_clone = cancelled.clone();
 
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move {
                 if cancelled_clone.est_abrogata() {
@@ -316,7 +317,7 @@ impl<A> Fibra<A> {
     where
         A: Send + 'static,
     {
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move { Ok(value) }),
             cancelled: Arc::new(TesseraAbrogationis::default()),
@@ -327,11 +328,12 @@ impl<A> Fibra<A> {
     ///
     /// # Latin Etymology
     /// *Deficere* = to fail.
+    #[must_use]
     pub fn deficere(error: FibraError) -> Self
     where
         A: Send + 'static,
     {
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move { Err(error) }),
             cancelled: Arc::new(TesseraAbrogationis::default()),
@@ -340,18 +342,21 @@ impl<A> Fibra<A> {
 
     /// Get the fiber's unique ID.
     #[inline]
-    pub fn id(&self) -> FibraId {
+    #[must_use]
+    pub const fn id(&self) -> FibraId {
         self.id
     }
 
     /// Check if cancellation has been requested.
     #[inline]
+    #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.est_abrogata()
     }
 
     /// Get the cancellation token for this fiber.
     #[inline]
+    #[must_use]
     pub fn cancellation_token(&self) -> Arc<TesseraAbrogationis> {
         self.cancelled.clone()
     }
@@ -429,6 +434,7 @@ impl<A> Fibra<A> {
     ///
     /// # Latin Etymology
     /// *Applicare* = to apply.
+    #[must_use]
     pub fn applicare<B, F>(self, ff: Fibra<F>) -> Fibra<B>
     where
         F: FnOnce(A) -> B + Send + 'static,
@@ -443,8 +449,7 @@ impl<A> Fibra<A> {
                 let a_result = self.await;
                 match (f_result, a_result) {
                     (Ok(f), Ok(a)) => Ok(f(a)),
-                    (Err(e), _) => Err(e),
-                    (_, Err(e)) => Err(e),
+                    (Err(e), _) | (_, Err(e)) => Err(e),
                 }
             }),
             cancelled,
@@ -455,13 +460,14 @@ impl<A> Fibra<A> {
     ///
     /// # Latin Etymology
     /// *Recuperare* = to recover.
-    pub fn recuperare<F>(self, handler: F) -> Fibra<A>
+    #[must_use]
+    pub fn recuperare<F>(self, handler: F) -> Self
     where
         F: FnOnce(FibraError) -> A + Send + 'static,
         A: Send + 'static,
     {
         let cancelled = self.cancelled.clone();
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move {
                 let result = self.await;
@@ -475,13 +481,14 @@ impl<A> Fibra<A> {
     ///
     /// # Latin Etymology
     /// *Recuperare* + *Fibra* = recover with fiber.
-    pub fn recuperare_cum<F>(self, handler: F) -> Fibra<A>
+    #[must_use]
+    pub fn recuperare_cum<F>(self, handler: F) -> Self
     where
-        F: FnOnce(FibraError) -> Fibra<A> + Send + 'static,
+        F: FnOnce(FibraError) -> Self + Send + 'static,
         A: Send + 'static,
     {
         let cancelled = self.cancelled.clone();
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move {
                 let result = self.await;
@@ -498,14 +505,15 @@ impl<A> Fibra<A> {
     ///
     /// # Latin Etymology
     /// *Assecurare* = to ensure, make secure.
-    pub fn assecurare<F, Fut>(self, finalizer: F) -> Fibra<A>
+    #[must_use]
+    pub fn assecurare<F, Fut>(self, finalizer: F) -> Self
     where
         F: FnOnce() -> Fut + Send + 'static,
         Fut: Future<Output = ()> + Send + 'static,
         A: Send + 'static,
     {
         let cancelled = self.cancelled.clone();
-        Fibra {
+        Self {
             id: FibraId::new(),
             inner: Box::pin(async move {
                 let result = self.await;
@@ -550,12 +558,12 @@ pub struct FibraManubrium<A> {
 impl<A> FibraManubrium<A> {
     /// Create a new fiber handle.
     #[inline]
-    pub fn new(
+    pub const fn new(
         id: FibraId,
         join_handle: JoinManubrium<FibraExitus<A>>,
         cancelled: Arc<TesseraAbrogationis>,
     ) -> Self {
-        FibraManubrium {
+        Self {
             id,
             join_handle,
             cancelled,
@@ -564,7 +572,8 @@ impl<A> FibraManubrium<A> {
 
     /// Get the fiber's unique ID.
     #[inline]
-    pub fn id(&self) -> FibraId {
+    #[must_use]
+    pub const fn id(&self) -> FibraId {
         self.id
     }
 
@@ -588,6 +597,7 @@ impl<A> FibraManubrium<A> {
 
     /// Check if cancellation has been requested.
     #[inline]
+    #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.est_abrogata()
     }
@@ -699,6 +709,7 @@ impl<A> FibraManubrium<A> {
 /// let (a, b) = block_on(par(fiber1, fiber2)).unwrap();
 /// assert_eq!((a, b), (1, 2));
 /// ```
+#[must_use]
 pub fn par<A, B>(fa: Fibra<A>, fb: Fibra<B>) -> Fibra<(A, B)>
 where
     A: Send + 'static,
@@ -759,6 +770,7 @@ where
 
 /// Alias for `par`.
 #[inline]
+#[must_use]
 pub fn zip_par<A, B>(fa: Fibra<A>, fb: Fibra<B>) -> Fibra<(A, B)>
 where
     A: Send + 'static,
@@ -800,6 +812,7 @@ where
 /// let winner = block_on(certamen(fiber1, fiber2)).unwrap();
 /// assert_eq!(winner, 1);
 /// ```
+#[must_use]
 pub fn certamen<A>(fa: Fibra<A>, fb: Fibra<A>) -> Fibra<A>
 where
     A: Send + 'static,
@@ -836,6 +849,7 @@ where
 
 /// Alias for `certamen`.
 #[inline]
+#[must_use]
 pub fn race<A>(fa: Fibra<A>, fb: Fibra<A>) -> Fibra<A>
 where
     A: Send + 'static,
@@ -847,6 +861,7 @@ where
 ///
 /// # Latin Etymology
 /// *Certamen multorum* = race of many.
+#[must_use]
 pub fn certamen_multi<A>(fibers: Vec<Fibra<A>>) -> Fibra<A>
 where
     A: Send + 'static,
@@ -856,7 +871,7 @@ where
     }
 
     let cancelled = Arc::new(TesseraAbrogationis::default());
-    let cancelled_clone = cancelled.clone();
+    let cancelled_clone = cancelled;
 
     Fibra {
         id: FibraId::new(),
@@ -878,6 +893,7 @@ where
 ///
 /// # Latin Etymology
 /// *Sequentia* = sequence, following.
+#[must_use]
 pub fn sequentia<A>(fibers: Vec<Fibra<A>>) -> Fibra<Vec<A>>
 where
     A: Send + 'static,
@@ -904,6 +920,7 @@ where
 
 /// Alias for `sequentia`.
 #[inline]
+#[must_use]
 pub fn sequence<A>(fibers: Vec<Fibra<A>>) -> Fibra<Vec<A>>
 where
     A: Send + 'static,
@@ -970,6 +987,7 @@ where
 
 /// Alias for `par_omnes`.
 #[inline]
+#[must_use]
 pub fn par_sequence<A>(fibers: Vec<Fibra<A>>) -> Fibra<Vec<A>>
 where
     A: Send + 'static,
@@ -1024,8 +1042,9 @@ pub struct FibraAmbitus<R: RuntimeGenerare> {
 impl<R: RuntimeGenerare> FibraAmbitus<R> {
     /// Create a new fiber scope.
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        FibraAmbitus {
+        Self {
             // Pre-allocate a small buffer; scopes rarely hold more than a handful of fibers.
             children: Vec::with_capacity(8),
             _runtime: PhantomData,
@@ -1121,6 +1140,7 @@ where
 
 /// Create a failed fiber.
 #[inline]
+#[must_use]
 pub fn deficere<A>(error: FibraError) -> Fibra<A>
 where
     A: Send + 'static,

@@ -187,10 +187,6 @@ fn test_multiplicitas_semiring_multiplication() {
 
 #[test]
 fn test_type_level_usage() {
-    assert_eq!(Nihil::VALUE, Multiplicitas::Nihil);
-    assert_eq!(Semel::VALUE, Multiplicitas::Semel);
-    assert_eq!(Omega::VALUE, Multiplicitas::Omega);
-
     // Compile-time constants - verify with const assertions
     const _: () = assert!(Nihil::ALLOWS_DISCARD);
     const _: () = assert!(!Semel::ALLOWS_DISCARD);
@@ -199,6 +195,10 @@ fn test_type_level_usage() {
     const _: () = assert!(Nihil::ALLOWS_DUP);
     const _: () = assert!(!Semel::ALLOWS_DUP);
     const _: () = assert!(Omega::ALLOWS_DUP);
+
+    assert_eq!(Nihil::VALUE, Multiplicitas::Nihil);
+    assert_eq!(Semel::VALUE, Multiplicitas::Semel);
+    assert_eq!(Omega::VALUE, Multiplicitas::Omega);
 }
 
 // =============================================================================

@@ -57,12 +57,10 @@ fuzz_target!(|data: (Vec<u8>, Vec<Op>)| {
                     assert!(filtered_opt.is_none());
                     // Since model is empty, we can't continue operations on NonEmpty
                     break;
+                } else if let Some(filtered) = filtered_opt {
+                    nel = filtered;
                 } else {
-                    if let Some(filtered) = filtered_opt {
-                        nel = filtered;
-                    } else {
-                        panic!("Model not empty but NonEmpty filter returned None");
-                    }
+                    panic!("Model not empty but NonEmpty filter returned None");
                 }
             }
         }

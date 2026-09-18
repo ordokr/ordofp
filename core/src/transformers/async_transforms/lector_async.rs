@@ -81,7 +81,7 @@ pub struct LectorAsync<E, A> {
 
 impl<E, A> Clone for LectorAsync<E, A> {
     fn clone(&self) -> Self {
-        LectorAsync {
+        Self {
             run_fn: Arc::clone(&self.run_fn),
             _phantom: PhantomData,
         }
@@ -108,7 +108,7 @@ where
         F: Fn(E) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = A> + Send + 'static,
     {
-        LectorAsync {
+        Self {
             run_fn: Arc::new(move |e| Box::pin(f(e))),
             _phantom: PhantomData,
         }
@@ -182,7 +182,7 @@ where
     where
         A: Clone + Send + Sync + 'static,
     {
-        LectorAsync::new(move |_: E| {
+        Self::new(move |_: E| {
             let v = value.clone();
             async move { v }
         })
@@ -222,6 +222,7 @@ where
     /// assert_eq!(result, config);
     /// ```
     #[inline]
+    #[must_use]
     pub fn ask() -> LectorAsync<E, E>
     where
         E: Clone,
@@ -511,6 +512,7 @@ where
 
     /// Sequence this reader before another, discarding the first result.
     #[inline]
+    #[must_use]
     pub fn then<B>(self, next: LectorAsync<E, B>) -> LectorAsync<E, B>
     where
         B: Send + 'static,
@@ -521,14 +523,15 @@ where
 
     /// Sequence this reader before another, keeping only the first result.
     #[inline]
-    pub fn skip<B>(self, next: LectorAsync<E, B>) -> LectorAsync<E, A>
+    #[must_use]
+    pub fn skip<B>(self, next: LectorAsync<E, B>) -> Self
     where
         B: Send + 'static,
         E: Clone,
         A: Clone + Send + Sync + 'static,
     {
         self.flat_map(move |a| {
-            let a_clone = a.clone();
+            let a_clone = a;
             next.clone().fmap(move |_| a_clone.clone())
         })
     }
@@ -555,7 +558,7 @@ where
         let shared_fut: FutureSlot<A> = Arc::new(std::sync::Mutex::new(Some(Box::pin(fut))));
         let result_cache: Arc<OnceLock<A>> = Arc::new(OnceLock::new());
 
-        LectorAsync {
+        Self {
             run_fn: Arc::new(move |_: E| {
                 let shared_fut = Arc::clone(&shared_fut);
                 let result_cache = Arc::clone(&result_cache);
@@ -620,7 +623,7 @@ where
         let shared_fut: FutureSlot<A> = Arc::new(std::sync::Mutex::new(Some(Box::pin(fut))));
         let result_cache: Arc<OnceLock<A>> = Arc::new(OnceLock::new());
 
-        LectorAsync {
+        Self {
             run_fn: Arc::new(move |_: E| {
                 let shared_fut = Arc::clone(&shared_fut);
                 let result_cache = Arc::clone(&result_cache);
@@ -660,7 +663,7 @@ where
     /// This is the recommended way to lift values.
     #[inline]
     pub fn lift_value(value: A) -> Self {
-        LectorAsync::purus(value)
+        Self::purus(value)
     }
 }
 
@@ -695,7 +698,7 @@ mod tests {
     #[test]
     fn test_lector_async_clone() {
         let reader: LectorAsync<i32, i32> = LectorAsync::new(|x| async move { x });
-        let _cloned = reader.clone();
+        let _cloned = reader;
     }
 
     #[test]

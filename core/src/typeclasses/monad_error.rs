@@ -77,6 +77,7 @@ pub trait MonadError<E> {
     /// });
     /// assert_eq!(recovered, Ok(0));
     /// ```
+    #[must_use]
     fn catch<F>(self, handler: F) -> Self
     where
         F: FnOnce(&E) -> Self;
@@ -94,6 +95,7 @@ pub trait MonadError<E> {
     /// let recovered = err.catch_owned(|e| Ok(e.len() as i32));
     /// assert_eq!(recovered, Ok(5));
     /// ```
+    #[must_use]
     fn catch_owned<F>(self, handler: F) -> Self
     where
         F: FnOnce(E) -> Self;
@@ -110,6 +112,7 @@ pub trait MonadError<E> {
     /// assert_eq!(with_default, Ok(42));
     /// ```
     #[inline]
+    #[must_use]
     fn or_default(self, default: Self::Inner) -> Self
     where
         Self: Sized,

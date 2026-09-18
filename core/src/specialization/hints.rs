@@ -30,8 +30,9 @@
 /// assert_eq!(process(5), 10);
 /// assert_eq!(process(-5), 5);
 /// ```
-#[inline(always)]
-pub fn likely(b: bool) -> bool {
+#[inline]
+#[must_use]
+pub const fn likely(b: bool) -> bool {
     // Thin alias for the intrinsic-backed version; prefer crate::hints::likely.
     crate::hints::likely(b)
 }
@@ -56,8 +57,9 @@ pub fn likely(b: bool) -> bool {
 /// assert_eq!(divide(10, 2), Some(5));
 /// assert_eq!(divide(10, 0), None);
 /// ```
-#[inline(always)]
-pub fn unlikely(b: bool) -> bool {
+#[inline]
+#[must_use]
+pub const fn unlikely(b: bool) -> bool {
     // Thin alias for the intrinsic-backed version; prefer crate::hints::unlikely.
     crate::hints::unlikely(b)
 }
@@ -102,7 +104,7 @@ where
 ///
 /// Hot paths are aggressively inlined and optimized for speed.
 /// Thin alias for [`crate::hints::hot_path`].
-#[inline(always)]
+#[inline]
 pub fn hot_path<F, R>(f: F) -> R
 where
     F: FnOnce() -> R,
@@ -121,16 +123,16 @@ where
 ///
 /// Note: This is a no-op on platforms without prefetch support
 /// or when the intrinsics are not available.
-#[inline(always)]
-pub fn prefetch_read<T>(_data: &T) {
+#[inline]
+pub const fn prefetch_read<T>(_data: &T) {
     // Prefetch hints require platform-specific intrinsics.
     // On stable Rust without std, we provide a no-op implementation.
     // The compiler may still optimize based on access patterns.
 }
 
 /// Hint to prefetch data for writing.
-#[inline(always)]
-pub fn prefetch_write<T>(_data: &mut T) {
+#[inline]
+pub const fn prefetch_write<T>(_data: &mut T) {
     // No-op on stable Rust without platform-specific features
 }
 
@@ -159,8 +161,8 @@ pub fn prefetch_write<T>(_data: &mut T) {
 ///
 /// assert_eq!(get_positive(5), 5);
 /// ```
-#[inline(always)]
-pub unsafe fn assume(cond: bool) {
+#[inline]
+pub const unsafe fn assume(cond: bool) {
     if !cond {
         // SAFETY: Caller guarantees cond is true
         unsafe { core::hint::unreachable_unchecked() }
@@ -172,8 +174,8 @@ pub unsafe fn assume(cond: bool) {
 /// # Safety
 ///
 /// The pointer MUST be non-null.
-#[inline(always)]
-pub unsafe fn assume_non_null<T>(ptr: *const T) -> *const T {
+#[inline]
+pub const unsafe fn assume_non_null<T>(ptr: *const T) -> *const T {
     // SAFETY: Caller guarantees ptr is non-null
     unsafe { assume(!ptr.is_null()) };
     ptr
@@ -184,8 +186,8 @@ pub unsafe fn assume_non_null<T>(ptr: *const T) -> *const T {
 /// # Safety
 ///
 /// The slice MUST be non-empty.
-#[inline(always)]
-pub unsafe fn assume_non_empty<T>(slice: &[T]) -> &[T] {
+#[inline]
+pub const unsafe fn assume_non_empty<T>(slice: &[T]) -> &[T] {
     // SAFETY: Caller guarantees slice is non-empty
     unsafe { assume(!slice.is_empty()) };
     slice
@@ -213,8 +215,8 @@ pub unsafe fn assume_non_empty<T>(slice: &[T]) -> &[T] {
 /// black_box(result);  // Prevent optimization
 /// assert_eq!(result, 42);
 /// ```
-#[inline(always)]
-pub fn black_box<T>(x: T) -> T {
+#[inline]
+pub const fn black_box<T>(x: T) -> T {
     core::hint::black_box(x)
 }
 
@@ -225,7 +227,7 @@ pub fn black_box<T>(x: T) -> T {
 /// Hint that we're in a spin loop.
 ///
 /// Reduces power consumption and improves performance of spin locks.
-#[inline(always)]
+#[inline]
 pub fn spin_loop_hint() {
     core::hint::spin_loop();
 }
@@ -242,7 +244,7 @@ pub fn spin_loop_hint() {
 /// # Safety
 ///
 /// The condition MUST be true. If false, behavior is undefined.
-#[inline(always)]
+#[inline]
 pub unsafe fn assert_unchecked(cond: bool) {
     debug_assert!(cond, "assert_unchecked condition was false");
     if !cond {
@@ -256,8 +258,8 @@ pub unsafe fn assert_unchecked(cond: bool) {
 /// # Safety
 ///
 /// This code path must never be executed.
-#[inline(always)]
-pub unsafe fn unreachable() -> ! {
+#[inline]
+pub const unsafe fn unreachable() -> ! {
     // SAFETY: Caller guarantees this is unreachable
     unsafe { core::hint::unreachable_unchecked() }
 }

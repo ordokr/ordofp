@@ -24,11 +24,9 @@ fn optiont_left_identity(a: i8, f_seed: i8) -> bool {
 
 // Right Identity: m.flat_map(pure) == m
 fn optiont_right_identity(a: Option<i8>) -> bool {
-    let m = if let Some(v) = a {
+    let m = a.map_or_else(OptionT::<Result<Option<i8>, String>>::none, |v| {
         OptionT::<Result<Option<i8>, String>>::some(v)
-    } else {
-        OptionT::<Result<Option<i8>, String>>::none()
-    };
+    });
 
     let lhs = m.clone().flat_map(OptionT::some);
     let rhs = m;
@@ -37,11 +35,9 @@ fn optiont_right_identity(a: Option<i8>) -> bool {
 
 // Associativity: m.flat_map(f).flat_map(g) == m.flat_map(|x| f(x).flat_map(g))
 fn optiont_associativity(a: Option<i8>, f_seed: i8, g_seed: i8) -> bool {
-    let m = if let Some(v) = a {
+    let m = a.map_or_else(OptionT::<Result<Option<i8>, String>>::none, |v| {
         OptionT::<Result<Option<i8>, String>>::some(v)
-    } else {
-        OptionT::<Result<Option<i8>, String>>::none()
-    };
+    });
 
     let f = move |x: i8| -> OptionT<Result<Option<i8>, String>> {
         if x.wrapping_add(f_seed) % 2 == 0 {
@@ -89,7 +85,7 @@ fn eithert_left_identity(a: i8, f_seed: i8) -> bool {
 }
 
 fn eithert_right_identity(val: Option<Result<i8, String>>) -> bool {
-    let m = EitherT::new(val.clone());
+    let m = EitherT::new(val);
     let lhs = m.clone().flat_map(|x| EitherT::new(Some(Ok(x))));
     let rhs = m;
 
@@ -157,7 +153,7 @@ fn readert_right_identity(a: i8, r: i8) -> bool {
     lhs.run(&r) == rhs.run(&r)
 }
 
-fn readert_associativity(a: i8, r: i8, f_seed: i8, g_seed: i8) -> bool {
+fn readert_associativity(init: i8, init_env: i8, f_seed: i8, g_seed: i8) -> bool {
     let make_m = |val: i8| ReaderT::new(move |env: &i8| Some(val.wrapping_add(*env)));
 
     let f = move |x: i8| -> ReaderT<i8, Option<i8>> {
@@ -169,14 +165,14 @@ fn readert_associativity(a: i8, r: i8, f_seed: i8, g_seed: i8) -> bool {
     };
 
     // lhs = (m >>= f) >>= g
-    let m = make_m(a);
+    let m = make_m(init);
     let lhs = m.flat_map(f).flat_map(g);
 
     // rhs = m >>= (\x -> f x >>= g)
-    let m = make_m(a);
+    let m = make_m(init);
     let rhs = m.flat_map(move |x| f(x).flat_map(g));
 
-    lhs.run(&r) == rhs.run(&r)
+    lhs.run(&init_env) == rhs.run(&init_env)
 }
 
 // ============================================================================
@@ -215,7 +211,7 @@ fn statet_right_identity(a: i8, s: i8) -> bool {
     lhs.run(s) == rhs.run(s)
 }
 
-fn statet_associativity(a: i8, s: i8, f_seed: i8, g_seed: i8) -> bool {
+fn statet_associativity(init: i8, init_state: i8, f_seed: i8, g_seed: i8) -> bool {
     let make_m = |val: i8| {
         StateT::new(move |state: i8| Some((val.wrapping_add(state), state.wrapping_add(1))))
     };
@@ -228,13 +224,13 @@ fn statet_associativity(a: i8, s: i8, f_seed: i8, g_seed: i8) -> bool {
         StateT::new(move |state: i8| Some((x.wrapping_mul(2), state.wrapping_add(g_seed))))
     };
 
-    let m = make_m(a);
+    let m = make_m(init);
     let lhs = m.flat_map(f).flat_map(g);
 
-    let m = make_m(a);
+    let m = make_m(init);
     let rhs = m.flat_map(move |x| f(x).flat_map(g));
 
-    lhs.run(s) == rhs.run(s)
+    lhs.run(init_state) == rhs.run(init_state)
 }
 
 // ============================================================================

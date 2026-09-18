@@ -163,8 +163,9 @@ pub struct CombinedEffectus<E1, E2> {
 impl<E1, E2> CombinedEffectus<E1, E2> {
     /// Create a new combined effect.
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
-        CombinedEffectus {
+        Self {
             _e1: core::marker::PhantomData,
             _e2: core::marker::PhantomData,
         }

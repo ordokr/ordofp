@@ -35,14 +35,14 @@ pub struct OrdMap<K, V> {
 struct Node<K, V> {
     key: K,
     value: V,
-    left: Option<Arc<Node<K, V>>>,
-    right: Option<Arc<Node<K, V>>>,
+    left: Option<Arc<Self>>,
+    right: Option<Arc<Self>>,
     height: u8,
 }
 
 impl<K: Clone, V: Clone> Clone for Node<K, V> {
     fn clone(&self) -> Self {
-        Node {
+        Self {
             key: self.key.clone(),
             value: self.value.clone(),
             left: self.left.clone(),
@@ -53,8 +53,8 @@ impl<K: Clone, V: Clone> Clone for Node<K, V> {
 }
 
 impl<K, V> Node<K, V> {
-    fn new(key: K, value: V) -> Self {
-        Node {
+    const fn new(key: K, value: V) -> Self {
+        Self {
             key,
             value,
             left: None,
@@ -64,16 +64,16 @@ impl<K, V> Node<K, V> {
     }
 }
 
-fn height<K, V>(node: &Option<Arc<Node<K, V>>>) -> u8 {
-    node.as_ref().map_or(0, |n| n.height)
+fn height<K, V>(node: Option<&Arc<Node<K, V>>>) -> u8 {
+    node.map_or(0, |n| n.height)
 }
 
 fn balance_factor<K, V>(node: &Node<K, V>) -> i8 {
-    height(&node.right) as i8 - height(&node.left) as i8
+    height(node.right.as_ref()).cast_signed() - height(node.left.as_ref()).cast_signed()
 }
 
 fn update_height<K, V>(node: &mut Node<K, V>) {
-    node.height = 1 + core::cmp::max(height(&node.left), height(&node.right));
+    node.height = 1 + core::cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
 }
 
 fn build_balanced_from_sorted_iter<K, V, I>(
@@ -136,7 +136,8 @@ impl<K, V> Default for OrdMapStructor<K, V> {
 impl<K, V> OrdMapStructor<K, V> {
     /// Create an empty builder with no pre-allocated capacity.
     #[inline]
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
@@ -147,6 +148,7 @@ impl<K, V> OrdMapStructor<K, V> {
     /// Use this when the number of entries is known in advance to avoid
     /// repeated reallocations during [`insert`](Self::insert) calls.
     #[inline]
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
@@ -181,6 +183,7 @@ impl<K: Ord, V> OrdMapStructor<K, V> {
     /// inserted multiple times, the last value wins. The resulting tree is
     /// height-balanced so all subsequent O(log n) operations are efficient.
     #[inline]
+    #[must_use]
     pub fn finish(mut self) -> OrdMap<K, V> {
         self.entries.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
 
@@ -203,6 +206,7 @@ impl<K: Ord, V> OrdMapStructor<K, V> {
     /// Uses Rayon for parallel sorting when the entry count is large.
     #[cfg(feature = "rayon")]
     #[inline]
+    #[must_use]
     pub fn finish_par(mut self) -> OrdMap<K, V>
     where
         K: Send,
@@ -234,7 +238,7 @@ impl<K: Ord, V> OrdMapStructor<K, V> {
 
 impl<K, V> Clone for OrdMap<K, V> {
     fn clone(&self) -> Self {
-        OrdMap {
+        Self {
             root: self.root.clone(),
             len: self.len,
         }
@@ -269,19 +273,22 @@ impl<K: Eq, V: Eq> Eq for OrdMap<K, V> {}
 impl<K, V> OrdMap<K, V> {
     /// Create an empty map.
     #[inline]
-    pub fn new() -> Self {
-        OrdMap { root: None, len: 0 }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { root: None, len: 0 }
     }
 
     /// Check if the map is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     /// Get the number of entries.
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.len
     }
 
@@ -306,7 +313,8 @@ impl<K, V> OrdMap<K, V> {
     /// assert_eq!(map.get(&"b"), Some(&2));
     /// ```
     #[inline]
-    pub fn structor() -> OrdMapStructor<K, V> {
+    #[must_use]
+    pub const fn structor() -> OrdMapStructor<K, V> {
         OrdMapStructor::new()
     }
 }
@@ -317,9 +325,10 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     /// # Complexity
     /// O(log n)
     #[inline]
+    #[must_use]
     pub fn insert(&self, key: K, value: V) -> Self {
         let (new_root, inserted) = insert_node(self.root.clone(), key, value);
-        OrdMap {
+        Self {
             root: Some(new_root),
             len: if inserted { self.len + 1 } else { self.len },
         }
@@ -333,13 +342,14 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     /// # Complexity
     /// O(log n)
     #[inline]
+    #[must_use]
     pub fn remove<Q>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
         let (new_root, removed) = remove_node(self.root.clone(), key);
-        OrdMap {
+        Self {
             root: new_root,
             len: if removed {
                 self.len.saturating_sub(1)
@@ -351,14 +361,16 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
 
     /// Get minimum key-value pair.
     #[inline]
+    #[must_use]
     pub fn min(&self) -> Option<(&K, &V)> {
-        min_node(&self.root)
+        min_node(self.root.as_ref())
     }
 
     /// Get maximum key-value pair.
     #[inline]
+    #[must_use]
     pub fn max(&self) -> Option<(&K, &V)> {
-        max_node(&self.root)
+        max_node(self.root.as_ref())
     }
 
     /// Union of two maps (requires `rayon` feature for parallel merge).
@@ -370,6 +382,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     /// parallel implementation has paid off in benchmarks. The signature keeps
     /// the `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn union_par(&self, other: &Self) -> Self
     where
         K: Send + Sync,
@@ -379,6 +392,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     }
 
     /// Sequential union (fallback for small maps).
+    #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut result = Vec::with_capacity(self.len().saturating_add(other.len()));
         let mut self_iter = self.iter();
@@ -428,6 +442,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     /// parallel implementation has paid off in benchmarks. The signature keeps
     /// the `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn intersection_par(&self, other: &Self) -> Self
     where
         K: Send + Sync,
@@ -437,6 +452,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     }
 
     /// Sequential intersection (fallback for small maps).
+    #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         let mut result = Vec::with_capacity(self.len().min(other.len()));
         let mut self_iter = self.iter();
@@ -471,6 +487,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     /// parallel implementation has paid off in benchmarks. The signature keeps
     /// the `Send + Sync` bounds so a parallel implementation stays non-breaking.
     #[cfg(feature = "rayon")]
+    #[must_use]
     pub fn difference_par(&self, other: &Self) -> Self
     where
         K: Send + Sync,
@@ -480,6 +497,7 @@ impl<K: Ord + Clone, V: Clone> OrdMap<K, V> {
     }
 
     /// Sequential difference (fallback for small maps).
+    #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         let mut result = Vec::with_capacity(self.len());
         let mut self_iter = self.iter();
@@ -531,7 +549,7 @@ impl<K: Ord, V> OrdMap<K, V> {
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        get_node(&self.root, key)
+        get_node(self.root.as_ref(), key)
     }
 
     /// Check if a key exists.
@@ -580,16 +598,16 @@ impl<K, V> OrdMap<K, V> {
 // AVL Tree Operations
 // ============================================================================
 
-fn get_node<'a, K, V, Q>(node: &'a Option<Arc<Node<K, V>>>, key: &Q) -> Option<&'a V>
+fn get_node<'a, K, V, Q>(node: Option<&'a Arc<Node<K, V>>>, key: &Q) -> Option<&'a V>
 where
     K: Borrow<Q>,
     Q: Ord + ?Sized,
 {
-    let n = node.as_ref()?;
+    let n = node?;
     match key.cmp(n.key.borrow()) {
-        Ordering::Less => get_node(&n.left, key),
+        Ordering::Less => get_node(n.left.as_ref(), key),
         Ordering::Equal => Some(&n.value),
-        Ordering::Greater => get_node(&n.right, key),
+        Ordering::Greater => get_node(n.right.as_ref(), key),
     }
 }
 
@@ -648,9 +666,9 @@ where
     V: Clone,
     Q: Ord + ?Sized,
 {
-    match node {
-        None => (None, false),
-        Some(n) => match key.cmp(n.key.borrow()) {
+    node.map_or_else(
+        || (None, false),
+        |n| match key.cmp(n.key.borrow()) {
             Ordering::Less => {
                 let (new_left, removed) = remove_node(n.left.clone(), key);
                 let mut new = Node {
@@ -671,7 +689,7 @@ where
                     (Some(_), Some(r)) => {
                         // Replace with successor (in-order successor from right subtree)
                         let right_subtree = Some(r.clone());
-                        let (succ_key, succ_value) = min_node(&right_subtree).unwrap();
+                        let (succ_key, succ_value) = min_node(right_subtree.as_ref()).unwrap();
                         let succ_key = succ_key.clone();
                         let succ_value = succ_value.clone();
                         // Recurse by the successor's own key. `succ_key: K` and
@@ -703,27 +721,23 @@ where
                 (Some(balance(new)), removed)
             }
         },
-    }
+    )
 }
 
-fn min_node<K, V>(node: &Option<Arc<Node<K, V>>>) -> Option<(&K, &V)> {
+fn min_node<K, V>(node: Option<&Arc<Node<K, V>>>) -> Option<(&K, &V)> {
     fn go<K, V>(n: &Node<K, V>) -> (&K, &V) {
-        match &n.left {
-            Some(left) => go(left),
-            None => (&n.key, &n.value),
-        }
+        n.left.as_ref().map_or((&n.key, &n.value), |left| go(left))
     }
-    node.as_ref().map(|n| go(n))
+    node.map(|n| go(n))
 }
 
-fn max_node<K, V>(node: &Option<Arc<Node<K, V>>>) -> Option<(&K, &V)> {
+fn max_node<K, V>(node: Option<&Arc<Node<K, V>>>) -> Option<(&K, &V)> {
     fn go<K, V>(n: &Node<K, V>) -> (&K, &V) {
-        match &n.right {
-            Some(right) => go(right),
-            None => (&n.key, &n.value),
-        }
+        n.right
+            .as_ref()
+            .map_or((&n.key, &n.value), |right| go(right))
     }
-    node.as_ref().map(|n| go(n))
+    node.map(|n| go(n))
 }
 
 fn balance<K: Clone, V: Clone>(mut node: Node<K, V>) -> Arc<Node<K, V>> {
@@ -764,8 +778,8 @@ fn rotate_left<K: Clone, V: Clone>(mut node: Node<K, V>) -> Arc<Node<K, V>> {
     let right = node.right.take().expect("rotate_left: no right child");
     let right_left = right.left.clone();
     let right_right = right.right.clone();
-    let left_height = height(&node.left);
-    let right_left_height = height(&right_left);
+    let left_height = height(node.left.as_ref());
+    let right_left_height = height(right_left.as_ref());
 
     let new_left = Node {
         key: node.key,
@@ -791,8 +805,8 @@ fn rotate_right<K: Clone, V: Clone>(mut node: Node<K, V>) -> Arc<Node<K, V>> {
     let left = node.left.take().expect("rotate_right: no left child");
     let left_left = left.left.clone();
     let left_right = left.right.clone();
-    let right_height = height(&node.right);
-    let left_right_height = height(&left_right);
+    let right_height = height(node.right.as_ref());
+    let left_right_height = height(left_right.as_ref());
 
     let new_right = Node {
         key: node.key,
@@ -847,7 +861,7 @@ impl<'a, K, V> Iterator for OrdMapIter<'a, K, V> {
 
 impl<K: Ord, V> FromIterator<(K, V)> for OrdMap<K, V> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut s = OrdMap::structor();
+        let mut s = Self::structor();
         s.extend(iter);
         s.finish()
     }
@@ -891,7 +905,7 @@ where
         let entries = Vec::<(K, V)>::deserialize(d)?;
         Ok(entries
             .into_iter()
-            .fold(OrdMap::new(), |m, (k, v)| m.insert(k, v)))
+            .fold(Self::new(), |m, (k, v)| m.insert(k, v)))
     }
 }
 

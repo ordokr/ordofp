@@ -1,3 +1,5 @@
+//! Example 03: sculpting records into smaller shapes with `Universalis`.
+
 use ordofp::{HList, Universalis};
 
 #[derive(Universalis, Debug, PartialEq)]

@@ -114,6 +114,8 @@ impl Backend for GpuWgpu {
     where
         T: Clone + Send + Sync + 'static,
     {
+        use super::CpuScalar;
+
         // Check if we should use GPU
         if node.len() < self.min_len() {
             // Fallback to CPU for small arrays
@@ -194,7 +196,6 @@ impl Backend for GpuWgpu {
         }
 
         // Fallback to CPU
-        use super::CpuScalar;
         CpuScalar.collect(node)
     }
 
@@ -342,11 +343,12 @@ impl Backend for GpuWgpu {
     where
         T: Clone + Send + Sync + 'static,
     {
+        use super::CpuScalar;
+
         // Count is O(1) for indexed nodes, use that
         if node.is_indexed() {
             return node.len();
         }
-        use super::CpuScalar;
         CpuScalar.count(node)
     }
 }
