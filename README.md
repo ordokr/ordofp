@@ -177,4 +177,4 @@ maintenance, reliability improvements, documentation, and practical examples.
 
 Thank you for helping sustain independent development.
 
-— Vail
+Tim V
