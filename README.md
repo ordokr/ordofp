@@ -168,3 +168,13 @@ Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 Adapted third-party code is inventoried in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Support the work
+
+If OrdoFP saves you time or helps you build more reliable Rust software, consider
+[sponsoring my work](https://github.com/sponsors/ordokr). Your support helps fund
+maintenance, reliability improvements, documentation, and practical examples.
+
+Thank you for helping sustain independent development.
+
+— Vail
