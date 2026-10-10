@@ -41,7 +41,7 @@ impl<T> SpinRwLock<T> {
     fn read(&self) -> SpinRwLockReadGuard<'_, T> {
         loop {
             let state = self.state.load(Ordering::Acquire);
-            if state != usize::MAX
+            if state < usize::MAX - 1
                 && self
                     .state
                     .compare_exchange_weak(state, state + 1, Ordering::AcqRel, Ordering::Relaxed)
@@ -674,5 +674,20 @@ mod tests {
 
         assert_eq!(*read_guard1, 100);
         assert_eq!(*read_guard2, 100);
+    }
+
+    #[test]
+    fn test_spinrwlock_reader_overflow_protection() {
+        let lock = SpinRwLock::new(123);
+        // Set the state directly near max reader limit to test boundary condition
+        lock.state.store(usize::MAX - 2, Ordering::SeqCst);
+
+        // One more reader is allowed (reaching usize::MAX - 1)
+        let guard = lock.read();
+        assert_eq!(lock.state.load(Ordering::SeqCst), usize::MAX - 1);
+        assert_eq!(*guard, 123);
+
+        drop(guard);
+        assert_eq!(lock.state.load(Ordering::SeqCst), usize::MAX - 2);
     }
 }
