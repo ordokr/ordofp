@@ -228,7 +228,11 @@ impl Arena {
             }
 
             // Need a new chunk
-            self.grow(layout.size());
+            let needed = layout
+                .size()
+                .checked_add(layout.align() - 1)
+                .expect("allocation size overflow");
+            self.grow(needed);
         }
     }
 
@@ -421,11 +425,15 @@ impl SyncArena {
                 return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
             }
             // Current chunk is exhausted — grow.
+            let needed = layout
+                .size()
+                .checked_add(layout.align() - 1)
+                .expect("allocation size overflow");
             let last_size = inner
                 .chunks
                 .last()
                 .map_or(DEFAULT_CHUNK_SIZE, |c| c.layout.size());
-            let new_size = (last_size * 2).max(layout.size() + 256);
+            let new_size = (last_size * 2).max(needed + 256);
             let chunk = Chunk::new(new_size).expect("Failed to allocate SyncArena chunk");
             inner.ptr.store(chunk.start.get(), Ordering::Relaxed);
             inner.end.store(chunk.end() as usize, Ordering::Relaxed);
@@ -639,5 +647,42 @@ mod tests {
         assert_eq!(*r, 42);
         *r.get_mut() = 100;
         assert_eq!(*r, 100);
+    }
+
+    #[test]
+    #[allow(
+        clippy::large_stack_arrays,
+        reason = ">chunk-size value is what the test exercises"
+    )]
+    fn test_arena_grow_respects_alignment() {
+        #[repr(align(128))]
+        struct Aligned([u8; 65664]);
+
+        for _ in 0..10 {
+            let arena = Arena::new();
+            let v = arena.alloc(Aligned([7u8; 65664]));
+            assert_eq!((core::ptr::from_ref(&*v) as usize) % 128, 0);
+            assert_eq!(v.0[0], 7);
+            assert_eq!(v.0[65663], 7);
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    #[allow(
+        clippy::large_stack_arrays,
+        reason = ">chunk-size value is what the test exercises"
+    )]
+    fn test_sync_arena_grow_respects_alignment() {
+        #[repr(align(128))]
+        struct Aligned([u8; 65664]);
+
+        for _ in 0..10 {
+            let arena = SyncArena::new();
+            let v = arena.alloc(Aligned([7u8; 65664]));
+            assert_eq!((core::ptr::from_ref(&*v) as usize) % 128, 0);
+            assert_eq!(v.0[0], 7);
+            assert_eq!(v.0[65663], 7);
+        }
     }
 }
