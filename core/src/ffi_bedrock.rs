@@ -235,6 +235,10 @@ macro_rules! wrap_ref {
 
 /// Probing specific memory pattern and return the offset.
 ///
+/// # Panics
+///
+/// Panics if `ptr` is null, or if `T` is a zero-sized type (ZST).
+///
 /// # Safety
 /// The caller must ensure:
 ///
@@ -248,6 +252,11 @@ macro_rules! wrap_ref {
 ///   reaches `tail`.
 #[inline]
 pub unsafe fn probe_len<T: PartialEq>(mut ptr: *const T, tail: &T) -> usize {
+    assert!(!ptr.is_null(), "probe_len pointer must not be null");
+    assert!(
+        core::mem::size_of::<T>() > 0,
+        "probe_len does not support zero-sized types (ZST)"
+    );
     for len in 0.. {
         // SAFETY: The caller guarantees `ptr` points to a sequence terminated by
         // `tail`, so this dereference is valid for at least `len` more elements.
@@ -367,5 +376,48 @@ mod tests {
 
         let failure: WindowsResult<i32, &'static str> = 0.into();
         assert!(matches!(failure, WindowsResult::Err(_)));
+    }
+
+    #[test]
+    #[should_panic(expected = "probe_len pointer must not be null")]
+    fn test_probe_len_null() {
+        let null_ptr: *const i32 = core::ptr::null();
+        let tail = 0i32;
+        // SAFETY: Testing precondition assertion on null input.
+        unsafe {
+            probe_len(null_ptr, &tail);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "probe_len does not support zero-sized types (ZST)")]
+    fn test_probe_len_zst() {
+        #[derive(PartialEq)]
+        struct Zst;
+        let zst = Zst;
+        let ptr: *const Zst = &raw const zst;
+        // SAFETY: Testing precondition assertion on ZST input.
+        unsafe {
+            probe_len(ptr, &zst);
+        }
+    }
+
+    #[test]
+    fn test_probe_len_and_build_array() {
+        let arr = [10i32, 20i32, 30i32, 0i32];
+        let ptr = arr.as_ptr();
+        let tail = 0i32;
+        // SAFETY: `arr` is a live 4-element array terminated by `0i32`.
+        let len = unsafe { probe_len(ptr, &tail) };
+        assert_eq!(len, 3);
+
+        // SAFETY: `ptr` points to valid memory terminated by `tail`.
+        let slice = unsafe { build_array(ptr, &tail) };
+        assert_eq!(slice, Some(&[10i32, 20i32, 30i32][..]));
+
+        let null_ptr: *const i32 = core::ptr::null();
+        // SAFETY: `build_array` checks nullness before calling `probe_len`.
+        let null_slice = unsafe { build_array(null_ptr, &tail) };
+        assert_eq!(null_slice, None);
     }
 }
