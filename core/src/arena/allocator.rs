@@ -205,25 +205,23 @@ impl Arena {
             let ptr = self.ptr.get();
             let end = self.end.get();
 
-            // Align the pointer
-            let aligned = align_up(ptr as usize, layout.align());
-            let new_ptr = aligned
-                .checked_add(layout.size())
-                .expect("arena allocation size overflows the address space");
+            // Safely align the pointer without arithmetic overflow
+            let valid_aligned =
+                checked_align_up(ptr as usize, layout.align()).filter(|&aligned| {
+                    aligned
+                        .checked_add(layout.size())
+                        .is_some_and(|new_ptr| new_ptr <= end as usize)
+                });
 
-            if new_ptr <= end as usize {
-                // Fits in current chunk
+            if let Some(aligned) = valid_aligned {
+                let new_ptr = aligned + layout.size();
                 self.ptr.set(new_ptr as *mut u8);
                 // SAFETY: `aligned` is non-null because `self.ptr` is always
                 // initialised from a successful global-allocator allocation
-                // (verified via `NonNull::new` in `Chunk::new`), and `align_up`
-                // only rounds the address upward — it never produces zero.
-                // The `checked_add` above rules out arithmetic wrap-around (a
-                // wrapped sum would be small enough to pass the guard while
-                // pointing outside the chunk), and the `new_ptr <= end` guard
-                // then confirms the range fits, so `aligned` remains strictly
-                // within the live chunk allocation and is therefore a valid
-                // non-null address.
+                // (verified via `NonNull::new` in `Chunk::new`).
+                // `checked_align_up` and `checked_add` confirm that `aligned`
+                // and `new_ptr` do not wrap around, and `new_ptr <= end` ensures
+                // the allocation remains within the live chunk allocation.
                 return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
             }
 
@@ -410,18 +408,23 @@ impl SyncArena {
         let layout = layout.pad_to_align();
         let mut inner = self.inner.lock().expect("SyncArena mutex poisoned");
         loop {
-            let aligned = align_up(inner.ptr.load(Ordering::Relaxed), layout.align());
-            let new_ptr = aligned
-                .checked_add(layout.size())
-                .expect("arena allocation size overflows the address space");
-            if new_ptr <= inner.end.load(Ordering::Relaxed) {
+            let ptr_val = inner.ptr.load(Ordering::Relaxed);
+            let end_val = inner.end.load(Ordering::Relaxed);
+
+            let valid_aligned =
+                checked_align_up(ptr_val, layout.align()).filter(|&aligned| {
+                    aligned
+                        .checked_add(layout.size())
+                        .is_some_and(|new_ptr| new_ptr <= end_val)
+                });
+
+            if let Some(aligned) = valid_aligned {
+                let new_ptr = aligned + layout.size();
                 inner.ptr.store(new_ptr, Ordering::Relaxed);
                 // SAFETY: `aligned` is within the current live chunk allocation
-                // (`checked_add` rules out wrap-around — a wrapped sum would
-                // pass the guard while pointing outside the chunk — and the
-                // guard above then confirms the range fits) and is non-zero
-                // (arena pointers are initialised from a successful
-                // global-allocator call).
+                // (`checked_align_up` and `checked_add` rule out wrap-around,
+                // and `new_ptr <= end_val` confirms the range fits) and is non-zero
+                // (arena pointers are initialised from a successful global-allocator call).
                 return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
             }
             // Current chunk is exhausted — grow.
@@ -465,9 +468,16 @@ impl Default for SyncArena {
     }
 }
 
-/// Align a pointer up to the given alignment.
-const fn align_up(ptr: usize, align: usize) -> usize {
-    (ptr + align - 1) & !(align - 1)
+/// Safely align a pointer address up to `align` (which must be a power of two),
+/// returning `None` if arithmetic overflow occurs.
+const fn checked_align_up(ptr: usize, align: usize) -> Option<usize> {
+    if align == 0 {
+        return None;
+    }
+    match ptr.checked_add(align - 1) {
+        Some(sum) => Some(sum & !(align - 1)),
+        None => None,
+    }
 }
 
 // =============================================================================
@@ -684,5 +694,16 @@ mod tests {
             assert_eq!(v.0[0], 7);
             assert_eq!(v.0[65663], 7);
         }
+    }
+
+    #[test]
+    fn test_checked_align_up_overflow() {
+        assert_eq!(checked_align_up(0, 8), Some(0));
+        assert_eq!(checked_align_up(1, 8), Some(8));
+        assert_eq!(checked_align_up(8, 8), Some(8));
+        assert_eq!(checked_align_up(usize::MAX - 7, 8), Some(usize::MAX - 7));
+        assert_eq!(checked_align_up(usize::MAX - 3, 8), None);
+        assert_eq!(checked_align_up(usize::MAX, 8), None);
+        assert_eq!(checked_align_up(100, 0), None);
     }
 }

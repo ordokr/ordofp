@@ -368,18 +368,20 @@ impl<'r> Region<'r> {
         let size = layout.size();
         let align = layout.align();
 
-        // Align the current pointer
+        // Align the current pointer safely
         let ptr = self.ptr.get();
-        let aligned = align_up(ptr as usize, align) as *mut u8;
+        let valid_aligned = checked_align_up(ptr as usize, align).filter(|&aligned| {
+            aligned
+                .checked_add(size)
+                .is_some_and(|new_addr| likely(new_addr <= self.end.get() as usize))
+        });
 
-        // Check if we have space safely using integer arithmetic
-        let new_addr = (aligned as usize)
-            .checked_add(size)
-            .expect("Address overflow");
-        if likely(new_addr <= self.end.get() as usize) {
+        if let Some(aligned) = valid_aligned {
+            let new_addr = aligned + size;
             self.ptr.set(new_addr as *mut u8);
             self.update_stats(size);
-            return NonNull::new(aligned).expect("Aligned pointer should be non-null");
+            return NonNull::new(aligned as *mut u8)
+                .expect("Aligned pointer should be non-null");
         }
 
         // Need a new chunk - cold path
@@ -402,19 +404,18 @@ impl<'r> Region<'r> {
 
             // Retry allocation
             let ptr = self.ptr.get();
-            let aligned = align_up(ptr as usize, align) as *mut u8;
-            let new_addr = (aligned as usize)
-                .checked_add(size)
-                .expect("Address overflow");
+            let valid_aligned = checked_align_up(ptr as usize, align).filter(|&aligned| {
+                aligned
+                    .checked_add(size)
+                    .is_some_and(|new_addr| new_addr <= self.end.get() as usize)
+            });
 
-            // Hard check (not debug-only): handing out a pointer past the chunk
-            // end would be out-of-bounds UB in release builds. The over-request
-            // above guarantees this fits on the first iteration; the loop is a
-            // defensive retry mirroring `arena::Arena::alloc_layout`.
-            if new_addr <= self.end.get() as usize {
+            if let Some(aligned) = valid_aligned {
+                let new_addr = aligned + size;
                 self.ptr.set(new_addr as *mut u8);
                 self.update_stats(size);
-                return NonNull::new(aligned).expect("Aligned pointer should be non-null");
+                return NonNull::new(aligned as *mut u8)
+                    .expect("Aligned pointer should be non-null");
             }
         }
     }
@@ -485,10 +486,17 @@ impl<'r> Region<'r> {
     }
 }
 
-/// Align a value up to the given alignment.
+/// Safely align a pointer address up to `align` (which must be a power of two),
+/// returning `None` if arithmetic overflow occurs.
 #[inline]
-const fn align_up(val: usize, align: usize) -> usize {
-    (val + align - 1) & !(align - 1)
+const fn checked_align_up(val: usize, align: usize) -> Option<usize> {
+    if align == 0 {
+        return None;
+    }
+    match val.checked_add(align - 1) {
+        Some(sum) => Some(sum & !(align - 1)),
+        None => None,
+    }
 }
 
 // =============================================================================
@@ -1135,5 +1143,16 @@ mod tests {
         });
 
         assert_eq!(sum, 13); // 10 + 1 + 2
+    }
+
+    #[test]
+    fn test_region_checked_align_up_overflow() {
+        assert_eq!(checked_align_up(0, 16), Some(0));
+        assert_eq!(checked_align_up(5, 16), Some(16));
+        assert_eq!(checked_align_up(16, 16), Some(16));
+        assert_eq!(checked_align_up(usize::MAX - 15, 16), Some(usize::MAX - 15));
+        assert_eq!(checked_align_up(usize::MAX - 5, 16), None);
+        assert_eq!(checked_align_up(usize::MAX, 16), None);
+        assert_eq!(checked_align_up(100, 0), None);
     }
 }
