@@ -380,8 +380,7 @@ impl<'r> Region<'r> {
             let new_addr = aligned + size;
             self.ptr.set(new_addr as *mut u8);
             self.update_stats(size);
-            return NonNull::new(aligned as *mut u8)
-                .expect("Aligned pointer should be non-null");
+            return NonNull::new(aligned as *mut u8).expect("Aligned pointer should be non-null");
         }
 
         // Need a new chunk - cold path
