@@ -206,12 +206,11 @@ impl Arena {
             let end = self.end.get();
 
             // Safely align the pointer without arithmetic overflow
-            let valid_aligned =
-                checked_align_up(ptr as usize, layout.align()).filter(|&aligned| {
-                    aligned
-                        .checked_add(layout.size())
-                        .is_some_and(|new_ptr| new_ptr <= end as usize)
-                });
+            let valid_aligned = checked_align_up(ptr as usize, layout.align()).filter(|&aligned| {
+                aligned
+                    .checked_add(layout.size())
+                    .is_some_and(|new_ptr| new_ptr <= end as usize)
+            });
 
             if let Some(aligned) = valid_aligned {
                 let new_ptr = aligned + layout.size();
@@ -242,7 +241,9 @@ impl Arena {
         let last_size = chunks
             .last()
             .map_or(DEFAULT_CHUNK_SIZE, |c| c.layout.size());
-        let new_size = (last_size * 2).max(min_size + 256);
+        let new_size = last_size
+            .saturating_mul(2)
+            .max(min_size.saturating_add(256));
 
         let chunk = Chunk::new(new_size).expect("Failed to allocate arena chunk");
         let ptr = chunk.start.get() as *mut u8;
@@ -411,12 +412,11 @@ impl SyncArena {
             let ptr_val = inner.ptr.load(Ordering::Relaxed);
             let end_val = inner.end.load(Ordering::Relaxed);
 
-            let valid_aligned =
-                checked_align_up(ptr_val, layout.align()).filter(|&aligned| {
-                    aligned
-                        .checked_add(layout.size())
-                        .is_some_and(|new_ptr| new_ptr <= end_val)
-                });
+            let valid_aligned = checked_align_up(ptr_val, layout.align()).filter(|&aligned| {
+                aligned
+                    .checked_add(layout.size())
+                    .is_some_and(|new_ptr| new_ptr <= end_val)
+            });
 
             if let Some(aligned) = valid_aligned {
                 let new_ptr = aligned + layout.size();
@@ -436,7 +436,7 @@ impl SyncArena {
                 .chunks
                 .last()
                 .map_or(DEFAULT_CHUNK_SIZE, |c| c.layout.size());
-            let new_size = (last_size * 2).max(needed + 256);
+            let new_size = last_size.saturating_mul(2).max(needed.saturating_add(256));
             let chunk = Chunk::new(new_size).expect("Failed to allocate SyncArena chunk");
             inner.ptr.store(chunk.start.get(), Ordering::Relaxed);
             inner.end.store(chunk.end() as usize, Ordering::Relaxed);
@@ -705,5 +705,24 @@ mod tests {
         assert_eq!(checked_align_up(usize::MAX - 3, 8), None);
         assert_eq!(checked_align_up(usize::MAX, 8), None);
         assert_eq!(checked_align_up(100, 0), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Failed to allocate arena chunk")]
+    fn test_arena_grow_overflow_protection() {
+        let arena = Arena::new();
+        // Requesting an allocation with size near isize::MAX triggers grow().
+        // Saturating arithmetic prevents integer overflow panic/wrap during new_size calculation.
+        let layout = Layout::from_size_align(isize::MAX as usize - 16, 1).unwrap();
+        let _ = arena.alloc_layout(layout);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    #[should_panic(expected = "Failed to allocate SyncArena chunk")]
+    fn test_sync_arena_grow_overflow_protection() {
+        let arena = SyncArena::new();
+        let layout = Layout::from_size_align(isize::MAX as usize - 16, 1).unwrap();
+        let _ = arena.alloc_layout(layout);
     }
 }
