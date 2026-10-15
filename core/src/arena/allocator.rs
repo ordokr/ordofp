@@ -7,10 +7,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use core::marker::PhantomData;
-use core::num::NonZeroUsize;
 use core::ptr::NonNull;
 #[cfg(feature = "std")]
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 // =============================================================================
 // Arena Allocator
@@ -51,13 +50,17 @@ pub struct Arena {
 
 /// A chunk of memory in the arena.
 struct Chunk {
-    /// Base address of the live chunk allocation. An integer (rather than a
-    /// raw pointer) so `Chunk` is auto-`Send + Sync`, which `SyncArena`
-    /// relies on; converted back with `as` casts at the use sites.
-    start: NonZeroUsize,
+    /// Base address pointer of the live chunk allocation.
+    ptr: NonNull<u8>,
     /// Layout of the chunk
     layout: Layout,
 }
+
+// SAFETY: Chunk owns a raw allocation from `alloc(layout)`. Transferring or sharing
+// access to Chunk across threads is sound because access to the memory within
+// the chunk is synchronized by the arena.
+unsafe impl Send for Chunk {}
+unsafe impl Sync for Chunk {}
 
 impl Chunk {
     /// Create a new chunk with the given size.
@@ -66,30 +69,34 @@ impl Chunk {
         // SAFETY: `layout` has non-zero size (guaranteed by the `MIN_CHUNK_SIZE` lower bound
         // applied before `Chunk::new` is called) and a valid power-of-two alignment (16).
         // These are the only requirements of the global allocator's `alloc`. A null return
-        // value (OOM) is filtered out by the `NonZeroUsize::new` check immediately below.
+        // value (OOM) is filtered out by the `NonNull::new` check immediately below.
         let ptr = unsafe { alloc(layout) };
-        NonZeroUsize::new(ptr.addr()).map(|start| Self { start, layout })
+        NonNull::new(ptr).map(|ptr| Self { ptr, layout })
+    }
+
+    /// Get the start pointer of this chunk.
+    const fn start(&self) -> *mut u8 {
+        self.ptr.as_ptr()
     }
 
     /// Get the end pointer of this chunk.
     const fn end(&self) -> *mut u8 {
-        // `self.start` is the base address of a live allocation of exactly
+        // `self.ptr` is the base address of a live allocation of exactly
         // `self.layout.size()` bytes, so adding that offset produces a pointer one
         // byte past the end of the allocation — a valid "end" sentinel that is never
-        // dereferenced. The `as` casts round-trip the address with exposed
-        // provenance, exactly as the bump-pointer arithmetic in `alloc_layout` does.
-        (self.start.get() + self.layout.size()) as *mut u8
+        // dereferenced.
+        unsafe { self.ptr.as_ptr().add(self.layout.size()) }
     }
 }
 
 impl Drop for Chunk {
     fn drop(&mut self) {
-        // SAFETY: `self.start` is the address returned by `alloc(self.layout)` in
+        // SAFETY: `self.ptr` is the pointer returned by `alloc(self.layout)` in
         // `Chunk::new` and has not been freed since. `self.layout` is the same
         // layout that was passed to `alloc`, satisfying `dealloc`'s requirement
         // that the pointer and layout match the original allocation.
         unsafe {
-            dealloc(self.start.get() as *mut u8, self.layout);
+            dealloc(self.ptr.as_ptr(), self.layout);
         }
     }
 }
@@ -121,7 +128,7 @@ impl Arena {
         let chunk_size = capacity.max(MIN_CHUNK_SIZE);
         let chunk = Chunk::new(chunk_size).expect("Failed to allocate arena chunk");
 
-        let ptr = chunk.start.get() as *mut u8;
+        let ptr = chunk.start();
         let end = chunk.end();
 
         Self {
@@ -205,23 +212,23 @@ impl Arena {
             let ptr = self.ptr.get();
             let end = self.end.get();
 
+            let ptr_addr = ptr as usize;
             // Safely align the pointer without arithmetic overflow
-            let valid_aligned = checked_align_up(ptr as usize, layout.align()).filter(|&aligned| {
+            let valid_aligned = checked_align_up(ptr_addr, layout.align()).filter(|&aligned| {
                 aligned
                     .checked_add(layout.size())
                     .is_some_and(|new_ptr| new_ptr <= end as usize)
             });
 
             if let Some(aligned) = valid_aligned {
-                let new_ptr = aligned + layout.size();
-                self.ptr.set(new_ptr as *mut u8);
-                // SAFETY: `aligned` is non-null because `self.ptr` is always
-                // initialised from a successful global-allocator allocation
-                // (verified via `NonNull::new` in `Chunk::new`).
-                // `checked_align_up` and `checked_add` confirm that `aligned`
-                // and `new_ptr` do not wrap around, and `new_ptr <= end` ensures
-                // the allocation remains within the live chunk allocation.
-                return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
+                let offset = aligned - ptr_addr;
+                // SAFETY: `offset` advances `ptr` within the bounds of the chunk allocation,
+                // preserving pointer provenance. `aligned_ptr` is aligned to `layout.align()`
+                // and `new_ptr <= end` confirms the requested size fits in the live chunk.
+                let aligned_ptr = unsafe { ptr.add(offset) };
+                let new_ptr = unsafe { aligned_ptr.add(layout.size()) };
+                self.ptr.set(new_ptr);
+                return unsafe { NonNull::new_unchecked(aligned_ptr) };
             }
 
             // Need a new chunk
@@ -246,7 +253,7 @@ impl Arena {
             .max(min_size.saturating_add(256));
 
         let chunk = Chunk::new(new_size).expect("Failed to allocate arena chunk");
-        let ptr = chunk.start.get() as *mut u8;
+        let ptr = chunk.start();
         let end = chunk.end();
 
         chunks.push(chunk);
@@ -264,7 +271,7 @@ impl Arena {
         let mut chunks = self.chunks.borrow_mut();
         if let Some(first) = chunks.first() {
             self.current.set(0);
-            self.ptr.set(first.start.get() as *mut u8);
+            self.ptr.set(first.start());
             self.end.set(first.end());
         }
         chunks.truncate(1);
@@ -285,7 +292,7 @@ impl Arena {
             if i < current {
                 used += chunk.layout.size();
             } else if i == current {
-                used += self.ptr.get() as usize - chunk.start.get();
+                used += (self.ptr.get() as usize).saturating_sub(chunk.start() as usize);
             }
         }
         used
@@ -336,16 +343,16 @@ pub struct SyncArena {
 #[cfg(feature = "std")]
 struct SyncArenaInner {
     chunks: Vec<Chunk>,
-    /// Bump-pointer address into the live tail chunk. Shared across threads
+    /// Bump pointer into the live tail chunk. Shared across threads
     /// under the `Mutex` with `Relaxed` ordering — the lock provides all
-    /// synchronization; the atomic type documents the sharing and keeps the
-    /// struct auto-`Send + Sync`. Always a non-null live address: every
-    /// store comes from a live `Chunk` allocation or an aligned,
-    /// bounds-checked bump (see `alloc_layout`).
-    ptr: AtomicUsize,
-    /// One-past-the-end address of the live tail chunk; same sharing and
+    /// synchronization; the atomic pointer type documents the sharing and keeps
+    /// the struct auto-`Send + Sync`. Always a non-null live pointer with valid
+    /// allocation provenance: every store comes from a live `Chunk` allocation
+    /// or an aligned, bounds-checked bump (see `alloc_layout`).
+    ptr: AtomicPtr<u8>,
+    /// One-past-the-end pointer of the live tail chunk; same sharing and
     /// validity argument as `ptr`.
-    end: AtomicUsize,
+    end: AtomicPtr<u8>,
 }
 
 // `SyncArena` is automatically `Send + Sync`: every field is `Send + Sync`
@@ -375,13 +382,13 @@ impl SyncArena {
     pub fn with_capacity(capacity: usize) -> Self {
         let chunk_size = capacity.max(MIN_CHUNK_SIZE);
         let chunk = Chunk::new(chunk_size).expect("Failed to allocate SyncArena chunk");
-        let ptr = chunk.start.get();
-        let end = chunk.end() as usize;
+        let ptr = chunk.start();
+        let end = chunk.end();
         Self {
             inner: std::sync::Mutex::new(SyncArenaInner {
                 chunks: vec![chunk],
-                ptr: AtomicUsize::new(ptr),
-                end: AtomicUsize::new(end),
+                ptr: AtomicPtr::new(ptr),
+                end: AtomicPtr::new(end),
             }),
         }
     }
@@ -409,23 +416,25 @@ impl SyncArena {
         let layout = layout.pad_to_align();
         let mut inner = self.inner.lock().expect("SyncArena mutex poisoned");
         loop {
-            let ptr_val = inner.ptr.load(Ordering::Relaxed);
-            let end_val = inner.end.load(Ordering::Relaxed);
+            let ptr = inner.ptr.load(Ordering::Relaxed);
+            let end = inner.end.load(Ordering::Relaxed);
 
-            let valid_aligned = checked_align_up(ptr_val, layout.align()).filter(|&aligned| {
+            let ptr_addr = ptr as usize;
+            let valid_aligned = checked_align_up(ptr_addr, layout.align()).filter(|&aligned| {
                 aligned
                     .checked_add(layout.size())
-                    .is_some_and(|new_ptr| new_ptr <= end_val)
+                    .is_some_and(|new_ptr| new_ptr <= end as usize)
             });
 
             if let Some(aligned) = valid_aligned {
-                let new_ptr = aligned + layout.size();
+                let offset = aligned - ptr_addr;
+                // SAFETY: `offset` advances `ptr` within the bounds of the live chunk allocation,
+                // preserving pointer provenance. `aligned_ptr` is aligned to `layout.align()`
+                // and `new_ptr <= end` confirms the requested size fits in the live chunk.
+                let aligned_ptr = unsafe { ptr.add(offset) };
+                let new_ptr = unsafe { aligned_ptr.add(layout.size()) };
                 inner.ptr.store(new_ptr, Ordering::Relaxed);
-                // SAFETY: `aligned` is within the current live chunk allocation
-                // (`checked_align_up` and `checked_add` rule out wrap-around,
-                // and `new_ptr <= end_val` confirms the range fits) and is non-zero
-                // (arena pointers are initialised from a successful global-allocator call).
-                return unsafe { NonNull::new_unchecked(aligned as *mut u8) };
+                return unsafe { NonNull::new_unchecked(aligned_ptr) };
             }
             // Current chunk is exhausted — grow.
             let needed = layout
@@ -438,8 +447,8 @@ impl SyncArena {
                 .map_or(DEFAULT_CHUNK_SIZE, |c| c.layout.size());
             let new_size = last_size.saturating_mul(2).max(needed.saturating_add(256));
             let chunk = Chunk::new(new_size).expect("Failed to allocate SyncArena chunk");
-            inner.ptr.store(chunk.start.get(), Ordering::Relaxed);
-            inner.end.store(chunk.end() as usize, Ordering::Relaxed);
+            inner.ptr.store(chunk.start(), Ordering::Relaxed);
+            inner.end.store(chunk.end(), Ordering::Relaxed);
             inner.chunks.push(chunk);
         }
     }
