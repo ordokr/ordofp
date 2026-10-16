@@ -377,10 +377,15 @@ impl<'r> Region<'r> {
         });
 
         if let Some(aligned) = valid_aligned {
-            let new_addr = aligned + size;
-            self.ptr.set(new_addr as *mut u8);
+            let offset = aligned - (ptr as usize);
+            // SAFETY: `offset` advances `ptr` within the bounds of the chunk allocation,
+            // preserving pointer provenance. `aligned_ptr` is aligned to `align`
+            // and `new_addr <= self.end` confirms the requested size fits in the live chunk.
+            let aligned_ptr = unsafe { ptr.add(offset) };
+            let new_ptr = unsafe { aligned_ptr.add(size) };
+            self.ptr.set(new_ptr);
             self.update_stats(size);
-            return NonNull::new(aligned as *mut u8).expect("Aligned pointer should be non-null");
+            return unsafe { NonNull::new_unchecked(aligned_ptr) };
         }
 
         // Need a new chunk - cold path
@@ -410,11 +415,15 @@ impl<'r> Region<'r> {
             });
 
             if let Some(aligned) = valid_aligned {
-                let new_addr = aligned + size;
-                self.ptr.set(new_addr as *mut u8);
+                let offset = aligned - (ptr as usize);
+                // SAFETY: `offset` advances `ptr` within the bounds of the chunk allocation,
+                // preserving pointer provenance. `aligned_ptr` is aligned to `align`
+                // and `new_addr <= self.end` confirms the requested size fits in the live chunk.
+                let aligned_ptr = unsafe { ptr.add(offset) };
+                let new_ptr = unsafe { aligned_ptr.add(size) };
+                self.ptr.set(new_ptr);
                 self.update_stats(size);
-                return NonNull::new(aligned as *mut u8)
-                    .expect("Aligned pointer should be non-null");
+                return unsafe { NonNull::new_unchecked(aligned_ptr) };
             }
         }
     }
@@ -1153,5 +1162,37 @@ mod tests {
         assert_eq!(checked_align_up(usize::MAX - 5, 16), None);
         assert_eq!(checked_align_up(usize::MAX, 16), None);
         assert_eq!(checked_align_up(100, 0), None);
+    }
+
+    #[test]
+    #[allow(
+        clippy::large_stack_arrays,
+        reason = ">chunk-size value exercises grow path pointer provenance"
+    )]
+    fn test_region_pointer_provenance() {
+        #[repr(align(128))]
+        struct AlignedData([u8; 65664]);
+
+        with_region(|region| {
+            let a = region.alloc(42u64);
+            let b = region.alloc(100u64);
+            let c = region.alloc(AlignedData([9u8; 65664]));
+
+            assert_eq!(*a, 42);
+            assert_eq!(*b, 100);
+            assert_eq!(c.0[0], 9);
+            assert_eq!(c.0[65663], 9);
+
+            let ptr_a = core::ptr::from_ref(a);
+            let ptr_b = core::ptr::from_ref(b);
+            let ptr_c = core::ptr::from_ref(c);
+
+            // Verify deref via pointers created through region provenance
+            unsafe {
+                assert_eq!(*ptr_a, 42);
+                assert_eq!(*ptr_b, 100);
+                assert_eq!((*ptr_c).0[0], 9);
+            }
+        });
     }
 }
