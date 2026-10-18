@@ -1195,4 +1195,34 @@ mod tests {
             }
         });
     }
+
+    #[test]
+    fn test_region_alloc_uninit() {
+        with_region(|region| {
+            let slot: &mut MaybeUninit<u64> = region.alloc_uninit();
+            slot.write(0x1234_5678_9ABC_DEF0_u64);
+            // SAFETY: slot was initialized above with write().
+            let val = unsafe { slot.assume_init_read() };
+            assert_eq!(val, 0x1234_5678_9ABC_DEF0_u64);
+        });
+    }
+
+    #[test]
+    fn test_region_alloc_slice_uninit() {
+        with_region(|region| {
+            let slots: &mut [MaybeUninit<u32>] = region.alloc_slice_uninit(5);
+            assert_eq!(slots.len(), 5);
+            for (i, slot) in slots.iter_mut().enumerate() {
+                slot.write((i as u32) * 10);
+            }
+            // SAFETY: all 5 slots were initialized in the loop above.
+            let inited: &[u32] =
+                unsafe { core::slice::from_raw_parts(slots.as_ptr().cast::<u32>(), slots.len()) };
+            assert_eq!(inited, &[0, 10, 20, 30, 40]);
+
+            // Test 0 length slice uninit
+            let empty: &mut [MaybeUninit<u32>] = region.alloc_slice_uninit(0);
+            assert!(empty.is_empty());
+        });
+    }
 }
