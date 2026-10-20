@@ -355,6 +355,17 @@ mod tests {
         let _ = handle.into_raw();
     }
 
+    #[test]
+    fn test_wrapper_ref() {
+        let mut x = MockCStruct { value: 200 };
+        let ptr = NonNull::new(&raw mut x).expect("mutable reference is always non-null");
+        // SAFETY: `ptr` is derived from a live, exclusively-borrowed local variable
+        // valid for the duration of `handle_ref` borrow lifetime.
+        let handle_ref = unsafe { SafeHandleRef::from_raw(ptr) };
+
+        assert_eq!(handle_ref.value, 200);
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn test_windows_result_triage() {
@@ -419,5 +430,12 @@ mod tests {
         // SAFETY: `build_array` checks nullness before calling `probe_len`.
         let null_slice = unsafe { build_array(null_ptr, &tail) };
         assert_eq!(null_slice, None);
+
+        // Immediate sentinel (length 0 slice)
+        let empty_arr = [0i32];
+        let empty_ptr = empty_arr.as_ptr();
+        // SAFETY: `empty_ptr` points to valid memory starting immediately with `tail` (0i32).
+        let empty_slice = unsafe { build_array(empty_ptr, &tail) };
+        assert_eq!(empty_slice, Some(&[][..]));
     }
 }
