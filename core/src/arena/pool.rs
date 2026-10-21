@@ -212,18 +212,20 @@ impl<T, const N: usize> TypedPool<T, N> {
         drop(available);
 
         // Slow path: claim a new slot (lazy init) or create a transient.
-        let mut allocated = self.allocated.borrow_mut();
+        let allocated = self.allocated.borrow();
         let all_mask: u64 = if N == 64 { !0 } else { (1u64 << N) - 1 };
         let free = all_mask & !*allocated;
         if free != 0 {
             let slot = free.trailing_zeros() as usize;
-            *allocated |= 1 << slot;
+            // Call factory before updating `allocated` bitmap so that if factory panics,
+            // the slot is not permanently leaked as allocated.
             drop(allocated);
-            // Storage at this slot is uninit; value comes from the factory.
+            let val = (self.factory)();
+            *self.allocated.borrow_mut() |= 1 << slot;
             TypedPooled {
                 pool: self,
                 slot: Some(slot),
-                value: Some((self.factory)()),
+                value: Some(val),
             }
         } else {
             drop(allocated);
@@ -561,5 +563,34 @@ mod tests {
         drop(pool);
 
         assert_eq!(DROPPED.load(Ordering::SeqCst), 2, "Memory leak detected!");
+    }
+
+    #[test]
+    fn test_typed_pool_panic_in_factory_does_not_leak_slot() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        static SHOULD_PANIC: core::sync::atomic::AtomicBool =
+            core::sync::atomic::AtomicBool::new(true);
+
+        let pool = TypedPool::<i32, 1>::new(|| {
+            if SHOULD_PANIC.load(Ordering::SeqCst) {
+                panic!("factory failed during get()");
+            }
+            42
+        });
+
+        // Calling get() when factory panics
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            let _ = pool.get();
+        }));
+        assert!(res.is_err(), "Expected factory to panic");
+
+        // Turn off panic mode
+        SHOULD_PANIC.store(false, Ordering::SeqCst);
+
+        // Next call to get() should still be able to claim slot 0!
+        let val = pool.get();
+        assert_eq!(*val, 42);
+        assert_eq!(val.slot, Some(0), "Slot 0 should have been claimed!");
     }
 }
