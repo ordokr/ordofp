@@ -1225,4 +1225,24 @@ mod tests {
             assert!(empty.is_empty());
         });
     }
+
+    #[test]
+    fn test_region_reset() {
+        with_region(|region| {
+            let _x = region.alloc(42i32);
+            let _s = region.alloc_str("hello world");
+            let _slice = region.alloc_slice(&[1u8, 2, 3, 4]);
+
+            assert!(region.allocation_count() >= 3);
+
+            // SAFETY: No references to previously allocated data in the region are held or accessed after reset.
+            unsafe { region.reset() };
+
+            assert_eq!(region.allocation_count(), 0);
+
+            let y = region.alloc(99i32);
+            assert_eq!(*y, 99);
+            assert_eq!(region.allocation_count(), 1);
+        });
+    }
 }

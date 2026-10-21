@@ -734,4 +734,23 @@ mod tests {
         let layout = Layout::from_size_align(isize::MAX as usize - 16, 1).unwrap();
         let _ = arena.alloc_layout(layout);
     }
+
+    #[test]
+    fn test_arena_reset() {
+        let arena = Arena::new();
+
+        // Perform multiple allocations across chunks
+        let _x = arena.alloc(42i32);
+        let _s = arena.alloc_str("hello world");
+        let _slice = arena.alloc_slice(&[1u8, 2, 3, 4]);
+
+        assert!(arena.used() > 0);
+
+        // SAFETY: No references to the previously allocated data are held or accessed after reset.
+        unsafe { arena.reset() };
+
+        // Post-reset allocation works cleanly and reuses the initial chunk
+        let y = arena.alloc(99i32);
+        assert_eq!(*y, 99);
+    }
 }
