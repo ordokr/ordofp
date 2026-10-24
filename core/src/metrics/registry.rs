@@ -690,4 +690,42 @@ mod tests {
         drop(guard);
         assert_eq!(lock.state.load(Ordering::SeqCst), usize::MAX - 2);
     }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_spinrwlock_multithreaded() {
+        use alloc::vec::Vec;
+        use std::thread;
+
+        let lock = Arc::new(SpinRwLock::new(0i32));
+        let mut handles = Vec::new();
+
+        // Spawn writers
+        for _ in 0..2 {
+            let lock_clone = lock.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..10 {
+                    let mut guard = lock_clone.write();
+                    *guard += 1;
+                }
+            }));
+        }
+
+        // Spawn readers
+        for _ in 0..2 {
+            let lock_clone = lock.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..10 {
+                    let guard = lock_clone.read();
+                    let _val = *guard;
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().expect("thread panicked");
+        }
+
+        assert_eq!(*lock.read(), 20);
+    }
 }

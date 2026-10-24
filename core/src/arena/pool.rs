@@ -593,4 +593,30 @@ mod tests {
         assert_eq!(*val, 42);
         assert_eq!(val.slot, Some(0), "Slot 0 should have been claimed!");
     }
+
+    #[test]
+    fn test_typed_pool_drop_initialised_items() {
+        static DROPPED: AtomicUsize = AtomicUsize::new(0);
+
+        struct Item(#[allow(dead_code)] u32);
+        impl Drop for Item {
+            fn drop(&mut self) {
+                DROPPED.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        DROPPED.store(0, Ordering::SeqCst);
+        {
+            let pool = TypedPool::<Item, 4>::new(|| Item(10));
+            let item1 = pool.get();
+            let item2 = pool.get();
+            let item3 = pool.get();
+            drop(item1);
+            drop(item2);
+            drop(item3);
+            // item1, item2, item3 returned to pool and marked as available in bitmap.
+        } // pool dropped here, triggering TypedPool::drop which calls assume_init_drop() on available items.
+
+        assert_eq!(DROPPED.load(Ordering::SeqCst), 3);
+    }
 }

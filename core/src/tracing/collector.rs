@@ -477,4 +477,30 @@ mod tests {
         assert_eq!(collector1.event_count(), 1);
         assert_eq!(collector2.event_count(), 1);
     }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_spin_mutex_multithreaded() {
+        use alloc::vec::Vec;
+        use std::thread;
+
+        let lock = Arc::new(SpinMutex::new(0i32));
+        let mut handles = Vec::new();
+
+        for _ in 0..4 {
+            let lock_clone = lock.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..10 {
+                    let mut guard = lock_clone.lock();
+                    *guard += 1;
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().expect("thread panicked");
+        }
+
+        assert_eq!(*lock.lock(), 40);
+    }
 }
