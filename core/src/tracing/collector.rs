@@ -46,6 +46,23 @@ impl<T> SpinMutex<T> {
             _marker: core::marker::PhantomData,
         }
     }
+
+    /// Attempt to acquire the lock without blocking/spinning.
+    #[allow(dead_code)]
+    pub(crate) fn try_lock(&self) -> Option<SpinMutexGuard<'_, T>> {
+        if self
+            .locked
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            Some(SpinMutexGuard {
+                mutex: self,
+                _marker: core::marker::PhantomData,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 struct SpinMutexGuard<'a, T> {
@@ -476,5 +493,57 @@ mod tests {
 
         assert_eq!(collector1.event_count(), 1);
         assert_eq!(collector2.event_count(), 1);
+    }
+
+    #[test]
+    fn test_spinmutex_deref_derefmut() {
+        let lock = SpinMutex::new(10i32);
+        {
+            let mut guard = lock.lock();
+            assert_eq!(*guard, 10);
+            *guard += 5;
+        }
+        {
+            let guard = lock.lock();
+            assert_eq!(*guard, 15);
+        }
+    }
+
+    #[test]
+    fn test_spinmutex_try_lock() {
+        let lock = SpinMutex::new(42i32);
+        {
+            let _guard1 = lock.try_lock().expect("try_lock should succeed when unlocked");
+            assert!(lock.try_lock().is_none(), "try_lock should return None when already locked");
+        }
+        // Guard dropped, try_lock succeeds again
+        {
+            let guard2 = lock.try_lock().expect("try_lock should succeed after drop");
+            assert_eq!(*guard2, 42);
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_spinmutex_concurrent() {
+        let lock = Arc::new(SpinMutex::new(0i32));
+        let mut handles = Vec::new();
+
+        for _ in 0..10 {
+            let lock_clone = lock.clone();
+            handles.push(std::thread::spawn(move || {
+                for _ in 0..100 {
+                    let mut guard = lock_clone.lock();
+                    *guard += 1;
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let guard = lock.lock();
+        assert_eq!(*guard, 1000);
     }
 }
