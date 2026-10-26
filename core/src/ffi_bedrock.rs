@@ -438,4 +438,30 @@ mod tests {
         let empty_slice = unsafe { build_array(empty_ptr, &tail) };
         assert_eq!(empty_slice, Some(&[][..]));
     }
+
+    #[test]
+    fn test_probe_len_and_build_array_struct() {
+        #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+        #[repr(C, align(8))]
+        struct Item {
+            id: u64,
+            flag: bool,
+        }
+
+        let sentinel = Item { id: 0, flag: false };
+        let items = [
+            Item { id: 1, flag: true },
+            Item { id: 2, flag: true },
+            sentinel,
+        ];
+
+        let ptr = items.as_ptr();
+        // SAFETY: `items` is valid, non-null, properly aligned, and terminated by `sentinel`.
+        let len = unsafe { probe_len(ptr, &sentinel) };
+        assert_eq!(len, 2);
+
+        // SAFETY: `ptr` points to valid memory terminated by `sentinel`.
+        let slice = unsafe { build_array(ptr, &sentinel) };
+        assert_eq!(slice, Some(&items[..2]));
+    }
 }
