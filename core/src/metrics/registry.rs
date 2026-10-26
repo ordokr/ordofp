@@ -71,6 +71,40 @@ impl<T> SpinRwLock<T> {
             core::hint::spin_loop();
         }
     }
+
+    #[allow(dead_code, reason = "non-blocking synchronization method for SpinRwLock")]
+    pub(crate) fn try_read(&self) -> Option<SpinRwLockReadGuard<'_, T>> {
+        let state = self.state.load(Ordering::Acquire);
+        if state < usize::MAX - 1
+            && self
+                .state
+                .compare_exchange(state, state + 1, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+        {
+            Some(SpinRwLockReadGuard {
+                lock: self,
+                _marker: core::marker::PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+
+    #[allow(dead_code, reason = "non-blocking synchronization method for SpinRwLock")]
+    pub(crate) fn try_write(&self) -> Option<SpinRwLockWriteGuard<'_, T>> {
+        if self
+            .state
+            .compare_exchange(0, usize::MAX, Ordering::AcqRel, Ordering::Relaxed)
+            .is_ok()
+        {
+            Some(SpinRwLockWriteGuard {
+                lock: self,
+                _marker: core::marker::PhantomData,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 struct SpinRwLockReadGuard<'a, T> {
@@ -689,5 +723,51 @@ mod tests {
 
         drop(guard);
         assert_eq!(lock.state.load(Ordering::SeqCst), usize::MAX - 2);
+    }
+
+    #[test]
+    fn test_spinrwlock_try_lock() {
+        let lock = SpinRwLock::new(42);
+
+        // try_read and try_write succeed when unlocked
+        let read_guard = lock.try_read();
+        assert!(read_guard.is_some());
+        assert_eq!(*read_guard.unwrap(), 42);
+
+        let write_guard = lock.try_write();
+        assert!(write_guard.is_some());
+        let mut w = write_guard.unwrap();
+        *w = 100;
+
+        // try_read and try_write fail while write lock is held
+        assert!(lock.try_read().is_none());
+        assert!(lock.try_write().is_none());
+
+        drop(w);
+
+        // Available again
+        assert_eq!(*lock.read(), 100);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_spinrwlock_concurrent_threads() {
+        use alloc::sync::Arc;
+
+        let lock = Arc::new(SpinRwLock::new(0i32));
+        std::thread::scope(|s| {
+            for _ in 0..4 {
+                let lock = Arc::clone(&lock);
+                s.spawn(move || {
+                    for _ in 0..10 {
+                        let mut w = lock.write();
+                        *w += 1;
+                        let r = w.downgrade();
+                        assert!(*r > 0);
+                    }
+                });
+            }
+        });
+        assert_eq!(*lock.read(), 40);
     }
 }
