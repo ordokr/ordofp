@@ -366,6 +366,68 @@ mod tests {
         assert_eq!(handle_ref.value, 200);
     }
 
+    #[test]
+    fn test_wrapper_as_ptr_and_as_mut_ptr() {
+        let mut x = MockCStruct { value: 300 };
+        let ptr = NonNull::new(&raw mut x).expect("mutable reference is always non-null");
+        // SAFETY: `ptr` points to valid memory on the stack for the duration of the handle.
+        let mut handle = unsafe { SafeHandle::from_raw(ptr) };
+
+        let const_ptr = handle.as_ptr();
+        // SAFETY: `const_ptr` is valid for reads while `handle` is alive.
+        unsafe {
+            assert_eq!((*const_ptr).value, 300);
+        }
+
+        let mut_ptr = handle.as_mut_ptr();
+        // SAFETY: `mut_ptr` is valid for writes while no other references exist.
+        unsafe {
+            (*mut_ptr).value = 350;
+        }
+        assert_eq!(handle.value, 350);
+
+        let _ = handle.into_raw();
+    }
+
+    #[test]
+    fn test_wrapper_from_raw_into_raw_roundtrip() {
+        let mut x = MockCStruct { value: 400 };
+        let ptr = NonNull::new(&raw mut x).expect("mutable reference is always non-null");
+
+        // SAFETY: `ptr` points to live stack allocation.
+        let handle = unsafe { SafeHandle::from_raw(ptr) };
+        let raw_out = handle.into_raw();
+        assert_eq!(raw_out, ptr);
+
+        // Reconstruct from raw
+        // SAFETY: `raw_out` is the original live NonNull pointer.
+        let handle2 = unsafe { SafeHandle::from_raw(raw_out) };
+        assert_eq!(handle2.value, 400);
+
+        let _ = handle2.into_raw();
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_wrapper_send_sync() {
+        let mut x = MockCStruct { value: 500 };
+        let ptr = NonNull::new(&raw mut x).expect("mutable reference is always non-null");
+
+        // SAFETY: `ptr` points to stack variable valid for thread scope lifetime.
+        let handle = unsafe { SafeHandle::from_raw(ptr) };
+
+        std::thread::scope(|s| {
+            // Test Send: move handle to worker thread and disown before drop
+            let join_handle = s.spawn(move || {
+                let val = handle.value;
+                let _ = handle.into_raw();
+                val
+            });
+            let val = join_handle.join().unwrap();
+            assert_eq!(val, 500);
+        });
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn test_windows_result_triage() {
