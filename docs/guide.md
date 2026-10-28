@@ -855,6 +855,20 @@ Runtime-agnostic spawning via the `RuntimeGenerare` trait (`TokioRuntime`,
 
 ## Effects System
 
+The optional `nexus` feature is experimental. Specialized state, reader and
+error computations execute (see `nexus::repr` and `nexus::effects`), but the
+generic `nexus::effect::{get, put, modify, ask, asks, err}` functions return
+computations containing panic stubs. They do not form a working general
+interpreter. Use the specialized APIs for their supported individual effects.
+
+`optim::purity::AssertPure`, `AssertIdempotent` and `AssertTotal` are legacy
+metadata markers. Their constructors require classification traits that also
+cover false cases; they do not check the booleans. Query the associated
+constants when inspecting row metadata. Neither those constants nor an empty
+row prove that arbitrary Rust callbacks avoid IO, panic or nontermination.
+A general Nexus interpreter and Plan preview have independent follow-on gates.
+
+
 ### Fiber-Based Concurrency
 
 **Practical Benefit**: Lightweight concurrency - run millions of tasks without thread overhead. Cooperative scheduling with structured concurrency guarantees.
