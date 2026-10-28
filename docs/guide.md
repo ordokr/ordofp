@@ -868,64 +868,45 @@ constants when inspecting row metadata. Neither those constants nor an empty
 row prove that arbitrary Rust callbacks avoid IO, panic or nontermination.
 A general Nexus interpreter and Plan preview have independent follow-on gates.
 
-
 ### Fiber-Based Concurrency
 
-**Practical Benefit**: Lightweight concurrency - run millions of tasks without thread overhead. Cooperative scheduling with structured concurrency guarantees.
+Fibra provides composable async computations and cooperative cancellation.
+Cancellation can bypass async finalizers; it does not guarantee cleanup.
+See [execution and cleanup limits](async.md#execution-and-cleanup-limits).
 
 **Module:** `ordofp_core::async_core::fibra`
 
 ```rust
-use ordofp_core::async_core::fibra::Fibra;
+use ordofp::async_core::fibra::{Fibra, par};
 
-// Spawn fibers
-let fiber1 = Fibra::spawn(async { task1() });
-let fiber2 = Fibra::spawn(async { task2() });
-
-// Parallel execution
-let (r1, r2) = Fibra::par(fiber1, fiber2).await;
-
-// Race (first to complete wins)
-let winner = Fibra::race(fiber1, fiber2).await;
-
-// Structured concurrency
-let results = Fibra::zip_par(vec![f1, f2, f3]).await;
+async fn fiber_example() {
+    let first = Fibra::new(async { 1 });
+    let second = Fibra::new(async { 2 });
+    let pair = par(first, second).await.expect("pure fibers complete");
+    assert_eq!(pair, (1, 2));
+}
 ```
 
 ### Resource Management
 
-**Practical Benefit**: Guaranteed cleanup even on errors or panics. File handles, connections, and locks are always released - no more resource leaks.
+The synchronous `async_core::res::Res` retains its resource while lending a
+reference to the use callback, then invokes release on normal return or panic
+unwinding. Construct it with `Res::make(acquire, release)` and use it with
+`.uti(use_ref)` (English alias `.use_res(use_ref)`). Abort/process shutdown
+cannot guarantee cleanup.
 
-**Module:** `ordofp_core::async_core::res`
+`ResAsync::make` stores an async release action, but `.uti` and `.uti_safe`
+currently never invoke it. Do not use ResAsync as a cleanup guarantee.
+`bracket_async` / `amplexus_async` await release on ordinary completion; their
+use callback must return ownership of the resource with its result. Panic
+while polling, cancellation or dropping the future can skip release.
 
-> **Note:** this async-oriented `Res` (behind the `async` feature) is distinct
-> from the synchronous `ordofp_core::linear::Res` (behind `linear`), which
-> offers `Res::bracket` — see [migration.md](migration.md). Same name, two
-> different types with different APIs.
+`Fibra::assecurare` and `finaliter_async` also require execution to reach and
+finish the finalizer. Dropping a future does not execute async cleanup. See
+[the async guide](async.md#execution-and-cleanup-limits) for these boundaries.
 
-```rust
-use ordofp_core::async_core::res::{Res, ResAsync};
-
-// Synchronous resources
-let file_resource = Res::new(
-    || File::open("data.txt"),   // acquire
-    |f| f.close()                 // release
-);
-
-let data = file_resource.use_resource(|file| {
-    file.read_to_string()
-})?;  // File automatically closed
-
-// Async resources
-let db_pool = ResAsync::new(
-    || async { Pool::connect(&url).await },
-    |pool| async { pool.close().await }
-);
-
-let result = db_pool.use_resource(|pool| async {
-    pool.query("SELECT * FROM users").await
-}).await?;
-```
+The synchronous `ordofp_core::linear::Res` (behind `linear`) is a different
+type; see [migration.md](migration.md) for its `Res::bracket` API.
 
 ### Algebraic Effects
 
@@ -1385,7 +1366,8 @@ For a complete API reference, tables, and syntax cheatsheets, see the **[Canonic
 |---------|----------|
 | Form validation (collect all errors) | `Probatum` |
 | Nested struct updates / immutable data | Optics (`Aspectus`) |
-| Guaranteed resource cleanup | `Res` / `ResAsync` |
+| Synchronous cleanup on return/unwind | `async_core::res::Res` / `bracket` |
+| Async release on ordinary completion | `bracket_async` (cancellation limits apply) |
 | Testable side effects (e.g. database calls) | Free monads / Algebraic effects |
 | Safe concurrent state / map access | PFDS (`OrdMap`, `OrdSet`) |
 | Stacked effects (config + state + errors) | Monad transformers |
