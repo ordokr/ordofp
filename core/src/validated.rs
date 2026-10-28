@@ -138,9 +138,9 @@ impl<E, A> Probatum<E, A> {
     /// let v = Probatum::<&str, i32>::Valid(10);
     /// assert_eq!(v.map(|x| x * 2), Probatum::Valid(20));
     /// ```
-    pub fn map<B, F>(self, mut f: F) -> Probatum<E, B>
+    pub fn map<B, F>(self, f: F) -> Probatum<E, B>
     where
-        F: FnMut(A) -> B,
+        F: FnOnce(A) -> B,
     {
         match self {
             Self::Valid(a) => Probatum::Valid(f(a)),
@@ -169,9 +169,9 @@ impl<E, A> Probatum<E, A> {
     }
 
     /// Combine two Probatum values with a pure function.
-    pub fn map2<B, C, F>(self, vb: Probatum<E, B>, mut f: F) -> Probatum<E, C>
+    pub fn map2<B, C, F>(self, vb: Probatum<E, B>, f: F) -> Probatum<E, C>
     where
-        F: FnMut(A, B) -> C,
+        F: FnOnce(A, B) -> C,
     {
         match (self, vb) {
             (Self::Valid(a), Probatum::Valid(b)) => Probatum::Valid(f(a, b)),
@@ -214,20 +214,15 @@ impl<E, A> Probatum<E, A> {
     /// Lift two Probatum values with a combining function.
     pub fn lift2<B, C, F>(f: F, va: Self, vb: Probatum<E, B>) -> Probatum<E, C>
     where
-        F: FnMut(A, B) -> C,
+        F: FnOnce(A, B) -> C,
     {
         va.map2(vb, f)
     }
 
     /// Lift three Probatum values with a combining function.
-    pub fn map3<B, C, D, F>(
-        self,
-        vb: Probatum<E, B>,
-        vc: Probatum<E, C>,
-        mut f: F,
-    ) -> Probatum<E, D>
+    pub fn map3<B, C, D, F>(self, vb: Probatum<E, B>, vc: Probatum<E, C>, f: F) -> Probatum<E, D>
     where
-        F: FnMut(A, B, C) -> D,
+        F: FnOnce(A, B, C) -> D,
     {
         match (self, vb, vc) {
             (Self::Valid(a), Probatum::Valid(b), Probatum::Valid(c)) => Probatum::Valid(f(a, b, c)),
@@ -247,15 +242,15 @@ impl<E, A> Probatum<E, A> {
         }
     }
 
-    /// Lift three Probatum values without consuming `self`.
+    /// Lift three owned Probatum values with a combining function.
     pub fn lift3<B, C, D, F>(
-        mut f: F,
+        f: F,
         va: Self,
         vb: Probatum<E, B>,
         vc: Probatum<E, C>,
     ) -> Probatum<E, D>
     where
-        F: FnMut(A, B, C) -> D,
+        F: FnOnce(A, B, C) -> D,
     {
         va.map2(vb, |a, b| (a, b)).map2(vc, |(a, b), c| f(a, b, c))
     }
@@ -263,7 +258,7 @@ impl<E, A> Probatum<E, A> {
     /// Alias for `lift2` (cats/zio-style naming).
     pub fn map2_alias<B, C, F>(va: Self, vb: Probatum<E, B>, f: F) -> Probatum<E, C>
     where
-        F: FnMut(A, B) -> C,
+        F: FnOnce(A, B) -> C,
     {
         Self::lift2(f, va, vb)
     }
@@ -276,7 +271,7 @@ impl<E, A> Probatum<E, A> {
         f: F,
     ) -> Probatum<E, D>
     where
-        F: FnMut(A, B, C) -> D,
+        F: FnOnce(A, B, C) -> D,
     {
         Self::lift3(f, va, vb, vc)
     }

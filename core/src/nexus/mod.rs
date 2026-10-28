@@ -3,6 +3,16 @@
 //! Nexus provides a type-level effect system for Rust with efficient
 //! representations for common effect patterns.
 //!
+//! # Maturity
+//!
+//! This is an experimental surface. Specialized `StatefulComputation`,
+//! `ReaderComputation` and `ErrorComputation` in `effects` execute their
+//! respective operations. Generic
+//! `get`, `put`, `ask` and error operations in `effect` contain panic stubs;
+//! they are not an executable general effect interpreter. Row bitmasks track
+//! declared categories, not arbitrary effects inside Rust callbacks. The
+//! `optim::purity::Assert*` constructors are metadata markers, not proofs.
+//!
 //! # Design Philosophy
 //!
 //! Nexus is a **pure Rust stable library** that uses const generics for

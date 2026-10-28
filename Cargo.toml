@@ -277,3 +277,6 @@ codegen-units = 256
 [profile.dev.package."*"]
 # Optimize dependencies even in dev mode for better perf testing
 opt-level = 2
+[[example]]
+name = "composed_validation"
+required-features = ["Probatum"]
