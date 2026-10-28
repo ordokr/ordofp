@@ -1245,4 +1245,30 @@ mod tests {
             assert_eq!(region.allocation_count(), 1);
         });
     }
+
+    #[test]
+    fn test_region_zst_and_empty_allocations() {
+        with_region(|region| {
+            let z1 = region.alloc(());
+            let z2 = region.alloc([0u8; 0]);
+            assert_eq!(*z1, ());
+            assert_eq!(*z2, []);
+
+            let empty_slice = region.alloc_slice::<i32>(&[]);
+            assert!(empty_slice.is_empty());
+
+            let zst_slice = region.alloc_slice(&[(), (), ()]);
+            assert_eq!(zst_slice.len(), 3);
+
+            let empty_str = region.alloc_str("");
+            assert_eq!(empty_str, "");
+
+            let mut zst_vec = RegionVec::<()>::with_capacity(region, 5);
+            zst_vec.push(());
+            zst_vec.push(());
+            assert_eq!(zst_vec.len(), 2);
+            assert_eq!(zst_vec.pop(), Some(()));
+            assert_eq!(zst_vec.len(), 1);
+        });
+    }
 }

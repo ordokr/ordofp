@@ -753,4 +753,32 @@ mod tests {
         let y = arena.alloc(99i32);
         assert_eq!(*y, 99);
     }
+
+    #[test]
+    fn test_arena_zst_and_empty_allocations() {
+        let arena = Arena::new();
+        let z1 = arena.alloc(());
+        let z2 = arena.alloc([0u8; 0]);
+        assert_eq!(*z1, ());
+        assert_eq!(*z2, []);
+
+        let empty_slice = arena.alloc_slice::<i32>(&[]);
+        assert!(empty_slice.is_empty());
+
+        let zst_slice = arena.alloc_slice(&[(), (), ()]);
+        assert_eq!(zst_slice.len(), 3);
+
+        let empty_str = arena.alloc_str("");
+        assert_eq!(&*empty_str, "");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_sync_arena_zst_allocations() {
+        let arena = SyncArena::new();
+        let z1 = arena.alloc(());
+        let z2 = arena.alloc([0u8; 0]);
+        assert_eq!(*z1, ());
+        assert_eq!(*z2, []);
+    }
 }
