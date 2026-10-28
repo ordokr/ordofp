@@ -405,6 +405,27 @@ impl<E, A> Apply for Probatum<E, A> {
             (Probatum::Invalid(e), _) | (_, Self::Invalid(e)) => Probatum::Invalid(e),
         }
     }
+
+    fn ap_left<B>(self, fb: Self::Target<B>) -> Self::Target<Self::Inner>
+    where
+        Self: Sized,
+        Self::Inner: Clone,
+        Self::Target<B>: Apply<Inner = B, Target<Self::Inner> = Self::Target<Self::Inner>>,
+        Self::Target<fn(B) -> Self::Inner>:
+            Apply<Inner = fn(B) -> Self::Inner, Target<Self::Inner> = Self::Target<Self::Inner>>,
+    {
+        self.map2(fb, |a, _| a)
+    }
+
+    fn ap_right<B>(self, fb: Self::Target<B>) -> Self::Target<B>
+    where
+        Self: Sized,
+        Self::Target<B>: Apply<Inner = B, Target<B> = Self::Target<B>> + Clone,
+        Self::Target<fn(Self::Inner) -> B>:
+            Apply<Inner = fn(Self::Inner) -> B, Target<B> = Self::Target<B>>,
+    {
+        self.map2(fb, |_, b| b)
+    }
 }
 
 impl<E, A> Applicatio for Probatum<E, A> {
