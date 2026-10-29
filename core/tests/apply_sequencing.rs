@@ -1,6 +1,8 @@
 //! Regression and coherence checks for public Apply sequencing.
 
-use ordofp_core::typeclasses::{Apply, Functor};
+use ordofp_core::typeclasses::Apply;
+#[cfg(any(feature = "alloc", feature = "Probatum"))]
+use ordofp_core::typeclasses::Functor;
 #[cfg(feature = "Probatum")]
 use ordofp_core::validated::Probatum;
 
