@@ -1,7 +1,7 @@
 //! Regression and coherence checks for public Apply sequencing.
-#![cfg(feature = "Probatum")]
 
 use ordofp_core::typeclasses::{Apply, Functor};
+#[cfg(feature = "Probatum")]
 use ordofp_core::validated::Probatum;
 
 #[test]
@@ -21,6 +21,7 @@ fn result_observes_both_operands_and_prefers_left_error() {
     assert_eq!(left.ap_right(right), left);
 }
 
+#[cfg(feature = "alloc")]
 #[test]
 fn vec_cartesian_order_and_empty_operands() {
     assert_eq!(vec![1, 2].ap_left(vec![3, 4, 5]), vec![1, 1, 1, 2, 2, 2]);
@@ -31,6 +32,7 @@ fn vec_cartesian_order_and_empty_operands() {
     assert!(vec![1].ap_right(Vec::<i32>::new()).is_empty());
 }
 
+#[cfg(feature = "Probatum")]
 #[test]
 fn validation_accumulates_in_left_to_right_order() {
     let left = Probatum::<_, i32>::invalid_many(["l1", "l2"]);
@@ -50,6 +52,7 @@ fn derived_operations_agree_with_apply() {
             assert_eq!(left.ap_right(right), right.apply(left.map(|_| |b| b)));
         }
     }
+    #[cfg(feature = "alloc")]
     for left in [vec![], vec![1], vec![1, 2]] {
         for right in [vec![], vec![3], vec![3, 4]] {
             assert_eq!(
@@ -66,6 +69,7 @@ fn derived_operations_agree_with_apply() {
     }
 }
 
+#[cfg(feature = "Probatum")]
 #[test]
 fn non_clone_values_and_errors_follow_existing_contracts() {
     #[derive(Debug, PartialEq)]
@@ -84,6 +88,7 @@ fn non_clone_values_and_errors_follow_existing_contracts() {
     );
 }
 
+#[cfg(feature = "Probatum")]
 #[test]
 fn sequencing_coherence_properties() {
     fn property(xs: Vec<i8>, ys: Vec<i8>, fail_left: bool, fail_right: bool) -> bool {
