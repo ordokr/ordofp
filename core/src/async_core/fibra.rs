@@ -501,7 +501,11 @@ impl<A> Fibra<A> {
         }
     }
 
-    /// Ensure a finalizer runs regardless of outcome.
+    /// Await a finalizer after the inner computation returns a result.
+    ///
+    /// Dropping this future or panicking during polling can skip the finalizer.
+    /// Cancellation may return from the outer poll before it polls the inner
+    /// finalization future. Async cleanup is not guaranteed on cancellation.
     ///
     /// # Latin Etymology
     /// *Assecurare* = to ensure, make secure.

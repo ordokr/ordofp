@@ -56,7 +56,8 @@ cargo = { level = "warn", priority = -1 }
 # `<crate>.workspace = true`. Members may add features / `optional = true`;
 # the version (and any default-features choice) is fixed in one place.
 [workspace.dependencies]
-syn = "2"
+# Match the current derive ecosystem to avoid duplicate syn major versions.
+syn = "3"
 quote = "1"
 proc-macro2 = "1"
 # default-features = false drops quickcheck's `use_logging` default, which
@@ -276,3 +277,6 @@ codegen-units = 256
 [profile.dev.package."*"]
 # Optimize dependencies even in dev mode for better perf testing
 opt-level = 2
+[[example]]
+name = "composed_validation"
+required-features = ["Probatum"]

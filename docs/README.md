@@ -22,6 +22,8 @@ Topic → file map. One canonical location per topic.
 | Core principles & architectural axioms | [axioms.md](axioms.md) |
 | Standing policies (perf doctrine, do-not-retry list, standing rejections) | [policies.md](policies.md) |
 | Public maintenance cadence (dependency/toolchain/release hygiene) | [maintenance.md](maintenance.md) |
+| Next release research, 0.1.4 scope, and 0.2.0 design | [next-release-plan.md](next-release-plan.md) |
+| Codex implementation assignment and acceptance gates | [codex-handoff.md](codex-handoff.md) |
 | Unsafe/UB audit notes (rules from real incidents) | [UNSAFE_NOTES.md](UNSAFE_NOTES.md) |
 | Release history | [../CHANGELOG.md](../CHANGELOG.md) |
 | Third-party provenance & licenses | [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) |

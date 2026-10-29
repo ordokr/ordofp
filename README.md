@@ -145,6 +145,12 @@ OrdoFP is at **v0.1.2**. The components below have settled APIs and full test co
 
 Not listed above: the row-typed effect system is an opt-in feature (`nexus`), and `ordofp_bayes` implements single-step SMC and single-site trace MCMC (see the scope notes in [docs/bayes.md](docs/bayes.md)).
 
+Nexus's specialized state, reader and error computations execute; generic
+operations still include panic stubs. Async traversal and cleanup also have
+specific limits: the parallel-named Vec traversal is sequential, and ResAsync
+does not invoke its stored release callback. See the [maturity boundaries](docs/FEATURE_FLAGS.md#async-and-nexus-maturity-boundaries)
+before choosing these opt-in APIs.
+
 ## Documentation & Principles
 
 - **[Tutorial & Guide](docs/guide.md)** — Core walkthroughs and patterns

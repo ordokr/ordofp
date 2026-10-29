@@ -760,7 +760,7 @@ mod tests {
         let z1 = arena.alloc(());
         let z2 = arena.alloc([0u8; 0]);
         assert_eq!(*z1, ());
-        assert_eq!(*z2, []);
+        assert_eq!(*z2, [0_u8; 0]);
 
         let empty_slice = arena.alloc_slice::<i32>(&[]);
         assert!(empty_slice.is_empty());
@@ -779,6 +779,6 @@ mod tests {
         let z1 = arena.alloc(());
         let z2 = arena.alloc([0u8; 0]);
         assert_eq!(*z1, ());
-        assert_eq!(*z2, []);
+        assert_eq!(*z2, [0_u8; 0]);
     }
 }

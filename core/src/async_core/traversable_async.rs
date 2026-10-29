@@ -4,7 +4,7 @@
 //! > — Through all elements. (Scholastic philosophy)
 //!
 //! `TraversableAsync` provides async traversal operations for data structures,
-//! enabling parallel or sequential async transformations.
+//! providing sequential async transformations, including the legacy parallel-named helper.
 //!
 //! # Example
 //!
@@ -160,9 +160,9 @@ pub trait TraversableAsync {
 /// Intended as a concurrent counterpart to `TraversableAsync`.
 ///
 /// **Current status:** the provided implementations await elements
-/// *sequentially* — true concurrency requires a runtime (tokio/smol)
-/// and has not been wired in. The trait exists so the signature stays
-/// stable when that lands.
+/// *sequentially*. Concurrent polling could be implemented within one task
+/// without spawning or a runtime integration, but is not implemented here.
+/// The name does not establish parallel execution or a concurrency bound.
 pub trait TraversableAsyncParallel {
     /// The element type yielded by the structure being traversed; each
     /// element is fed to the effectful function in order.

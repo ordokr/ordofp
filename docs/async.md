@@ -3,7 +3,25 @@
 > *"Nunc fluens facit tempus, nunc stans facit aeternitatem."*
 > — The flowing now makes time, the standing now makes eternity. (Boethius)
 
-This guide provides a comprehensive introduction to asynchronous functional programming with OrdoFP 0.1.2. We'll explore how to compose async computations using monadic patterns, streams, and the new fiber-based concurrency system.
+This guide provides a comprehensive introduction to asynchronous functional programming with OrdoFP 0.1.x. We'll explore how to compose async computations using monadic patterns, streams, and the new fiber-based concurrency system.
+
+## Execution and cleanup limits
+
+- `Vec::traverse_async_par` (through `TraversableAsyncParallel`) currently
+  awaits each item sequentially in input order. Its name does not provide
+  concurrency. Concurrent polling within one task need not spawn tasks or
+  require Tokio/smol, but bounded concurrent traversal is follow-on work.
+- `ResAsync::uti` / `uti_safe` acquire and use a resource but never invoke the
+  stored release callback. Do not use them to guarantee cleanup.
+- `bracket_async` / `amplexus_async` await release after ordinary completion.
+  Panic during polling, cancellation, or dropping the future can skip release.
+- `Fibra::assecurare` and `finaliter_async` await finalizers only if execution
+  reaches them. Cancellation can bypass `assecurare` before the inner future
+  is polled. Dropping a future stops polling; it does not run async cleanup.
+
+Use the synchronous bracket/resource APIs when synchronous cleanup suffices.
+An owning async scope with explicit cancellation and partial-acquisition
+cleanup policies requires its own design and verification gate.
 
 ## Table of Contents
 
@@ -107,27 +125,17 @@ async fn futurus_examples() {
 
 ## Fiber-Based Concurrency
 
-New in v0.1.0, `Fibra` provides lightweight, structured concurrency.
+`Fibra` composes futures and supports cooperative cancellation. Async
+finalization remains subject to the execution and cleanup limits above.
 
 ```rust
-use ordofp::async_core::fibra::Fibra;
+use ordofp::async_core::fibra::{Fibra, par};
 
 async fn fiber_example() {
-    // Spawn lightweight fibers
-    let f1 = Fibra::spawn(async { task1().await });
-    let f2 = Fibra::spawn(async { task2().await });
-
-    // Run in parallel and wait for both
-    let (r1, r2) = Fibra::par(f1, f2).await;
-
-    // Race two fibers (first to finish wins)
-    let winner = Fibra::race(
-        async { fast_task().await },
-        async { slow_task().await }
-    ).await;
-
-    // Structured concurrency over a collection
-    let results = Fibra::zip_par(vec![f1, f2, f3]).await;
+    let first = Fibra::new(async { 1 });
+    let second = Fibra::new(async { 2 });
+    let pair = par(first, second).await.expect("pure fibers complete");
+    assert_eq!(pair, (1, 2));
 }
 ```
 

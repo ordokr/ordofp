@@ -74,10 +74,10 @@ pub trait Apply: Functor {
 
     /// Sequence two applicatives, keeping the left result.
     ///
-    /// **Note:** The default implementation discards `fb` without evaluating it.
-    /// This is correct for pure data types (`Option`, `Result`, `Vec`) but will
-    /// silently drop effects for effectful applicatives. Types with effects
-    /// should override this to properly sequence both sides.
+    /// The legacy default only preserves the left structure. Implementors must
+    /// override it to observe both contexts. Option, Result, Vec and Probatum
+    /// do so. The generic signature cannot express a lawful implementation for
+    /// every functor; replacing this default is a breaking follow-on change.
     #[inline]
     fn ap_left<B>(self, _fb: Self::Target<B>) -> Self::Target<Self::Inner>
     where
@@ -94,10 +94,10 @@ pub trait Apply: Functor {
 
     /// Sequence two applicatives, keeping the right result.
     ///
-    /// **Note:** The default implementation discards `self` without evaluating it.
-    /// This is correct for pure data types (`Option`, `Result`, `Vec`) but will
-    /// silently drop effects for effectful applicatives. Types with effects
-    /// should override this to properly sequence both sides.
+    /// The legacy default only returns the right structure. Implementors must
+    /// override it to observe both contexts (as the core instances do).
+    /// Vec uses whole-vector cloning under this existing signature; this can
+    /// allocate temporary vectors for repeated right-hand blocks.
     #[inline]
     fn ap_right<B>(self, fb: Self::Target<B>) -> Self::Target<B>
     where
@@ -180,6 +180,35 @@ impl<A> Apply for Option<A> {
             _ => None,
         }
     }
+
+    #[inline]
+    fn ap_left<B>(self, fb: Self::Target<B>) -> Self::Target<Self::Inner>
+    where
+        Self: Sized,
+        Self::Inner: Clone,
+        Self::Target<B>: Apply<Inner = B, Target<Self::Inner> = Self::Target<Self::Inner>>,
+        Self::Target<fn(B) -> Self::Inner>:
+            Apply<Inner = fn(B) -> Self::Inner, Target<Self::Inner> = Self::Target<Self::Inner>>,
+    {
+        match (self, fb) {
+            (Some(a), Some(_)) => Some(a),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn ap_right<B>(self, fb: Self::Target<B>) -> Self::Target<B>
+    where
+        Self: Sized,
+        Self::Target<B>: Apply<Inner = B, Target<B> = Self::Target<B>> + Clone,
+        Self::Target<fn(Self::Inner) -> B>:
+            Apply<Inner = fn(Self::Inner) -> B, Target<B> = Self::Target<B>>,
+    {
+        match (self, fb) {
+            (Some(_), Some(b)) => Some(b),
+            _ => None,
+        }
+    }
 }
 
 impl<A> Applicatio for Option<A> {
@@ -206,6 +235,35 @@ impl<A, E> Apply for Result<A, E> {
     {
         match (ff, self) {
             (Ok(mut f), Ok(a)) => Ok(f(a)),
+            (Err(e), _) | (_, Err(e)) => Err(e),
+        }
+    }
+
+    #[inline]
+    fn ap_left<B>(self, fb: Self::Target<B>) -> Self::Target<Self::Inner>
+    where
+        Self: Sized,
+        Self::Inner: Clone,
+        Self::Target<B>: Apply<Inner = B, Target<Self::Inner> = Self::Target<Self::Inner>>,
+        Self::Target<fn(B) -> Self::Inner>:
+            Apply<Inner = fn(B) -> Self::Inner, Target<Self::Inner> = Self::Target<Self::Inner>>,
+    {
+        match (self, fb) {
+            (Ok(a), Ok(_)) => Ok(a),
+            (Err(e), _) | (_, Err(e)) => Err(e),
+        }
+    }
+
+    #[inline]
+    fn ap_right<B>(self, fb: Self::Target<B>) -> Self::Target<B>
+    where
+        Self: Sized,
+        Self::Target<B>: Apply<Inner = B, Target<B> = Self::Target<B>> + Clone,
+        Self::Target<fn(Self::Inner) -> B>:
+            Apply<Inner = fn(Self::Inner) -> B, Target<B> = Self::Target<B>>,
+    {
+        match (self, fb) {
+            (Ok(_), Ok(b)) => Ok(b),
             (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
@@ -241,6 +299,49 @@ impl<T: Clone> Apply for Vec<T> {
                 result.push(f(a.clone()));
             }
         }
+        result
+    }
+
+    #[inline]
+    fn ap_left<B>(self, fb: Self::Target<B>) -> Self::Target<Self::Inner>
+    where
+        Self: Sized,
+        Self::Inner: Clone,
+        Self::Target<B>: Apply<Inner = B, Target<Self::Inner> = Self::Target<Self::Inner>>,
+        Self::Target<fn(B) -> Self::Inner>:
+            Apply<Inner = fn(B) -> Self::Inner, Target<Self::Inner> = Self::Target<Self::Inner>>,
+    {
+        let mut result = Self::with_capacity(self.len() * fb.len());
+        for a in self {
+            for _ in &fb {
+                result.push(a.clone());
+            }
+        }
+        result
+    }
+
+    #[inline]
+    fn ap_right<B>(self, fb: Self::Target<B>) -> Self::Target<B>
+    where
+        Self: Sized,
+        Self::Target<B>: Apply<Inner = B, Target<B> = Self::Target<B>> + Clone,
+        Self::Target<fn(Self::Inner) -> B>:
+            Apply<Inner = fn(Self::Inner) -> B, Target<B> = Self::Target<B>>,
+    {
+        let repetitions = self.len();
+        if repetitions == 0 || fb.is_empty() {
+            return Vec::new();
+        }
+        if repetitions == 1 {
+            return fb;
+        }
+        // The trait gives Vec<B>: Clone, not B: Clone. Clone whole blocks;
+        // move the last block to avoid one otherwise unnecessary clone.
+        let mut result = Vec::with_capacity(repetitions * fb.len());
+        for _ in 1..repetitions {
+            result.extend(fb.clone());
+        }
+        result.extend(fb);
         result
     }
 }
