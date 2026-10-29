@@ -276,3 +276,11 @@ codegen-units = 256
 [profile.dev.package."*"]
 # Optimize dependencies even in dev mode for better perf testing
 opt-level = 2
+
+# Opt-in local profile: smaller build artifacts with file/line backtraces.
+# Variable/type debugger inspection still needs the ordinary dev profile.
+# The core-library screening reduced logical target bytes by 21%; this does
+# not establish a full-gate speedup or change release/benchmark optimization.
+[profile.dev-small]
+inherits = "dev"
+debug = "line-tables-only"

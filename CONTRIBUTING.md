@@ -21,6 +21,19 @@ Thank you for your interest in contributing to OrdoFP! We welcome contributions 
 
 ### Running Tests
 
+For early feedback, check the affected package before the all-feature gate:
+
+```bash
+cargo check --locked -p ordofp_core --lib
+cargo build --locked --profile dev-small -p ordofp_core --lib
+```
+
+`dev-small` keeps file/line debug information and reduces debug artifacts;
+use ordinary `dev` for debugger variable/type inspection. Add the features
+affected by your change. Default-only checks do not cover async, GPU,
+nightly acceleration, or the full law/feature matrix; run the existing
+`xtask all` acceptance before integration.
+
 Run all tests including all features:
 
 ```bash
