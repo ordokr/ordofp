@@ -517,4 +517,19 @@ mod tests {
             "map that violates predicate must return None, not an invalid Refinatus"
         );
     }
+
+    #[test]
+    fn test_refinatus_new_unchecked() {
+        // SAFETY: 100 satisfies IsPositive predicate
+        let pos = unsafe { Refinatus::<i32, IsPositive>::new_unchecked(100) };
+        assert_eq!(*pos, 100);
+    }
+
+    #[test]
+    fn test_refinatus_map_unchecked() {
+        let pos = Refinatus::<i32, IsPositive>::new(10).expect("10 satisfies IsPositive");
+        // SAFETY: 10 + 5 = 15 satisfies IsPositive predicate
+        let mapped = unsafe { pos.map_unchecked::<_, _, IsPositive>(|x| x + 5) };
+        assert_eq!(*mapped, 15);
+    }
 }

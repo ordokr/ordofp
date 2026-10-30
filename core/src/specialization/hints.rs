@@ -332,4 +332,11 @@ mod tests {
         let result = unsafe { assume_non_empty(slice) };
         assert_eq!(result, slice);
     }
+
+    #[test]
+    fn test_assert_unchecked() {
+        let cond = 5 > 2;
+        // SAFETY: cond is true (5 > 2)
+        unsafe { assert_unchecked(cond) };
+    }
 }
