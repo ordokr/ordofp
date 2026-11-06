@@ -1,5 +1,8 @@
 # 0.2.0 alpha: nonempty validation error migration
 
+Scholastic primary names are `ErroresNonVacui<E>` and `ErroresVacui`;
+the English API uses exact reexports `NonEmptyErrors<E>` and `EmptyErrors`.
+
 This implementation is stacked on [validation-domains-alpha1.md](validation-domains-alpha1.md)
 and intentionally introduces a breaking `Probatum` representation before the
 0.2.0 version bump. **Do not merge into a 0.1.x release.**

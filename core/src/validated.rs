@@ -25,15 +25,17 @@ type ErrorBuf<E> = SmallVec<[E; 4]>;
 #[cfg(not(feature = "Probatum-smallvec"))]
 type ErrorBuf<E> = Vec<E>;
 
-
 /// Error returned when an iterator offered to form an invalid validation is empty.
 ///
 /// Empty input is not a validation failure. Callers must decide how to handle it;
 /// no implicit success, fabricated error, or panic is used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EmptyErrors;
+pub struct ErroresVacui;
 
-impl fmt::Display for EmptyErrors {
+/// English alias for `ErroresVacui`.
+pub use ErroresVacui as EmptyErrors;
+
+impl fmt::Display for ErroresVacui {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("an invalid validation requires at least one error")
     }
@@ -48,9 +50,12 @@ impl fmt::Display for EmptyErrors {
 /// rather than temporarily leaving another live value empty.
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct NonEmptyErrors<E>(ErrorBuf<E>);
+pub struct ErroresNonVacui<E>(ErrorBuf<E>);
 
-impl<E> NonEmptyErrors<E> {
+/// English alias for `ErroresNonVacui`.
+pub use ErroresNonVacui as NonEmptyErrors;
+
+impl<E> ErroresNonVacui<E> {
     /// Create a one-error collection.
     #[inline]
     pub fn one(error: E) -> Self {
@@ -104,11 +109,11 @@ impl<E> NonEmptyErrors<E> {
     where
         F: FnMut(E) -> E2,
     {
-        NonEmptyErrors(self.0.into_iter().map(f).collect())
+        ErroresNonVacui(self.0.into_iter().map(f).collect())
     }
 }
 
-impl<E> core::ops::Deref for NonEmptyErrors<E> {
+impl<E> core::ops::Deref for ErroresNonVacui<E> {
     type Target = [E];
 
     #[inline]
@@ -117,7 +122,7 @@ impl<E> core::ops::Deref for NonEmptyErrors<E> {
     }
 }
 
-impl<E> IntoIterator for NonEmptyErrors<E> {
+impl<E> IntoIterator for ErroresNonVacui<E> {
     type Item = E;
     type IntoIter = <ErrorBuf<E> as IntoIterator>::IntoIter;
 
@@ -277,9 +282,7 @@ impl<E, A> Probatum<E, A> {
     {
         match (self, vb) {
             (Self::Valid(a), Probatum::Valid(b)) => Probatum::Valid(f(a, b)),
-            (Self::Invalid(e1), Probatum::Invalid(e2)) => {
-                Probatum::Invalid(e1.concat(e2))
-            }
+            (Self::Invalid(e1), Probatum::Invalid(e2)) => Probatum::Invalid(e1.concat(e2)),
             (Self::Invalid(e), _) | (_, Probatum::Invalid(e)) => Probatum::Invalid(e),
         }
     }
@@ -485,9 +488,7 @@ impl<E, A> Apply for Probatum<E, A> {
     {
         match (ff, self) {
             (Probatum::Valid(mut f), Self::Valid(a)) => Probatum::Valid(f(a)),
-            (Probatum::Invalid(e1), Self::Invalid(e2)) => {
-                Probatum::Invalid(e1.concat(e2))
-            }
+            (Probatum::Invalid(e1), Self::Invalid(e2)) => Probatum::Invalid(e1.concat(e2)),
             (Probatum::Invalid(e), _) | (_, Self::Invalid(e)) => Probatum::Invalid(e),
         }
     }
