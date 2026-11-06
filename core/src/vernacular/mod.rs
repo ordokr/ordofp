@@ -178,7 +178,9 @@ pub use crate::typeclasses::Unitas as Monoid;
 // =============================================================================
 
 #[cfg(feature = "Probatum")]
-pub use crate::validated::{IntoProbatum, IntoValidated, Probatum as Validated};
+pub use crate::validated::{
+    EmptyErrors, IntoProbatum, IntoValidated, NonEmptyErrors, Probatum as Validated,
+};
 
 // =============================================================================
 // Linear Types Aliases
