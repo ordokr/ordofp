@@ -4,7 +4,7 @@
 //! that collects multiple errors instead of short-circuiting like `Result`.
 
 use alloc::vec::Vec;
-use core::fmt::{self, Debug};
+use core::fmt;
 
 use crate::typeclasses::{Applicatio, Apply, Functor};
 
@@ -165,9 +165,7 @@ mod error_buf_serde {
     }
 
     /// Reject serialized invalid results with no errors.
-    pub(super) fn deserialize<'de, D, E>(
-        deserializer: D,
-    ) -> Result<NonEmptyErrors<E>, D::Error>
+    pub(super) fn deserialize<'de, D, E>(deserializer: D) -> Result<NonEmptyErrors<E>, D::Error>
     where
         D: serde::Deserializer<'de>,
         E: serde::Deserialize<'de>,
@@ -333,8 +331,7 @@ impl<E, A> Probatum<E, A> {
     where
         F: FnMut(A, B, C) -> D,
     {
-        self.map2(vb, |a, b| (a, b))
-            .map2(vc, |(a, b), c| f(a, b, c))
+        self.map2(vb, |a, b| (a, b)).map2(vc, |(a, b), c| f(a, b, c))
     }
 
     /// Lift three Probatum values without consuming `self`.
