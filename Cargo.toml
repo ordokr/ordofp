@@ -234,6 +234,11 @@ required-features = ["std", "Probatum", "Probatum-smallvec"]
 name = "e2e_allocs"
 required-features = ["std", "Probatum", "Probatum-smallvec"]
 
+# Two-stage checked-domain validation design probe (0.2.0 alpha 1).
+[[example]]
+name = "checked_domain_alpha"
+required-features = ["Probatum"]
+
 # =============================================================================
 # Profile Optimizations (Nightly-specific)
 # =============================================================================

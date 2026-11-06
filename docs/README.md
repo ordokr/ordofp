@@ -21,6 +21,7 @@ Topic → file map. One canonical location per topic.
 | Contribution workflow, toolchain, verification gate | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Core principles & architectural axioms | [axioms.md](axioms.md) |
 | Standing policies (perf doctrine, do-not-retry list, standing rejections) | [policies.md](policies.md) |
+| 0.2.0 alpha-1 validation/checked-domain design and example | [design/validation-domains-alpha1.md](design/validation-domains-alpha1.md) |
 | Public maintenance cadence (dependency/toolchain/release hygiene) | [maintenance.md](maintenance.md) |
 | Unsafe/UB audit notes (rules from real incidents) | [UNSAFE_NOTES.md](UNSAFE_NOTES.md) |
 | Release history | [../CHANGELOG.md](../CHANGELOG.md) |
