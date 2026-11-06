@@ -88,11 +88,10 @@ fn parse_endpoint(value: &str, field: &'static str) -> Validated<LocatedIssue, u
 
 fn validate_window(raw: RawWindow<'_>) -> Validated<LocatedIssue, Window> {
     // Independent parsing accumulates errors in start, end order.
-    let parsed = parse_endpoint(raw.start, "start")
-        .map2(parse_endpoint(raw.end, "end"), |start, end| ParsedWindow {
-            start,
-            end,
-        });
+    let parsed = parse_endpoint(raw.start, "start").map2(
+        parse_endpoint(raw.end, "end"),
+        |start, end| ParsedWindow { start, end },
+    );
 
     // Cross-field validation runs only after both endpoints parse.
     match parsed {
