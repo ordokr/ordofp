@@ -854,4 +854,20 @@ mod tests {
     fn test_praecidere_vel_panico() {
         let _: Refined<i32, Positivus> = praecidere_vel_panico(-1);
     }
+
+    #[test]
+    fn test_sine_examine() {
+        // SAFETY: 10 satisfies Positivus predicate (> 0).
+        let pos: Refined<i32, Positivus> = unsafe { Refined::sine_examine(10) };
+        assert_eq!(*pos.value(), 10);
+    }
+
+    #[test]
+    fn test_map_unchecked() {
+        let pos: Refined<i32, Positivus> =
+            refine_positive(5i32).expect("5 satisfies Positivus predicate");
+        // SAFETY: 5 * 3 = 15 satisfies Positivus predicate (> 0).
+        let mapped = unsafe { pos.map_unchecked(|x| x * 3) };
+        assert_eq!(*mapped.value(), 15);
+    }
 }
