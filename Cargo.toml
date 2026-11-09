@@ -235,6 +235,16 @@ required-features = ["std", "Probatum", "Probatum-smallvec"]
 name = "e2e_allocs"
 required-features = ["std", "Probatum", "Probatum-smallvec"]
 
+# Two-stage checked-domain validation design probe (0.2.0 alpha 1).
+[[example]]
+name = "checked_domain_alpha"
+required-features = ["Probatum"]
+
+# Composed optic/validation walkthrough (0.1.4 maintenance).
+[[example]]
+name = "composed_validation"
+required-features = ["Probatum"]
+
 # =============================================================================
 # Profile Optimizations (Nightly-specific)
 # =============================================================================
@@ -277,6 +287,11 @@ codegen-units = 256
 [profile.dev.package."*"]
 # Optimize dependencies even in dev mode for better perf testing
 opt-level = 2
-[[example]]
-name = "composed_validation"
-required-features = ["Probatum"]
+
+# Opt-in local profile: smaller build artifacts with file/line backtraces.
+# Variable/type debugger inspection still needs the ordinary dev profile.
+# The core-library screening reduced logical target bytes by 21%; this does
+# not establish a full-gate speedup or change release/benchmark optimization.
+[profile.dev-small]
+inherits = "dev"
+debug = "line-tables-only"
