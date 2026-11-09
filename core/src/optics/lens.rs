@@ -364,6 +364,50 @@ where
         let new_a = self.inner.set(&a, new_b);
         self.outer.set(source, new_a)
     }
+
+    /// Modify the composed focus if the callback returns `Some`.
+    /// On `None`, neither setter runs; the source is borrowed throughout.
+    #[inline]
+    pub fn modify_option<F>(&self, source: &S, f: F) -> Option<S>
+    where
+        F: FnOnce(B) -> Option<B>,
+    {
+        let a = self.outer.get(source);
+        self.inner
+            .modify_option(&a, f)
+            .map(|new_a| self.outer.set(source, new_a))
+    }
+
+    /// Modify the composed focus if the callback succeeds.
+    /// Neither setter runs on failure.
+    ///
+    /// # Errors
+    /// Returns the callback's error unchanged.
+    #[inline]
+    pub fn modify_result<E, F>(&self, source: &S, f: F) -> Result<S, E>
+    where
+        F: FnOnce(B) -> Result<B, E>,
+    {
+        let a = self.outer.get(source);
+        self.inner
+            .modify_result(&a, f)
+            .map(|new_a| self.outer.set(source, new_a))
+    }
+
+    /// Validate a replacement of the composed focus before running either setter.
+    /// Invalid results preserve their errors and leave the source unchanged.
+    /// See `examples/composed_validation.rs` for a complete update.
+    #[cfg(feature = "Probatum")]
+    #[inline]
+    pub fn modify_validated<E, F>(&self, source: &S, f: F) -> crate::validated::Probatum<E, S>
+    where
+        F: FnOnce(B) -> crate::validated::Probatum<E, B>,
+    {
+        let a = self.outer.get(source);
+        self.inner
+            .modify_validated(&a, f)
+            .map(|new_a| self.outer.set(source, new_a))
+    }
 }
 
 /// Create a new aspectus from getter and setter functions.

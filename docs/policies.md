@@ -6,14 +6,14 @@ measurement, the measurement is summarized inline.
 
 ## Verification & workflow
 
-- **Dual-layer verification is canonical.** The machine-owned `xtask` driver
+- **Local verification is canonical.** The machine-owned `xtask` driver
   executes the canonical gate (fmt, clippy `-D warnings`, workspace tests,
   docs, full build) plus the stable-toolchain cross-check, `cargo-deny`,
   wasm32 check, and the 12-configuration feature matrix:
   `cargo run -p xtask -- all`; `-- deep` adds Miri (arena) and a
   60s fuzz smoke.
-  Hosted CI (`.github/workflows/ci.yml`) runs identical `xtask` checks on
-  every push and PR.
+  There are no hosted workflow files. Record local command results and
+  blockers in the PR; do not imply a hosted green run.
 - **Gate per commit** touching code/config/scripts; pure-`.md` commits ride
   the most recent green gate.
 - **Never introduce an unnamed behavior change.** GPU tests self-skip when no

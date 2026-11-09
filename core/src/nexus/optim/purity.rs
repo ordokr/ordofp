@@ -4,6 +4,11 @@
 //! at the type level. These properties enable **typed optimization combinators**
 //! that users explicitly invoke.
 //!
+//! These are metadata about declared effect categories, not proofs about Rust
+//! callbacks. A callback may perform untracked IO, mutate state, panic or loop.
+//! The `Is*` traits also describe false cases through associated booleans;
+//! a trait bound alone does not establish that its boolean is true.
+//!
 //! # Effect Properties
 //!
 //! | Property    | Definition                           | Enables (via explicit combinator) |
@@ -28,7 +33,7 @@
 //!     A: Send,
 //!     B: Send,
 //! {
-//!     // Safe because Pure guarantees no side effects
+//!     // The caller remains responsible for untracked effects in f.
 //!     items.into_par_iter().map(|a| f(a).run_pure()).collect()
 //! }
 //!
@@ -57,12 +62,10 @@ pub struct NotSatisfied;
 // Purity Trait
 // =============================================================================
 
-/// Trait for effects that are pure (no observable side effects).
+/// Metadata classifying whether an effect row declares observable effects.
 ///
-/// Pure effects can be:
-/// - Executed in parallel safely
-/// - Memoized without concerns
-/// - Reordered freely
+/// This trait is implemented for both true and false classifications.
+/// Query `IS_PURE`; the bound alone is not a purity proof.
 ///
 /// # Laws
 ///
@@ -85,7 +88,7 @@ impl<const BITS: u128> IsPure for Row<BITS> {
 // Idempotency Trait
 // =============================================================================
 
-/// Trait for effects that are idempotent.
+/// Metadata classifying declared effect categories for idempotency.
 ///
 /// An effect is idempotent if executing it multiple times has the same
 /// observable result as executing it once.
@@ -121,10 +124,9 @@ impl<const BITS: u128> IsIdempotent for Row<BITS> {
 // Totality Trait
 // =============================================================================
 
-/// Trait for effects that are total (always terminate with a value).
+/// Metadata classifying rows without declared partial effect categories.
 ///
-/// Total effects can be safely used in speculative execution because
-/// they're guaranteed to complete.
+/// `IS_TOTAL` does not guarantee that arbitrary Rust callbacks terminate.
 ///
 /// # Total Effects
 ///
@@ -203,11 +205,12 @@ impl<R: EffectRow> EffectProperties<R> {
 // Compile-Time Property Assertions
 // =============================================================================
 
-/// Assert at compile time that an effect row is pure.
+/// Legacy metadata marker for a row with a `IsPure` classification.
+/// Construction does not check the classification boolean and is not a proof.
 pub struct AssertPure<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertPure<R> {
-    /// Create the assertion. Only succeeds if R is pure.
+    /// Create the metadata marker; does not require `IsPure` to classify true.
     #[must_use]
     pub const fn new() -> Self
     where
@@ -224,11 +227,12 @@ impl<R: EffectRow + IsPure> Default for AssertPure<R> {
     }
 }
 
-/// Assert at compile time that an effect row is idempotent.
+/// Legacy metadata marker for a row with a `IsIdempotent` classification.
+/// Construction does not check the classification boolean and is not a proof.
 pub struct AssertIdempotent<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertIdempotent<R> {
-    /// Create the assertion. Only succeeds if R is idempotent.
+    /// Create the metadata marker; does not require `IsIdempotent` to classify true.
     #[must_use]
     pub const fn new() -> Self
     where
@@ -245,11 +249,12 @@ impl<R: EffectRow + IsIdempotent> Default for AssertIdempotent<R> {
     }
 }
 
-/// Assert at compile time that an effect row is total.
+/// Legacy metadata marker for a row with a `IsTotal` classification.
+/// Construction does not check the classification boolean and is not a proof.
 pub struct AssertTotal<R: EffectRow>(PhantomData<R>);
 
 impl<R: EffectRow> AssertTotal<R> {
-    /// Create the assertion. Only succeeds if R is total.
+    /// Create the metadata marker; does not require `IsTotal` to classify true.
     #[must_use]
     pub const fn new() -> Self
     where

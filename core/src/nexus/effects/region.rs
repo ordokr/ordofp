@@ -1252,7 +1252,7 @@ mod tests {
             let z1 = region.alloc(());
             let z2 = region.alloc([0u8; 0]);
             assert_eq!(*z1, ());
-            assert_eq!(*z2, []);
+            assert_eq!(*z2, [0_u8; 0]);
 
             let empty_slice = region.alloc_slice::<i32>(&[]);
             assert!(empty_slice.is_empty());

@@ -584,7 +584,10 @@ where
     result
 }
 
-/// Async finalizer.
+/// Await a finalizer after normal completion of the computation.
+///
+/// Dropping or panicking while polling either future can prevent cleanup
+/// completion. This is not an async destructor or cancellation guarantee.
 #[inline]
 pub fn finaliter_async<A, F, FFut, Fin, FinFut>(computation: F, finalizer: Fin) -> Fibra<A>
 where

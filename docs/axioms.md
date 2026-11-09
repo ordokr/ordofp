@@ -42,7 +42,7 @@ These axioms and design principles were derived from adversarial audits, contrar
    - Unused variable, missing doc comment, or unreachable visibility warnings under isolated flags.
 2. **Matrix Enforcement**:
    - Every crate must compile cleanly and pass verification under `--no-default-features`, minimal feature subsets (`alloc`, `std`), and isolated additive flags (`async`, `linear`, `par,rayon`, `nexus`).
-   - The workspace feature matrix is continuously enforced via `cargo run -p xtask -- matrix` and wired directly into the root gate and CI.
+   - The workspace feature matrix is continuously enforced via `cargo run -p xtask -- matrix` and wired directly into the local root gate.
 
 ---
 
@@ -59,13 +59,13 @@ These axioms and design principles were derived from adversarial audits, contrar
 
 ---
 
-## Axiom 5: The Principle of Dual-Layer Verification (Local Machine Ownership + Hosted CI)
+## Axiom 5: The Principle of Reproducible Local Verification
 
-> *"Local execution guarantees reproducible developer velocity; hosted CI guarantees transparent open-source trust."*
+> *"Verification claims must identify the executable checks and their actual results."*
 
 1. **Machine-Owned Local Gate**:
    - All verification steps (format, strict Clippy `-D warnings`, full test suite, doctests, rustdoc, stable MSRV check, `cargo-deny`, `wasm32`, and feature matrix) are encapsulated in the local `xtask` driver (`cargo run -p xtask -- all`).
    - Any developer on any machine can run the exact canonical gate without external orchestration dependencies.
-2. **Transparent Hosted CI**:
-   - Hosted CI (`.github/workflows/ci.yml`) executes the identical `xtask` targets on remote runners on every commit and PR.
-   - Remote CI serves as a public seal of correctness and prevents platform-specific drift.
+2. **Transparent Evidence**:
+   - This repository has no hosted workflows. Local `xtask` results are the review evidence and merge bar.
+   - Report toolchain, features, skipped checks and blockers. Adding hosted CI is a separate decision; do not claim it exists.

@@ -412,6 +412,46 @@ impl SyncArena {
         }
     }
 
+    /// Allocate a copy of `slice` in the thread-safe arena.
+    ///
+    /// Returns an [`ArenaRef`] handle borrowing the arena, so the copy
+    /// cannot outlive it. Concurrent calls are safe because memory reservation
+    /// is synchronized under the Mutex.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the slice's total byte size overflows a valid `Layout`
+    /// (i.e. `slice.len() * size_of::<T>()` exceeds `isize::MAX`), or if
+    /// growing the arena fails because the global allocator reports
+    /// out-of-memory.
+    pub fn alloc_slice<T: Copy>(&self, slice: &[T]) -> ArenaRef<'_, [T]> {
+        let layout = Layout::array::<T>(slice.len()).expect("Invalid slice layout");
+        let ptr = self.alloc_layout(layout);
+        // SAFETY: `ptr` comes from `alloc_layout`, which guarantees:
+        //   1. The pointer is non-null and aligned to `align_of::<T>()`.
+        //   2. The allocation covers exactly `slice.len() * size_of::<T>()` bytes.
+        // `copy_nonoverlapping` is sound because `slice` is a valid Rust slice
+        // (so `src` is valid for `slice.len()` reads) and the arena allocation
+        // is freshly reserved (so `dst` is valid for `slice.len()` writes and
+        // cannot alias `src`). `from_raw_parts_mut` is sound because the region
+        // is now fully initialized with a copy of `slice`.
+        unsafe {
+            let typed_ptr = ptr.as_ptr().cast::<T>();
+            core::ptr::copy_nonoverlapping(slice.as_ptr(), typed_ptr, slice.len());
+            ArenaRef::from_mut(core::slice::from_raw_parts_mut(typed_ptr, slice.len()))
+        }
+    }
+
+    /// Allocate a string in the thread-safe arena.
+    pub fn alloc_str(&self, s: &str) -> ArenaRef<'_, str> {
+        let bytes = self.alloc_slice(s.as_bytes()).into_mut();
+        // SAFETY: `bytes` is a copy of `s.as_bytes()`, which are the UTF-8 encoded
+        // bytes of a valid `&str`. `alloc_slice` copies them verbatim, so the byte
+        // sequence is guaranteed to be valid UTF-8. Converting them back to `&mut str`
+        // via `from_utf8_unchecked_mut` is therefore sound.
+        ArenaRef::from_mut(unsafe { core::str::from_utf8_unchecked_mut(bytes) })
+    }
+
     fn alloc_layout(&self, layout: Layout) -> NonNull<u8> {
         let layout = layout.pad_to_align();
         let mut inner = self.inner.lock().expect("SyncArena mutex poisoned");
@@ -735,6 +775,36 @@ mod tests {
         let _ = arena.alloc_layout(layout);
     }
 
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_sync_arena_concurrent_alloc() {
+        use alloc::sync::Arc;
+
+        let arena = Arc::new(SyncArena::new());
+        std::thread::scope(|s| {
+            for i in 0..4 {
+                let arena_ref = Arc::clone(&arena);
+                s.spawn(move || {
+                    let val = arena_ref.alloc(i);
+                    assert_eq!(*val, i);
+                });
+            }
+        });
+
+        assert!(arena.capacity() >= DEFAULT_CHUNK_SIZE);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_sync_arena_alloc_slice_and_str() {
+        let arena = SyncArena::new();
+        let slice = arena.alloc_slice(&[10, 20, 30]);
+        assert_eq!(&*slice, &[10, 20, 30]);
+
+        let str_ref = arena.alloc_str("concurrent arena");
+        assert_eq!(&*str_ref, "concurrent arena");
+    }
+
     #[test]
     fn test_arena_reset() {
         let arena = Arena::new();
@@ -760,7 +830,7 @@ mod tests {
         let z1 = arena.alloc(());
         let z2 = arena.alloc([0u8; 0]);
         assert_eq!(*z1, ());
-        assert_eq!(*z2, []);
+        assert_eq!(*z2, [0_u8; 0]);
 
         let empty_slice = arena.alloc_slice::<i32>(&[]);
         assert!(empty_slice.is_empty());
@@ -779,6 +849,6 @@ mod tests {
         let z1 = arena.alloc(());
         let z2 = arena.alloc([0u8; 0]);
         assert_eq!(*z1, ());
-        assert_eq!(*z2, []);
+        assert_eq!(*z2, [0_u8; 0]);
     }
 }

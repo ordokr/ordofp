@@ -8,6 +8,10 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ### Added
 
+- Composed lenses now expose `modify_option`, `modify_result` and
+  `modify_validated`, with a runnable `composed_validation` example.
+
+
 - `xtask fuzz-scope` fails when the fuzz targets on disk, the set `fuzz-smoke`
   executes, the `[[bin]]` entries in `fuzz/Cargo.toml`, and the fuzz bullet in
   `SECURITY.md` stop agreeing: a target added and never run, or renamed while the
@@ -16,6 +20,18 @@ All notable changes to OrdoFP are documented in this file. The format follows
   `FUZZ_TARGETS` table instead of an inline array.
 
 ### Changed
+
+- Inherent Probatum maps and their lifting aliases accept consuming `FnOnce`
+  callbacks. `Seq::map` no longer requires Clone input or output values.
+- Deprecated the wrapper-shaped trait sequencing defaults; use the free
+  `sequence_option` / `sequence_result` helpers or owned traversal with identity.
+- Clarified sequential async traversal, missing ResAsync release, cancellation
+  limits, generic Nexus panic stubs and metadata-only assertion markers.
+  These limitations remain; no concurrency or effect-kernel redesign is claimed.
+- Reconciled policies and axioms with the actual local-only xtask verification.
+- Aligned the macro parser dependency with syn 3 used by current derives,
+  removing the duplicate-major strict-Clippy baseline failure.
+
 
 - `xtask gate` runs `fuzz-scope` alongside `miri-scope`. Both are filesystem
   scans costing milliseconds, so they stay per-commit while the runs they guard
@@ -37,6 +53,15 @@ All notable changes to OrdoFP are documented in this file. The format follows
   weekly `deep`.
 
 ### Fixed
+
+- Apply `ap_left` / `ap_right` for Option, Result, Vec and Probatum now observe
+  both operands, preserve left-priority Result failures, accumulate validation
+  errors left to right, and preserve Vec Cartesian multiplicity and order.
+  Public signatures are unchanged. Vec `ap_right` may allocate temporary
+  whole-vector clones; the generic fallback remains limited for other instances.
+- Typed three zero-length arena test expectations to resolve ambiguous
+  comparisons introduced by current serde_json implementations.
+
 
 - `SECURITY.md` no longer overstates dynamic coverage. It claimed Miri and the
   fuzz smoke both ran "over" the arena, pfds, and async internals; in fact no

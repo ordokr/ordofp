@@ -237,7 +237,7 @@ macro_rules! wrap_ref {
 ///
 /// # Panics
 ///
-/// Panics if `ptr` is null, or if `T` is a zero-sized type (ZST).
+/// Panics if `ptr` is null, unaligned, or if `T` is a zero-sized type (ZST).
 ///
 /// # Safety
 /// The caller must ensure:
@@ -247,12 +247,18 @@ macro_rules! wrap_ref {
 ///   scanning loop will read out of bounds indefinitely until it encounters data
 ///   equal to `tail` or the program crashes.
 ///
+/// - **Proper alignment:** `ptr` must be properly aligned for `T`.
+///
 /// - **Non-zero-sized elements:** `T` must not be a zero-sized type (ZST). For ZSTs,
 ///   `ptr.add(1)` does not advance the pointer, causing an infinite loop that never
 ///   reaches `tail`.
 #[inline]
 pub unsafe fn probe_len<T: PartialEq>(mut ptr: *const T, tail: &T) -> usize {
     assert!(!ptr.is_null(), "probe_len pointer must not be null");
+    assert!(
+        ptr.is_aligned(),
+        "probe_len pointer must be properly aligned"
+    );
     assert!(
         core::mem::size_of::<T>() > 0,
         "probe_len does not support zero-sized types (ZST)"
@@ -472,6 +478,19 @@ mod tests {
         // SAFETY: Testing precondition assertion on ZST input.
         unsafe {
             probe_len(ptr, &zst);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "probe_len pointer must be properly aligned")]
+    fn test_probe_len_unaligned() {
+        let arr = [10u32, 20u32, 0u32];
+        let ptr = arr.as_ptr();
+        let unaligned_ptr = unsafe { (ptr as *const u8).add(1).cast::<u32>() };
+        let tail = 0u32;
+        // SAFETY: Testing precondition assertion on misaligned pointer input.
+        unsafe {
+            probe_len(unaligned_ptr, &tail);
         }
     }
 

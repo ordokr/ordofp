@@ -62,10 +62,14 @@ pub trait Traversable<A> {
     where
         F: Fn(&A) -> Result<B, E>;
 
-    /// Sequence a structure of Options into an Option of structure.
-    ///
-    /// `sequence([Some(1), Some(2), Some(3)]) == Some([1, 2, 3])`
-    /// `sequence([Some(1), None, Some(3)]) == None`
+    /// Legacy wrapper traversal: wraps each existing element in `Some`.
+    /// This does not extract nested Options. Use the free
+    /// [`sequence_option`] for `Vec<Option<T>>`, or
+    /// `Self::traverse_option_owned(structure, core::convert::identity)`
+    /// on an implementation whose element type is `Option<T>`.
+    #[deprecated(
+        note = "wraps elements rather than sequencing; use traversable::sequence_option or traverse_option_owned with identity"
+    )]
     #[inline]
     fn sequence_option(structure: Self) -> Option<Self::Output<A>>
     where
@@ -74,12 +78,17 @@ pub trait Traversable<A> {
         Self::traverse_option_owned(structure, Some)
     }
 
-    /// Sequence a structure of Results into a Result of structure.
+    /// Legacy wrapper traversal: wraps each existing element in `Ok`.
+    /// This does not extract nested Results. Use the free
+    /// [`sequence_result`] for `Vec<Result<T, E>>`, or
+    /// `Self::traverse_result_owned(structure, core::convert::identity)`
+    /// on an implementation whose element type is `Result<T, E>`.
     ///
     /// # Errors
-    ///
-    /// Returns the first `Err` found in the structure, in traversal
-    /// order; the remaining elements' successes are discarded.
+    /// The default never returns `Err`; it wraps every element in `Ok`.
+    #[deprecated(
+        note = "wraps elements rather than sequencing; use traversable::sequence_result or traverse_result_owned with identity"
+    )]
     #[inline]
     fn sequence_result<E>(structure: Self) -> Result<Self::Output<A>, E>
     where
