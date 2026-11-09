@@ -48,13 +48,13 @@ OrdoFP's async support is opt-in via feature flags:
 ```toml
 [dependencies]
 # Core async support (no runtime dependency)
-ordofp = { version = "0.1", features = ["async"] }
+ordofp = { version = "0.2", features = ["async"] }
 
 # With Tokio runtime
-ordofp = { version = "0.1", features = ["tokio"] }
+ordofp = { version = "0.2", features = ["tokio"] }
 
 # With smol runtime (the legacy "async-std" feature is a back-compat alias for this)
-ordofp = { version = "0.1", features = ["smol"] }
+ordofp = { version = "0.2", features = ["smol"] }
 ```
 
 ### Minimal Example

@@ -34,13 +34,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ordofp = { version = "0.1", features = ["async"] }
+//! ordofp = { version = "0.2", features = ["async"] }
 //! ```
 //!
 //! For runtime integration, use `tokio` or `smol` features:
 //!
 //! ```toml
-//! ordofp = { version = "0.1", features = ["tokio"] }
+//! ordofp = { version = "0.2", features = ["tokio"] }
 //! ```
 //!
 //! # Example

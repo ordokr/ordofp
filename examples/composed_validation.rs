@@ -36,7 +36,7 @@ fn main() {
     };
     let validate = |name: String| {
         if name.trim().is_empty() {
-            Validated::invalid_many(["name is required"])
+            Validated::invalid("name is required")
         } else {
             Validated::Valid(name)
         }
@@ -54,7 +54,7 @@ fn main() {
     );
     assert_eq!(
         lens.modify_validated(&source, |_| validate(String::new())),
-        Validated::invalid_many(["name is required"])
+        Validated::invalid("name is required")
     );
     assert_eq!(source.profile.name, "Alice");
 }

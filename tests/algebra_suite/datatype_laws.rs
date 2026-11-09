@@ -141,6 +141,7 @@ fn probatum(input: Result<i32, (u8, Vec<u8>)>) -> Probatum<u8, i32> {
         Ok(v) => Probatum::valid(v),
         Err((first, rest)) => {
             Probatum::invalid_many(core::iter::once(first).chain(rest.into_iter().take(3)))
+                .expect("the first error guarantees nonempty input")
         }
     }
 }

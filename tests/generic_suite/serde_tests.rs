@@ -268,7 +268,8 @@ mod probatum_serde {
     #[test]
     fn test_probatum_err_roundtrip() {
         let probatum: Probatum<String, HList!(i32)> =
-            Probatum::invalid_many(["error1".to_string(), "error2".to_string()]);
+            Probatum::invalid_many(["error1".to_string(), "error2".to_string()])
+                .expect("nonempty errors");
 
         let json = serde_json::to_string(&probatum).expect("serialize Probatum::Invalid");
         let deserialized: Probatum<String, HList!(i32)> =
@@ -276,6 +277,28 @@ mod probatum_serde {
 
         assert!(deserialized.is_invalid());
         assert_eq!(probatum, deserialized);
+    }
+
+    #[test]
+    fn test_empty_invalid_json_is_rejected() {
+        let empty: Result<Probatum<String, i32>, _> = serde_json::from_str(r#"{"Invalid":[]}"#);
+        assert!(empty.is_err(), "Invalid([]) must never deserialize");
+        let valid: Probatum<String, i32> = serde_json::from_str(r#"{"Valid":3}"#).unwrap();
+        assert_eq!(valid, Probatum::valid(3));
+    }
+
+    #[test]
+    fn test_nonempty_invalid_json_preserves_order() {
+        let parsed: Probatum<String, i32> =
+            serde_json::from_str(r#"{"Invalid":["first","second"]}"#).unwrap();
+        assert_eq!(
+            parsed.errors(),
+            Some(&["first".to_string(), "second".to_string()][..])
+        );
+        assert_eq!(
+            serde_json::to_string(&parsed).unwrap(),
+            r#"{"Invalid":["first","second"]}"#
+        );
     }
 }
 

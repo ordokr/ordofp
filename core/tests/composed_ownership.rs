@@ -26,8 +26,9 @@ fn composed_updates_only_set_after_success() {
     assert_eq!(lens.modify_option(&source, |_| None), None);
     assert_eq!(lens.modify_result(&source, |_| Err("bad")), Err("bad"));
     assert_eq!(
-        lens.modify_validated(&source, |_| Probatum::invalid_many(["a", "b"])),
-        Probatum::invalid_many(["a", "b"])
+        lens.modify_validated(&source, |_| Probatum::invalid_many(["a", "b"])
+            .expect("two errors are nonempty")),
+        Probatum::invalid_many(["a", "b"]).expect("two errors are nonempty")
     );
     assert_eq!(setters.get(), 0);
     assert_eq!(source, ((1, 2), 3));
@@ -71,13 +72,13 @@ fn validation_callbacks_can_consume_captures() {
     );
     let called = Cell::new(false);
     let captured = Owned(40);
-    let invalid = Probatum::<_, Owned>::invalid_many(["bad"]);
+    let invalid = Probatum::<_, Owned>::invalid("bad");
     assert_eq!(
         invalid.map(|_| {
             called.set(true);
             captured
         }),
-        Probatum::invalid_many(["bad"])
+        Probatum::invalid("bad")
     );
     assert!(!called.get());
 }

@@ -26,6 +26,8 @@ This glossary maps OrdoFP's nomenclature to its roots in Catholic scholastic phi
 | `Semigroup` | `Compositio` | Latin: "composition" — Aquinas on *compositio et divisio* |
 | `Monoid` | `Unitas` | Latin: "unity" — *unum* as transcendental (ST I, q.11) |
 | `Applicative` | `Applicatio` | Latin: "application" — *applicatio formae ad materiam* |
+| `NonEmptyErrors` | `ErroresNonVacui` | Latin: *errores non vacui* — nonempty accumulated validation errors |
+| `EmptyErrors` | `ErroresVacui` | Latin: *errores vacui* — rejection of an empty invalid-error input |
 | `Sum` | `Aggregatio` | Latin: "aggregation" — collecting into one |
 | `Product` | `Multiplicatio` | Latin: "multiplication" — repeated unity |
 | `All` | `Omnis` | Latin: "all/every" — universal quantifier |

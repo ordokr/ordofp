@@ -37,7 +37,7 @@ OrdoFP is a functional programming library for Rust that brings Haskell-level ab
 [dependencies]
 ordofp = "0.1"
 # For specific features:
-# ordofp = { version = "0.1", features = ["async", "linear", "par", "serde"] }
+# ordofp = { version = "0.2", features = ["async", "linear", "par", "serde"] }
 ```
 
 ### Feature Flags

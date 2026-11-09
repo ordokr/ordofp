@@ -4,7 +4,7 @@
 //! that collects multiple errors instead of short-circuiting like `Result`.
 
 use alloc::vec::Vec;
-use core::fmt::Debug;
+use core::fmt;
 
 use crate::typeclasses::{Applicatio, Apply, Functor};
 
@@ -25,6 +25,116 @@ type ErrorBuf<E> = SmallVec<[E; 4]>;
 #[cfg(not(feature = "Probatum-smallvec"))]
 type ErrorBuf<E> = Vec<E>;
 
+/// Error returned when an iterator offered to form an invalid validation is empty.
+///
+/// Empty input is not a validation failure. Callers must decide how to handle it;
+/// no implicit success, fabricated error, or panic is used.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ErroresVacui;
+
+/// English alias for `ErroresVacui`.
+pub use ErroresVacui as EmptyErrors;
+
+impl fmt::Display for ErroresVacui {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("an invalid validation requires at least one error")
+    }
+}
+
+/// A nonempty error collection used by `Probatum::Invalid`.
+///
+/// The buffer is private: safe construction requires at least one error.
+/// This wrapper retains the exact layout of the selected `ErrorBuf` backing
+/// store (`Vec` by default, four-inline-element `SmallVec` when opted in).
+/// It offers read-only slice access; merging consumes the other collection
+/// rather than temporarily leaving another live value empty.
+#[repr(transparent)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct ErroresNonVacui<E>(ErrorBuf<E>);
+
+/// English alias for `ErroresNonVacui`.
+pub use ErroresNonVacui as NonEmptyErrors;
+
+impl<E> ErroresNonVacui<E> {
+    /// Create a one-error collection.
+    #[inline]
+    pub fn one(error: E) -> Self {
+        Self(core::iter::once(error).collect())
+    }
+
+    /// Reject empty input rather than constructing `Invalid([])`.
+    ///
+    /// # Errors
+    /// Returns `EmptyErrors` if the iterator yields no values.
+    #[inline]
+    pub fn try_from_iter<I: IntoIterator<Item = E>>(iter: I) -> Result<Self, EmptyErrors> {
+        let errors: ErrorBuf<E> = iter.into_iter().collect();
+        if errors.is_empty() {
+            Err(EmptyErrors)
+        } else {
+            Ok(Self(errors))
+        }
+    }
+
+    /// Borrow the errors in their original order.
+    #[inline]
+    #[must_use]
+    pub fn as_slice(&self) -> &[E] {
+        self.0.as_ref()
+    }
+
+    /// Number of accumulated errors (always at least one).
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.as_slice().len()
+    }
+
+    /// Always false: a value of this type can never contain zero errors.
+    #[inline]
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        false
+    }
+
+    /// Merge two nonempty lists, preserving left-to-right order.
+    #[inline]
+    #[must_use]
+    pub fn concat(mut self, other: Self) -> Self {
+        self.0.extend(other.0);
+        self
+    }
+
+    /// Map each error; one input always produces one output.
+    #[inline]
+    #[must_use]
+    pub fn map<E2, F>(self, f: F) -> NonEmptyErrors<E2>
+    where
+        F: FnMut(E) -> E2,
+    {
+        ErroresNonVacui(self.0.into_iter().map(f).collect())
+    }
+}
+
+impl<E> core::ops::Deref for ErroresNonVacui<E> {
+    type Target = [E];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<E> IntoIterator for ErroresNonVacui<E> {
+    type Item = E;
+    type IntoIter = <ErrorBuf<E> as IntoIterator>::IntoIter;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 /// A validation result that can accumulate multiple errors.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -39,19 +149,17 @@ pub enum Probatum<E, A> {
     /// Successful validation.
     Valid(A),
     /// One or more errors.
-    Invalid(#[cfg_attr(feature = "serde", serde(with = "error_buf_serde"))] ErrorBuf<E>),
+    Invalid(#[cfg_attr(feature = "serde", serde(with = "error_buf_serde"))] NonEmptyErrors<E>),
 }
 
 #[cfg(feature = "serde")]
 mod error_buf_serde {
-    use super::ErrorBuf;
+    use super::NonEmptyErrors;
     use alloc::vec::Vec;
     use serde::{Deserialize, Serialize};
 
-    /// Serialize an `ErrorBuf` as a flat sequence of errors.
-    ///
-    /// Used by `#[serde(with = "error_buf_serde")]` on `ErrorBuf` fields.
-    pub(super) fn serialize<S, E>(buf: &ErrorBuf<E>, serializer: S) -> Result<S::Ok, S::Error>
+    /// Keep the existing flat array wire shape for nonempty invalid results.
+    pub(super) fn serialize<S, E>(buf: &NonEmptyErrors<E>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
         E: serde::Serialize,
@@ -59,16 +167,14 @@ mod error_buf_serde {
         buf.as_slice().serialize(serializer)
     }
 
-    /// Deserialize an `ErrorBuf` from a flat sequence of errors.
-    ///
-    /// Used by `#[serde(with = "error_buf_serde")]` on `ErrorBuf` fields.
-    pub(super) fn deserialize<'de, D, E>(deserializer: D) -> Result<ErrorBuf<E>, D::Error>
+    /// Reject serialized invalid results with no errors.
+    pub(super) fn deserialize<'de, D, E>(deserializer: D) -> Result<NonEmptyErrors<E>, D::Error>
     where
         D: serde::Deserializer<'de>,
         E: serde::Deserialize<'de>,
     {
-        let v = Vec::<E>::deserialize(deserializer)?;
-        Ok(v.into_iter().collect())
+        let values = Vec::<E>::deserialize(deserializer)?;
+        NonEmptyErrors::try_from_iter(values).map_err(serde::de::Error::custom)
     }
 }
 
@@ -80,13 +186,15 @@ impl<E, A> Probatum<E, A> {
 
     /// Construct a single error.
     pub fn invalid(err: E) -> Self {
-        Self::Invalid(core::iter::once(err).collect())
+        Self::Invalid(NonEmptyErrors::one(err))
     }
 
-    /// Construct from many errors.
-    pub fn invalid_many<I: IntoIterator<Item = E>>(iter: I) -> Self {
-        let buf: ErrorBuf<E> = iter.into_iter().collect();
-        Self::Invalid(buf)
+    /// Construct an invalid result from a nonempty iterable.
+    ///
+    /// # Errors
+    /// Returns `EmptyErrors` for an empty iterator; no invalid result is made.
+    pub fn invalid_many<I: IntoIterator<Item = E>>(iter: I) -> Result<Self, EmptyErrors> {
+        NonEmptyErrors::try_from_iter(iter).map(Self::Invalid)
     }
 
     /// Returns true if this is `Valid`.
@@ -121,7 +229,7 @@ impl<E, A> Probatum<E, A> {
     ///
     /// Returns `Err` carrying the accumulated error buffer when this is
     /// `Invalid`; every collected error is preserved, in order.
-    pub fn into_result(self) -> Result<A, ErrorBuf<E>> {
+    pub fn into_result(self) -> Result<A, NonEmptyErrors<E>> {
         match self {
             Self::Valid(a) => Ok(a),
             Self::Invalid(es) => Err(es),
@@ -155,7 +263,7 @@ impl<E, A> Probatum<E, A> {
     /// ```rust
     /// use ordofp_core::validated::Probatum;
     ///
-    /// let v = Probatum::<&str, i32>::Invalid(core::iter::once("bad").collect());
+    /// let v = Probatum::<&str, i32>::invalid("bad");
     /// assert_eq!(v.map_err(|s| s.to_uppercase()).errors().unwrap(), &["BAD".to_string()]);
     /// ```
     pub fn map_err<E2, F>(self, f: F) -> Probatum<E2, A>
@@ -164,7 +272,7 @@ impl<E, A> Probatum<E, A> {
     {
         match self {
             Self::Valid(a) => Probatum::Valid(a),
-            Self::Invalid(es) => Probatum::Invalid(es.into_iter().map(f).collect()),
+            Self::Invalid(es) => Probatum::Invalid(es.map(f)),
         }
     }
 
@@ -175,10 +283,7 @@ impl<E, A> Probatum<E, A> {
     {
         match (self, vb) {
             (Self::Valid(a), Probatum::Valid(b)) => Probatum::Valid(f(a, b)),
-            (Self::Invalid(mut e1), Probatum::Invalid(e2)) => {
-                e1.extend(e2);
-                Probatum::Invalid(e1)
-            }
+            (Self::Invalid(e1), Probatum::Invalid(e2)) => Probatum::Invalid(e1.concat(e2)),
             (Self::Invalid(e), _) | (_, Probatum::Invalid(e)) => Probatum::Invalid(e),
         }
     }
@@ -200,8 +305,8 @@ impl<E, A> Probatum<E, A> {
                 Probatum::Invalid(mut es) => {
                     drop(values);
                     for item in iter {
-                        if let Probatum::Invalid(mut es2) = item {
-                            es.append(&mut es2);
+                        if let Probatum::Invalid(es2) = item {
+                            es = es.concat(es2);
                         }
                     }
                     return Probatum::Invalid(es);
@@ -224,22 +329,8 @@ impl<E, A> Probatum<E, A> {
     where
         F: FnOnce(A, B, C) -> D,
     {
-        match (self, vb, vc) {
-            (Self::Valid(a), Probatum::Valid(b), Probatum::Valid(c)) => Probatum::Valid(f(a, b, c)),
-            (va, vb, vc) => {
-                let mut errors: ErrorBuf<E> = ErrorBuf::new();
-                if let Self::Invalid(es) = va {
-                    errors.extend(es);
-                }
-                if let Probatum::Invalid(es) = vb {
-                    errors.extend(es);
-                }
-                if let Probatum::Invalid(es) = vc {
-                    errors.extend(es);
-                }
-                Probatum::Invalid(errors)
-            }
-        }
+        self.map2(vb, |a, b| (a, b))
+            .map2(vc, |(a, b), c| f(a, b, c))
     }
 
     /// Lift three owned Probatum values with a combining function.
@@ -278,10 +369,7 @@ impl<E, A> Probatum<E, A> {
 
     /// Convert from an Option using a provided error when None.
     pub fn from_option(opt: Option<A>, err: E) -> Self {
-        opt.map_or_else(
-            || Self::Invalid(core::iter::once(err).collect()),
-            |a| Self::Valid(a),
-        )
+        opt.map_or_else(|| Self::invalid(err), |a| Self::Valid(a))
     }
 
     /// Sequence an iterator of Probatum values.
@@ -313,7 +401,7 @@ impl<T, E> IntoProbatum<T, E> for Result<T, E> {
     fn into_probatum(self) -> Probatum<E, T> {
         match self {
             Ok(v) => Probatum::Valid(v),
-            Err(e) => Probatum::Invalid(core::iter::once(e).collect()),
+            Err(e) => Probatum::invalid(e),
         }
     }
 }
@@ -393,10 +481,7 @@ impl<E, A> Apply for Probatum<E, A> {
     {
         match (ff, self) {
             (Probatum::Valid(mut f), Self::Valid(a)) => Probatum::Valid(f(a)),
-            (Probatum::Invalid(mut e1), Self::Invalid(e2)) => {
-                e1.extend(e2);
-                Probatum::Invalid(e1)
-            }
+            (Probatum::Invalid(e1), Self::Invalid(e2)) => Probatum::Invalid(e1.concat(e2)),
             (Probatum::Invalid(e), _) | (_, Self::Invalid(e)) => Probatum::Invalid(e),
         }
     }
@@ -546,17 +631,36 @@ mod tests {
     }
 
     #[test]
-    fn invalid_many_with_empty_iterator_produces_invalid_with_no_errors() {
-        // invalid_many collects its argument into an ErrorBuf without checking emptiness.
-        // An empty iterator yields Invalid([]), which is still considered invalid even though
-        // it carries zero error messages — callers must be aware of this edge case.
-        let result: Probatum<&str, i32> = Probatum::invalid_many(core::iter::empty());
-        assert!(result.is_invalid(), "invalid_many([]) must produce Invalid");
+    fn invalid_many_rejects_empty_and_preserves_nonempty() {
+        let empty = Probatum::<&str, i32>::invalid_many(core::iter::empty());
+        assert_eq!(empty, Err(EmptyErrors));
+        let one: Probatum<&str, i32> =
+            Probatum::invalid_many(["reason"]).expect("one error is nonempty");
+        assert_eq!(one.errors(), Some(&["reason"][..]));
+    }
+
+    #[test]
+    fn buffer_layout_is_unchanged_by_nonempty_wrapper() {
         assert_eq!(
-            result.errors().expect("Invalid must expose Some(&[])"),
-            &[] as &[&str],
-            "error slice must be empty when no errors were provided"
+            core::mem::size_of::<NonEmptyErrors<u8>>(),
+            core::mem::size_of::<ErrorBuf<u8>>()
         );
+        assert_eq!(
+            core::mem::align_of::<NonEmptyErrors<u8>>(),
+            core::mem::align_of::<ErrorBuf<u8>>()
+        );
+    }
+
+    #[test]
+    fn nonclone_error_payloads_can_be_mapped_and_merged() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Owned(i32);
+        let first = NonEmptyErrors::one(Owned(1));
+        let second = NonEmptyErrors::one(Owned(2));
+        let joined = first.concat(second).map(|e| e.0 * 10);
+        assert_eq!(joined.as_slice(), &[10, 20]);
+        assert_eq!(joined.len(), 2);
+        assert!(!joined.is_empty());
     }
 
     #[test]
@@ -649,8 +753,8 @@ mod tests {
     fn map2_accumulates_all_errors_in_order_when_both_sides_have_multiple_errors() {
         // When both arguments carry multiple errors (built via invalid_many), map2 must
         // extend e1 with e2, preserving left-then-right ordering and the full count.
-        let v1: Probatum<&str, i32> = Probatum::invalid_many(["e1a", "e1b"]);
-        let v2: Probatum<&str, i32> = Probatum::invalid_many(["e2a", "e2b", "e2c"]);
+        let v1: Probatum<&str, i32> = Probatum::invalid_many(["e1a", "e1b"]).unwrap();
+        let v2: Probatum<&str, i32> = Probatum::invalid_many(["e2a", "e2b", "e2c"]).unwrap();
         let result = v1.map2(v2, |a, b| a + b);
         assert!(result.is_invalid(), "both-invalid map2 must yield Invalid");
         let errs = result.errors().expect("Invalid must carry errors");
