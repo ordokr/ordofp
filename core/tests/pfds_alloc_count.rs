@@ -58,6 +58,7 @@ fn build_map() -> OrdMap<String, String> {
 // needing `--test-threads=1`.
 #[test]
 fn pfds_borrow_lookup_is_alloc_free() {
+    measure_apply_sequencing();
     let map = build_map();
     let _ = black_box(map.get("field_016")); // warm + sanity
     assert!(map.get("field_016").is_some());
@@ -121,4 +122,27 @@ fn pfds_borrow_lookup_is_alloc_free() {
         "owned-key remove should allocate >= one extra String per call than the &str probe \
          (owned={owned_remove_allocs}, str={str_remove_allocs}, ITERS={ITERS})"
     );
+}
+
+// Reuse this binary's single-threaded counter; input allocations are excluded.
+fn measure_apply_sequencing() {
+    use ordofp_core::typeclasses::Apply;
+    for (left_len, right_len, expected_right) in
+        [(0, 3, 0), (1, 3, 0), (2, 3, 2), (4, 3, 4), (4, 0, 0)]
+    {
+        let left = vec![1_u8; left_len];
+        let right = vec![2_u8; right_len];
+        let before = ALLOCS.load(Ordering::Relaxed);
+        let output = black_box(left).ap_right(black_box(right));
+        let count = ALLOCS.load(Ordering::Relaxed) - before;
+        assert_eq!(count, expected_right);
+        assert_eq!(output.len(), left_len * right_len);
+        let left = vec![1_u8; left_len];
+        let right = vec![2_u8; right_len];
+        let before = ALLOCS.load(Ordering::Relaxed);
+        let output = black_box(left).ap_left(black_box(right));
+        let count = ALLOCS.load(Ordering::Relaxed) - before;
+        assert_eq!(count, usize::from(left_len * right_len != 0));
+        assert_eq!(output.len(), left_len * right_len);
+    }
 }

@@ -314,12 +314,6 @@ impl<A: Clone> Seq<A> {
         }
     }
 
-    /// Map a function over all elements.
-    #[inline]
-    pub fn map<B: Clone, F: Fn(&A) -> B>(&self, f: F) -> Seq<B> {
-        self.iter().map(f).collect()
-    }
-
     /// Filter elements.
     #[inline]
     #[must_use]
@@ -336,6 +330,12 @@ impl<A: Clone> Seq<A> {
 }
 
 impl<A> Seq<A> {
+    /// Map a function over all elements.
+    #[inline]
+    pub fn map<B, F: Fn(&A) -> B>(&self, f: F) -> Seq<B> {
+        self.iter().map(f).collect()
+    }
+
     /// Iterate over elements.
     #[inline]
     pub fn iter(&self) -> SeqIter<'_, A> {
