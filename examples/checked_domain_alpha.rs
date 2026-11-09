@@ -1,7 +1,7 @@
 //! 0.2.0 design probe: accumulate independent field errors, then check a domain invariant.
 //!
-//! This uses existing public OrdoFP APIs on main. The local LocatedIssue is a
-//! temporary example type, not the proposed generic Located<E> API.
+//! This uses existing public `ordofp` APIs on main. The local `LocatedIssue` is a
+//! temporary example type, not the proposed generic `Located<E>` API.
 
 use ordofp::vernacular::{IntoValidated, Validated};
 
@@ -18,7 +18,7 @@ struct LocatedIssue {
     problem: Problem,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct RawWindow<'a> {
     start: &'a str,
     end: &'a str,
@@ -56,7 +56,7 @@ impl TryFrom<ParsedWindow> for Window {
 }
 
 impl Window {
-    fn bounds(&self) -> (u32, u32) {
+    const fn bounds(&self) -> (u32, u32) {
         (self.start, self.end)
     }
 
@@ -77,21 +77,23 @@ fn parse_endpoint(value: &str, field: &'static str) -> Validated<LocatedIssue, u
             problem: Problem::Missing,
         });
     }
-    match value.parse::<u32>() {
-        Ok(n) => Validated::valid(n),
-        Err(_) => Validated::invalid(LocatedIssue {
-            field,
-            problem: Problem::NotUnsigned,
-        }),
-    }
+    value.parse::<u32>().map_or_else(
+        |_| {
+            Validated::invalid(LocatedIssue {
+                field,
+                problem: Problem::NotUnsigned,
+            })
+        },
+        Validated::valid,
+    )
 }
 
 fn validate_window(raw: RawWindow<'_>) -> Validated<LocatedIssue, Window> {
     // Independent parsing accumulates errors in start, end order.
-    let parsed = parse_endpoint(raw.start, "start").map2(
-        parse_endpoint(raw.end, "end"),
-        |start, end| ParsedWindow { start, end },
-    );
+    let parsed =
+        parse_endpoint(raw.start, "start").map2(parse_endpoint(raw.end, "end"), |start, end| {
+            ParsedWindow { start, end }
+        });
 
     // Cross-field validation runs only after both endpoints parse.
     match parsed {
