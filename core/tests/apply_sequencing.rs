@@ -37,9 +37,9 @@ fn vec_cartesian_order_and_empty_operands() {
 #[cfg(feature = "Probatum")]
 #[test]
 fn validation_accumulates_in_left_to_right_order() {
-    let left = Probatum::<_, i32>::invalid_many(["l1", "l2"]);
-    let right = Probatum::<_, i32>::invalid_many(["r1", "r2"]);
-    let expected = Probatum::invalid_many(["l1", "l2", "r1", "r2"]);
+    let left = Probatum::<_, i32>::invalid_many(["l1", "l2"]).expect("nonempty");
+    let right = Probatum::<_, i32>::invalid_many(["r1", "r2"]).expect("nonempty");
+    let expected = Probatum::invalid_many(["l1", "l2", "r1", "r2"]).expect("nonempty");
     assert_eq!(left.clone().ap_left(right.clone()), expected);
     assert_eq!(left.clone().ap_right(right.clone()), expected);
     assert_eq!(Probatum::Valid(1).ap_left(right.clone()), right);

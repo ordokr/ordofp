@@ -66,7 +66,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ordofp = { version = "0.1", features = ["linear"] }
+//! ordofp = { version = "0.2", features = ["linear"] }
 //! ```
 
 mod combinators;

@@ -45,7 +45,7 @@ impl fmt::Display for ErroresVacui {
 ///
 /// The buffer is private: safe construction requires at least one error.
 /// This wrapper retains the exact layout of the selected `ErrorBuf` backing
-/// store (Vec by default, four-inline-element SmallVec when opted in).
+/// store (`Vec` by default, four-inline-element `SmallVec` when opted in).
 /// It offers read-only slice access; merging consumes the other collection
 /// rather than temporarily leaving another live value empty.
 #[repr(transparent)]
@@ -78,18 +78,21 @@ impl<E> ErroresNonVacui<E> {
 
     /// Borrow the errors in their original order.
     #[inline]
+    #[must_use]
     pub fn as_slice(&self) -> &[E] {
-        self.0.as_slice()
+        self.0.as_ref()
     }
 
     /// Number of accumulated errors (always at least one).
     #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.as_slice().len()
     }
 
     /// Always false: a value of this type can never contain zero errors.
     #[inline]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         false
     }
@@ -326,7 +329,8 @@ impl<E, A> Probatum<E, A> {
     where
         F: FnOnce(A, B, C) -> D,
     {
-        self.map2(vb, |a, b| (a, b)).map2(vc, |(a, b), c| f(a, b, c))
+        self.map2(vb, |a, b| (a, b))
+            .map2(vc, |(a, b), c| f(a, b, c))
     }
 
     /// Lift three owned Probatum values with a combining function.
@@ -365,10 +369,7 @@ impl<E, A> Probatum<E, A> {
 
     /// Convert from an Option using a provided error when None.
     pub fn from_option(opt: Option<A>, err: E) -> Self {
-        opt.map_or_else(
-            || Self::invalid(err),
-            |a| Self::Valid(a),
-        )
+        opt.map_or_else(|| Self::invalid(err), |a| Self::Valid(a))
     }
 
     /// Sequence an iterator of Probatum values.

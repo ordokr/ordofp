@@ -6,6 +6,19 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Breaking (0.2.0: ordofp, ordofp_core, ordofp_laws)
+
+- `Probatum::Invalid` now holds `NonEmptyErrors<E>` (Latin `ErroresNonVacui`), a
+  private wrapper over the existing error buffer (Vec, or `[E; 4]` SmallVec under
+  `Probatum-smallvec`), so an invalid result always carries at least one error.
+- `Probatum::invalid_many` returns `Result<Probatum<E, A>, EmptyErrors>` and
+  rejects an empty iterator instead of building `Invalid([])`.
+- `Probatum::into_result` returns `Err(NonEmptyErrors<E>)`.
+- Deserializing `{"Invalid":[]}` is rejected; nonempty payloads keep the flat
+  array wire shape and error order.
+- Migration notes: `docs/design/nonempty-validation-migration.md`.
+
+
 ### Added
 
 - Composed lenses now expose `modify_option`, `modify_result` and

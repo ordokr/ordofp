@@ -100,7 +100,7 @@ For opt-in features (linear types, async, parallelism, etc.):
 
 ```toml
 [dependencies]
-ordofp = { version = "0.1", features = ["derives", "linear", "async", "par", "rayon"] }
+ordofp = { version = "0.2", features = ["derives", "linear", "async", "par", "rayon"] }
 ```
 
 ### Simple Example
