@@ -261,10 +261,8 @@ mod probatum_serde {
         let end = Located::field("end", "missing".to_string())
             .at_index(4)
             .at_field("rows");
-        let result = Probatum::<Located<String>, ()>::invalid(start).map2(
-            Probatum::<Located<String>, ()>::invalid(end),
-            |(), ()| (),
-        );
+        let result = Probatum::<Located<String>, ()>::invalid(start)
+            .map2(Probatum::<Located<String>, ()>::invalid(end), |(), ()| ());
         let json = serde_json::to_string(&result).expect("serialize located errors");
         let decoded: Probatum<Located<String>, ()> =
             serde_json::from_str(&json).expect("deserialize located errors");
@@ -291,8 +289,7 @@ mod probatum_serde {
             serialized,
             r#"{"path":[{"Index":4},{"Field":"4"}],"error":"bad"}"#
         );
-        let decoded: Located<String> =
-            serde_json::from_str(&serialized).expect("deserialize");
+        let decoded: Located<String> = serde_json::from_str(&serialized).expect("deserialize");
         assert_eq!(decoded, issue);
     }
 

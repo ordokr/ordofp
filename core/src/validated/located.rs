@@ -60,7 +60,7 @@ impl<E> Locatus<E> {
     /// Attach a diagnostic to the root, with no path segments.
     #[inline]
     #[must_use]
-    pub fn root(error: E) -> Self {
+    pub const fn root(error: E) -> Self {
         Self {
             path: Vec::new(),
             error,
