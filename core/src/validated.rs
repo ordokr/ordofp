@@ -8,6 +8,9 @@ use core::fmt;
 
 use crate::typeclasses::{Applicatio, Apply, Functor};
 
+mod located;
+pub use located::{Located, Locatus, PathSegment, SegmentumViae};
+
 #[cfg(feature = "Probatum-smallvec")]
 use smallvec::SmallVec;
 

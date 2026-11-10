@@ -21,6 +21,10 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ### Added
 
+- Typed located validation diagnostics (`Locatus<E>`/`Located<E>`) with
+  owned, field/index-aware paths, consuming prefix helpers, typed payloads,
+  and feature-gated serde round-trips. The checked-domain example uses this
+  real core type rather than an example-only error wrapper.
 - Composed lenses now expose `modify_option`, `modify_result` and
   `modify_validated`, with a runnable `composed_validation` example.
 
