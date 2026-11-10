@@ -2,7 +2,7 @@
 //!
 //! An error path is ordered from outermost to innermost. Named fields and
 //! indexed elements remain distinct in memory and on the wire. The payload
-//! stays generic and does not need to implement Clone or Display.
+//! stays generic and does not need to implement `Clone` or `Display`.
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -142,6 +142,8 @@ impl<E> Locatus<E> {
 mod tests {
     use super::*;
     use crate::validated::Probatum;
+    #[cfg(feature = "serde")]
+    use alloc::string::ToString;
 
     #[derive(Debug, PartialEq, Eq)]
     struct NonClone(u32);

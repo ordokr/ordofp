@@ -1,14 +1,22 @@
 # OrdoFP 0.2.0 alpha 1: validation and checked-domain contract
 
-**Status:** Proposed, with an executable application-level prototype; not a shipped core API.
-**Base:** main at d39fc633 (2026-10-29). **Related:** [0.1.4 maintenance PR #21](https://github.com/ordokr/ordofp/pull/21), still unmerged when this decision was drafted.
+**Status:** Original alpha-1 design record (November 6, 2026). The design and
+nonempty-error implementation landed on main through [PR #25](https://github.com/ordokr/ordofp/pull/25)
+and [PR #26](https://github.com/ordokr/ordofp/pull/26) on November 9.
+Typed locations are proposed in [PR #27](https://github.com/ordokr/ordofp/pull/27);
+their Rust and performance verification is still pending.
+**Design baseline:** main at d39fc633 (2026-10-29). Maintenance PR #21 was
+unmerged at the time of writing and has since merged.
 **Implementation reference:** [checked-domain example](../../examples/checked_domain_alpha.rs).
 
 ## Problem and intended result
 
-The current public `Probatum<E, A>::Invalid(ErrorBuf<E>)` can contain zero errors: the enum exposes the buffer, `invalid_many` collects an empty iterator, and serde accepts an empty invalid list. Consequently, `is_invalid()` does not imply at least one diagnostic. `Probatum::map2` and iterator validation already accumulate independent failures; they should be reused, not replaced with a second validation engine.
+At the original design baseline, public `Probatum<E, A>::Invalid(ErrorBuf<E>)` could contain zero errors: the enum exposes the buffer, `invalid_many` collects an empty iterator, and serde accepts an empty invalid list. Consequently, `is_invalid()` does not imply at least one diagnostic. `Probatum::map2` and iterator validation already accumulate independent failures; they should be reused, not replaced with a second validation engine.
 
-The first 0.2 milestone should make invalid values nonempty by construction, carry caller-defined errors with useful locations, and require a checked constructor for cross-field invariants. The runnable example proves the *workflow* against current main without claiming that these new representation guarantees already ship.
+The first 0.2 milestone targets nonempty invalid results, located diagnostics,
+and checked construction for cross-field invariants. The nonempty representation
+has now merged; the example demonstrates the checked domain workflow and is
+updated by PR #27 to use the new typed diagnostic envelope.
 
 ### End-to-end contract
 
@@ -42,7 +50,13 @@ Planned constructor/API behavior:
 
 Target a generic `Located<E>` envelope so the payload remains typed, not coerced into a string. A path is ordered outermost to innermost, for example `Field("rows"), Index(4), Field("amount")`. A root/cross-field issue may have an empty path or a stable named scope. Field validation order and diagnostic path order are distinct and must not be conflated.
 
-**Prototype boundary:** the example uses a lightweight `&'static str` field label to demonstrate attribution, not a new public location type. For the real public type, start with a simple owned sequence of `Field(String)` and `Index(usize)` segments so deserialization is straightforward and no borrowed lifetime leaks into wire data. Benchmark that against an optional static-field optimization before freezing the representation. Do not build a complex path interning system without measured need. Prefixing locations must not clone the caller's `E` payload.
+**Alpha-2 implementation:** `Locatus<E>` (English `Located<E>`) uses an owned
+`Vec<SegmentumViae>` of `Field(String)` and `Index(usize)` segments. Its
+consuming `at_field` / `at_index` prefix operations do not clone the caller's
+`E` payload. The example now uses the actual type. This is not a measured
+allocation optimization: benchmark the owned path against unlocated errors,
+and consider a static-field optimization only if real workloads justify it.
+Do not introduce a path interning subsystem without evidence.
 
 Provide field/index prefix helpers and typed accessors; keep `map_err` consuming. Do not require `E: Clone` or `E: Display` for the core type. Serde support is feature-gated, with unambiguous nested paths and lossless index/field distinction.
 
@@ -76,4 +90,14 @@ The release does not depend on async scopes, Nexus handlers, a Plan preview, or 
 
 ## Verification status of this draft
 
-This is a design PR, not a claim that 0.2.0's representation has been implemented. The prototype targets the public `Validated` alias and existing `map2` / `IntoValidated` methods on current main. Run `cargo test --example checked_domain_alpha --features Probatum`, `cargo run --example checked_domain_alpha --features Probatum`, then `cargo run -p xtask -- all` in a provisioned Rust environment. Record the actual results. Neither a hosted CI check nor a green local gate is implied by the presence of this RFC.
+The alpha-1 nonempty representation is now implemented on main. The alpha-2
+location implementation is under review in PR #27; its added tests have not
+been run in the authoring environment. Run
+`cargo test -p ordofp_core --lib --features Probatum,serde`,
+`cargo test -p ordofp_core --lib --features Probatum-smallvec,serde`,
+`cargo test -p ordofp --test generic_suite --features serde,Probatum`,
+`cargo test --example checked_domain_alpha --features Probatum`, and
+`cargo run -p xtask -- all` on the pinned toolchain. Record actual results,
+exact MSRV (Rust 1.97), downstream compatibility, and located/unlocated
+allocation measurements before declaring the implementation ready. The
+repository has no hosted CI; no green gate is implied by this RFC.
