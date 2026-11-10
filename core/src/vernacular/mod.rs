@@ -179,7 +179,8 @@ pub use crate::typeclasses::Unitas as Monoid;
 
 #[cfg(feature = "Probatum")]
 pub use crate::validated::{
-    EmptyErrors, IntoProbatum, IntoValidated, NonEmptyErrors, Probatum as Validated,
+    EmptyErrors, IntoProbatum, IntoValidated, Locatus as Located, NonEmptyErrors,
+    Probatum as Validated, SegmentumViae as PathSegment,
 };
 
 // =============================================================================

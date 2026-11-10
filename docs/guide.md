@@ -230,7 +230,7 @@ Accumulate multiple errors instead of short-circuiting.
 
 **Use Cases**: Form validation, config file parsing, batch operations, data import.
 
-**Type:** `Probatum<T, E>`
+**Type:** `Probatum<E, A>` (errors first, success value second)
 
 **Operators:**
 
@@ -275,6 +275,39 @@ match validation.into_result() {
     }
 }
 ```
+
+### Typed validation locations
+
+`Located<E>` (`Locatus<E>`) retains a caller-defined error payload and an
+owned path of `PathSegment::Field(String)` and `PathSegment::Index(usize)`.
+Path segments are ordered outermost to innermost, and root-level errors have
+an empty path. Prefixing a nested error consumes it without cloning `E`.
+
+```rust
+use ordofp::vernacular::{Located, PathSegment, Validated};
+
+let field_error = Validated::<Located<&str>, ()>::invalid(
+    Located::field("amount", "must be positive")
+);
+let batch_error = field_error.map_err(|error| error.at_index(4).at_field("rows"));
+assert_eq!(
+    batch_error.errors().unwrap()[0].path(),
+    &[
+        PathSegment::Field("rows".into()),
+        PathSegment::Index(4),
+        PathSegment::Field("amount".into()),
+    ]
+);
+```
+
+Independent validators still accumulate in input order using `map2` or
+`collect`. Field/index paths are typed, rather than stringified. With the
+`serde` feature, `Located<E>` serializes as an object with `path` and
+`error` fields; an index and a numeric field name remain distinct. The error
+payload only needs Serde bounds when serialization is requested. See
+[`checked_domain_alpha`](../examples/checked_domain_alpha.rs) for a checked
+two-stage domain example; domain invariants still require a checked
+constructor after field validation.
 
 ### Aut (Either)
 

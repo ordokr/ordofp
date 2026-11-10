@@ -250,7 +250,51 @@ mod nonempty_serde {
 #[cfg(feature = "Probatum")]
 mod probatum_serde {
     use ordofp::Probatum;
+    use ordofp::vernacular::{Located, PathSegment};
     use ordofp::{HList, hlist};
+
+    #[test]
+    fn located_validation_roundtrip_keeps_field_index_paths_and_order() {
+        let start = Located::field("start", "not a number".to_string())
+            .at_index(4)
+            .at_field("rows");
+        let end = Located::field("end", "missing".to_string())
+            .at_index(4)
+            .at_field("rows");
+        let result = Probatum::<Located<String>, ()>::invalid(start).map2(
+            Probatum::<Located<String>, ()>::invalid(end),
+            |(), ()| (),
+        );
+        let json = serde_json::to_string(&result).expect("serialize located errors");
+        let decoded: Probatum<Located<String>, ()> =
+            serde_json::from_str(&json).expect("deserialize located errors");
+        assert_eq!(decoded, result);
+        let issues = decoded.errors().expect("two failures");
+        assert_eq!(issues.len(), 2);
+        assert_eq!(
+            issues[0].path(),
+            &[
+                PathSegment::Field("rows".into()),
+                PathSegment::Index(4),
+                PathSegment::Field("start".into()),
+            ]
+        );
+        assert_eq!(issues[0].error(), "not a number");
+        assert_eq!(issues[1].error(), "missing");
+    }
+
+    #[test]
+    fn located_serde_preserves_numeric_field_vs_numeric_index() {
+        let issue = Located::field("4", "bad".to_string()).at_index(4);
+        let serialized = serde_json::to_string(&issue).expect("serialize");
+        assert_eq!(
+            serialized,
+            r#"{"path":[{"Index":4},{"Field":"4"}],"error":"bad"}"#
+        );
+        let decoded: Located<String> =
+            serde_json::from_str(&serialized).expect("deserialize");
+        assert_eq!(decoded, issue);
+    }
 
     #[test]
     fn test_probatum_ok_roundtrip() {
