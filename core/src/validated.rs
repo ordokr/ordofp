@@ -865,10 +865,10 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Domain(i32);
 
-        impl TryFrom<Draft<'_>> for Domain {
+        impl<'a> TryFrom<Draft<'a>> for Domain {
             type Error = &'static str;
 
-            fn try_from(draft: Draft<'_>) -> Result<Self, Self::Error> {
+            fn try_from(draft: Draft<'a>) -> Result<Self, Self::Error> {
                 draft.calls.set(draft.calls.get() + 1);
                 if draft.value >= 0 {
                     Ok(Self(draft.value))
@@ -880,19 +880,28 @@ mod tests {
 
         let calls = Cell::new(0);
         let parse_failed: Probatum<&str, Draft<'_>> =
-            Probatum::invalid_many(["parse start", "parse end"])
-                .expect("two independent errors");
+            Probatum::invalid_many(["parse start", "parse end"]).expect("two independent errors");
         let result: Probatum<&str, Domain> = parse_failed.try_construct();
         assert_eq!(result.errors(), Some(&["parse start", "parse end"][..]));
-        assert_eq!(calls.get(), 0, "the constructor must not run after parse errors");
+        assert_eq!(
+            calls.get(),
+            0,
+            "the constructor must not run after parse errors"
+        );
 
-        let accepted: Probatum<&str, Domain> =
-            Probatum::valid(Draft { value: 3, calls: &calls }).try_construct();
+        let accepted: Probatum<&str, Domain> = Probatum::valid(Draft {
+            value: 3,
+            calls: &calls,
+        })
+        .try_construct();
         assert_eq!(accepted, Probatum::valid(Domain(3)));
         assert_eq!(calls.get(), 1, "successful construction runs once");
 
-        let rejected: Probatum<&str, Domain> =
-            Probatum::valid(Draft { value: -1, calls: &calls }).try_construct();
+        let rejected: Probatum<&str, Domain> = Probatum::valid(Draft {
+            value: -1,
+            calls: &calls,
+        })
+        .try_construct();
         assert_eq!(rejected.errors(), Some(&["negative value"][..]));
         assert_eq!(calls.get(), 2, "failed construction also runs exactly once");
     }

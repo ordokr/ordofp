@@ -1,7 +1,7 @@
 //! Checked domain reconstruction after validating a composed optic update.
 //!
 //! The lens modifies only a plain, possibly invalid DTO. The final
-//! TryFrom conversion is the sole constructor for the invariant-bearing domain
+//! `TryFrom` conversion is the sole constructor for the invariant-bearing domain
 //! type. A failed parse or failed domain check cannot alter the borrowed source.
 
 use ordofp::vernacular::{Lens, Validated};
@@ -90,12 +90,16 @@ fn update_start(source: &CheckedBatch, proposed: &str) -> Validated<Problem, Che
     candidate.try_construct::<CheckedBatch>()
 }
 
-fn main() {
-    let source = CheckedBatch {
-        start: 2,
-        end: 6,
+fn initial_batch() -> CheckedBatch {
+    CheckedBatch::try_from(BatchDraft {
+        window: WindowDraft { start: 2, end: 6 },
         id: 19,
-    };
+    })
+    .expect("initial domain value must satisfy its checked constructor")
+}
+
+fn main() {
+    let source = initial_batch();
     let updated = update_start(&source, "4")
         .into_result()
         .expect("valid update");
@@ -125,11 +129,7 @@ mod tests {
     use super::*;
 
     fn source() -> CheckedBatch {
-        CheckedBatch {
-            start: 2,
-            end: 6,
-            id: 19,
-        }
+        initial_batch()
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # 0.2.0 alpha-3: checked domain reconstruction with composed optics
 
 **Status:** Implementation PR, not yet a verified release gate.
-**Independence:** Builds on \`main\` after merged PRs #21, #25, and #26.
+**Independence:** Builds on `main` after merged PRs #21, #25, and #26.
 PR #27 (typed locations) is still open, and is **not** needed here.
 
 ## Boundary
@@ -15,39 +15,39 @@ The minimal safe workflow is:
 
 1. Start from a borrowed immutable domain value; explicitly derive a plain DTO.
 2. Use normal or composed optics on the DTO only. Validate independently
-   provided fields using \`Probatum\`, accumulating all such errors.
-3. Call \`.try_construct::<Domain>()\` on the \`Probatum<E, DTO>\` result.
-   This invokes the existing \`Domain: TryFrom<DTO, Error = E>\` **once** only
+   provided fields using `Probatum`, accumulating all such errors.
+3. Call `.try_construct::<Domain>()` on the `Probatum<E, DTO>` result.
+   This invokes the existing `Domain: TryFrom<DTO, Error = E>` **once** only
    if field validation succeeded; a domain error is returned as a single
    nonempty invalid result. Preexisting accumulated errors keep their order.
-4. Publish or store the result only when \`Valid(Domain)\` is returned. On a
+4. Publish or store the result only when `Valid(Domain)` is returned. On a
    rejected update, the original borrowed value remains unchanged.
 
-\`\`\`rust
+```rust
 // For Domain: TryFrom<Draft, Error = E>
 let candidate: Probatum<E, Draft> =
     composed_lens.modify_validated(&draft, validate_field);
 let domain: Probatum<E, Domain> = candidate.try_construct();
-\`\`\`
+```
 
 This is a thin, explicit boundary, **not** a new optic hierarchy or a
-guarantee that arbitrary \`TryFrom\` implementations check their own
+guarantee that arbitrary `TryFrom` implementations check their own
 invariants. The domain's construction contract must be reviewed; its fields
 should be private, and unchecked setters must not be exposed. Existing
-\`Refinatus::try_new\` remains the preferred constructor for independent unary
+`Refinatus::try_new` remains the preferred constructor for independent unary
 predicates.
 
-See [\`checked_optic_update\`](../../examples/checked_optic_update.rs)
+See [`checked_optic_update`](../../examples/checked_optic_update.rs)
 for runnable code. In that example, a composed lens updates
-\`BatchDraft.window.start\`. Invalid string input rejects before domain
-construction; \`start > end\` fails the checked \`TryFrom\` conversion.
-Neither error changes the source \`CheckedBatch\`.
+`BatchDraft.window.start`. Invalid string input rejects before domain
+construction; `start > end` fails the checked `TryFrom` conversion.
+Neither error changes the source `CheckedBatch`.
 
 ## Tradeoffs and acceptance
 
-- **No new runtime dependency or feature:** \`try_construct\` is a single
-  method on the existing \`Probatum\` type behind its existing feature gate.
-- **No global \`Clone\` bound:** the method consumes the DTO and its errors.
+- **No new runtime dependency or feature:** `try_construct` is a single
+  method on the existing `Probatum` type behind its existing feature gate.
+- **No global `Clone` bound:** the method consumes the DTO and its errors.
   A particular DTO snapshot may still require cloning its own fields,
   depending on the application's lens representation.
 - **Accumulation vs dependent validation:** initial errors accumulate; the
@@ -65,13 +65,13 @@ Neither error changes the source \`CheckedBatch\`.
 
 ## Verification commands
 
-\`\`\`sh
+```sh
 cargo fmt --all -- --check
 cargo test -p ordofp_core --lib --features Probatum
 cargo test -p ordofp_core --lib --no-default-features --features alloc,Probatum
 cargo test --example checked_optic_update --features Probatum
 cargo run --example checked_optic_update --features Probatum
 cargo run -p xtask -- all
-\`\`\`
+```
 
 Do not merge or publish solely on static inspection.
