@@ -25,6 +25,10 @@ All notable changes to OrdoFP are documented in this file. The format follows
   owned, field/index-aware paths, consuming prefix helpers, typed payloads,
   and feature-gated serde round-trips. The checked-domain example uses this
   real core type rather than an example-only error wrapper.
+- `Probatum::try_construct` finishes independent validation, then runs a
+  `TryFrom` domain constructor once, only on `Valid`; earlier errors are kept
+  in order. The `checked_optic_update` example edits a plain DTO through a
+  composed lens and publishes the domain value only through `TryFrom`.
 - Composed lenses now expose `modify_option`, `modify_result` and
   `modify_validated`, with a runnable `composed_validation` example.
 

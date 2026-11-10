@@ -245,6 +245,11 @@ required-features = ["Probatum"]
 name = "composed_validation"
 required-features = ["Probatum"]
 
+# Checked DTO -> domain reconstruction after a composed optic update.
+[[example]]
+name = "checked_optic_update"
+required-features = ["Probatum"]
+
 # =============================================================================
 # Profile Optimizations (Nightly-specific)
 # =============================================================================

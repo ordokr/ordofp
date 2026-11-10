@@ -239,6 +239,49 @@ impl<E, A> Probatum<E, A> {
         }
     }
 
+    /// Finish accumulating independent errors, then check a domain constructor.
+    ///
+    /// Unlike `map`, the conversion can fail with a single dependent
+    /// invariant error. The `TryFrom` implementation is called exactly once
+    /// for `Valid` and never for `Invalid`. Earlier errors are preserved
+    /// unchanged and in order. No `Clone` bound is required.
+    ///
+    /// Use this after building a plain DTO with validation and optics.
+    /// The domain type's `TryFrom<DTO>` must enforce its own invariants;
+    /// this method cannot make an unchecked constructor safe.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ordofp_core::validated::Probatum;
+    ///
+    /// #[derive(Debug, PartialEq, Eq)]
+    /// struct Positive(i32);
+    ///
+    /// impl TryFrom<i32> for Positive {
+    ///     type Error = &'static str;
+    ///
+    ///     fn try_from(value: i32) -> Result<Self, Self::Error> {
+    ///         if value > 0 { Ok(Self(value)) } else { Err("nonpositive") }
+    ///     }
+    /// }
+    ///
+    /// let validated = Probatum::<&str, i32>::valid(4);
+    /// let domain: Probatum<&str, Positive> = validated.try_construct();
+    /// assert_eq!(domain, Probatum::valid(Positive(4)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn try_construct<B>(self) -> Probatum<E, B>
+    where
+        B: TryFrom<A, Error = E>,
+    {
+        match self {
+            Self::Valid(dto) => Probatum::from(B::try_from(dto)),
+            Self::Invalid(errors) => Probatum::Invalid(errors),
+        }
+    }
+
     /// Map a function over the valid value.
     ///
     /// # Example
@@ -812,6 +855,87 @@ mod tests {
                 .expect("Err maps to Invalid with one error"),
             &["bad"],
         );
+    }
+
+    #[test]
+    fn try_construct_calls_checker_only_after_validation_and_once() {
+        use core::cell::Cell;
+
+        struct Draft<'a> {
+            value: i32,
+            calls: &'a Cell<usize>,
+        }
+        #[derive(Debug, PartialEq, Eq)]
+        struct Domain(i32);
+
+        impl<'a> TryFrom<Draft<'a>> for Domain {
+            type Error = &'static str;
+
+            fn try_from(draft: Draft<'a>) -> Result<Self, Self::Error> {
+                draft.calls.set(draft.calls.get() + 1);
+                if draft.value >= 0 {
+                    Ok(Self(draft.value))
+                } else {
+                    Err("negative value")
+                }
+            }
+        }
+
+        let calls = Cell::new(0);
+        let parse_failed: Probatum<&str, Draft<'_>> =
+            Probatum::invalid_many(["parse start", "parse end"]).expect("two independent errors");
+        let result: Probatum<&str, Domain> = parse_failed.try_construct();
+        assert_eq!(result.errors(), Some(&["parse start", "parse end"][..]));
+        assert_eq!(
+            calls.get(),
+            0,
+            "the constructor must not run after parse errors"
+        );
+
+        let accepted: Probatum<&str, Domain> = Probatum::valid(Draft {
+            value: 3,
+            calls: &calls,
+        })
+        .try_construct();
+        assert_eq!(accepted, Probatum::valid(Domain(3)));
+        assert_eq!(calls.get(), 1, "successful construction runs once");
+
+        let rejected: Probatum<&str, Domain> = Probatum::valid(Draft {
+            value: -1,
+            calls: &calls,
+        })
+        .try_construct();
+        assert_eq!(rejected.errors(), Some(&["negative value"][..]));
+        assert_eq!(calls.get(), 2, "failed construction also runs exactly once");
+    }
+
+    #[test]
+    fn try_construct_carries_nonclone_errors_without_reconstruction() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct ErrorCode(u8);
+        struct Draft(u8);
+        #[derive(Debug, PartialEq, Eq)]
+        struct Domain(u8);
+
+        impl TryFrom<Draft> for Domain {
+            type Error = ErrorCode;
+
+            fn try_from(draft: Draft) -> Result<Self, Self::Error> {
+                if draft.0 == 0 {
+                    Err(ErrorCode(3))
+                } else {
+                    Ok(Self(draft.0))
+                }
+            }
+        }
+
+        let failed: Probatum<ErrorCode, Draft> =
+            Probatum::invalid_many([ErrorCode(1), ErrorCode(2)]).expect("two errors");
+        let domain: Probatum<ErrorCode, Domain> = failed.try_construct();
+        assert_eq!(domain.errors(), Some(&[ErrorCode(1), ErrorCode(2)][..]));
+
+        let invalid_domain: Probatum<ErrorCode, Domain> = Probatum::valid(Draft(0)).try_construct();
+        assert_eq!(invalid_domain.errors(), Some(&[ErrorCode(3)][..]));
     }
 
     #[test]
