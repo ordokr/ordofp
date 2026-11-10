@@ -111,8 +111,14 @@ fn main() {
             id: 19,
         }
     );
-    assert_eq!(update_start(&source, "9").errors(), Some(&[Problem::StartAfterEnd][..]));
-    assert_eq!(update_start(&source, "bad").errors(), Some(&[Problem::NotUnsigned][..]));
+    assert_eq!(
+        update_start(&source, "9").errors(),
+        Some(&[Problem::StartAfterEnd][..])
+    );
+    assert_eq!(
+        update_start(&source, "bad").errors(),
+        Some(&[Problem::NotUnsigned][..])
+    );
     assert_eq!(
         source,
         CheckedBatch {

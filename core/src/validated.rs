@@ -934,8 +934,7 @@ mod tests {
         let domain: Probatum<ErrorCode, Domain> = failed.try_construct();
         assert_eq!(domain.errors(), Some(&[ErrorCode(1), ErrorCode(2)][..]));
 
-        let invalid_domain: Probatum<ErrorCode, Domain> =
-            Probatum::valid(Draft(0)).try_construct();
+        let invalid_domain: Probatum<ErrorCode, Domain> = Probatum::valid(Draft(0)).try_construct();
         assert_eq!(invalid_domain.errors(), Some(&[ErrorCode(3)][..]));
     }
 
