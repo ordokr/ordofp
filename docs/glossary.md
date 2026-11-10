@@ -28,6 +28,8 @@ This glossary maps OrdoFP's nomenclature to its roots in Catholic scholastic phi
 | `Applicative` | `Applicatio` | Latin: "application" — *applicatio formae ad materiam* |
 | `NonEmptyErrors` | `ErroresNonVacui` | Latin: *errores non vacui* — nonempty accumulated validation errors |
 | `EmptyErrors` | `ErroresVacui` | Latin: *errores vacui* — rejection of an empty invalid-error input |
+| `Located` | `Locatus` | Latin: *locatus* — typed error with an owned structural location |
+| `PathSegment` | `SegmentumViae` | Latin: *segmentum viae* — field or indexed step in an error path |
 | `Sum` | `Aggregatio` | Latin: "aggregation" — collecting into one |
 | `Product` | `Multiplicatio` | Latin: "multiplication" — repeated unity |
 | `All` | `Omnis` | Latin: "all/every" — universal quantifier |

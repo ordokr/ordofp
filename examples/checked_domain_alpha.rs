@@ -1,21 +1,14 @@
-//! 0.2.0 design probe: accumulate independent field errors, then check a domain invariant.
+//! Validate independent fields with typed locations before checked domain construction.
 //!
-//! This uses existing public `ordofp` APIs on main. The local `LocatedIssue` is a
-//! temporary example type, not the proposed generic `Located<E>` API.
+//! Error paths can be prefixed with row indices without cloning error payloads.
 
-use ordofp::vernacular::{IntoValidated, Validated};
+use ordofp::vernacular::{IntoValidated, Located, PathSegment, Validated};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Problem {
     Missing,
     NotUnsigned,
     StartAfterEnd,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct LocatedIssue {
-    field: &'static str,
-    problem: Problem,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -38,14 +31,11 @@ struct Window {
 }
 
 impl TryFrom<ParsedWindow> for Window {
-    type Error = LocatedIssue;
+    type Error = Located<Problem>;
 
     fn try_from(parsed: ParsedWindow) -> Result<Self, Self::Error> {
         if parsed.start > parsed.end {
-            Err(LocatedIssue {
-                field: "window",
-                problem: Problem::StartAfterEnd,
-            })
+            Err(Located::field("window", Problem::StartAfterEnd))
         } else {
             Ok(Self {
                 start: parsed.start,
@@ -61,7 +51,7 @@ impl Window {
     }
 
     // Borrow the source; a failed replacement leaves the original unchanged.
-    fn with_start(&self, start: u32) -> Result<Self, LocatedIssue> {
+    fn with_start(&self, start: u32) -> Result<Self, Located<Problem>> {
         Self::try_from(ParsedWindow {
             start,
             end: self.end,
@@ -69,26 +59,18 @@ impl Window {
     }
 }
 
-fn parse_endpoint(value: &str, field: &'static str) -> Validated<LocatedIssue, u32> {
+fn parse_endpoint(value: &str, field: &'static str) -> Validated<Located<Problem>, u32> {
     let value = value.trim();
     if value.is_empty() {
-        return Validated::invalid(LocatedIssue {
-            field,
-            problem: Problem::Missing,
-        });
+        return Validated::invalid(Located::field(field, Problem::Missing));
     }
     value.parse::<u32>().map_or_else(
-        |_| {
-            Validated::invalid(LocatedIssue {
-                field,
-                problem: Problem::NotUnsigned,
-            })
-        },
+        |_| Validated::invalid(Located::field(field, Problem::NotUnsigned)),
         Validated::valid,
     )
 }
 
-fn validate_window(raw: RawWindow<'_>) -> Validated<LocatedIssue, Window> {
+fn validate_window(raw: RawWindow<'_>) -> Validated<Located<Problem>, Window> {
     // Independent parsing accumulates errors in start, end order.
     let parsed =
         parse_endpoint(raw.start, "start").map2(parse_endpoint(raw.end, "end"), |start, end| {
@@ -118,6 +100,17 @@ fn main() {
         end: "",
     });
     assert_eq!(rejected.errors().expect("both fields rejected").len(), 2);
+
+    // Add collection context to both errors, preserving their own field paths.
+    let nested = rejected.map_err(|issue| issue.at_index(4).at_field("rows"));
+    assert_eq!(
+        nested.errors().unwrap()[0].path(),
+        &[
+            PathSegment::Field("rows".into()),
+            PathSegment::Index(4),
+            PathSegment::Field("start".into()),
+        ]
+    );
 }
 
 #[cfg(test)]
@@ -133,14 +126,8 @@ mod tests {
         assert_eq!(
             result.errors().unwrap(),
             &[
-                LocatedIssue {
-                    field: "start",
-                    problem: Problem::NotUnsigned,
-                },
-                LocatedIssue {
-                    field: "end",
-                    problem: Problem::Missing,
-                },
+                Located::field("start", Problem::NotUnsigned),
+                Located::field("end", Problem::Missing),
             ]
         );
     }
@@ -153,10 +140,7 @@ mod tests {
         });
         assert_eq!(
             result.errors().unwrap(),
-            &[LocatedIssue {
-                field: "window",
-                problem: Problem::StartAfterEnd,
-            }]
+            &[Located::field("window", Problem::StartAfterEnd)]
         );
     }
 
@@ -192,10 +176,36 @@ mod tests {
         });
         assert_eq!(
             result.errors().unwrap(),
-            &[LocatedIssue {
-                field: "start",
-                problem: Problem::Missing,
-            }]
+            &[Located::field("start", Problem::Missing)]
         );
+    }
+
+    #[test]
+    fn batch_context_preserves_error_order_and_typed_segments() {
+        let result = validate_window(RawWindow {
+            start: "bad",
+            end: "",
+        })
+        .map_err(|issue| issue.at_index(4).at_field("rows"));
+        let errors = result.errors().expect("two located failures");
+        assert_eq!(errors.len(), 2);
+        assert_eq!(
+            errors[0].path(),
+            &[
+                PathSegment::Field("rows".into()),
+                PathSegment::Index(4),
+                PathSegment::Field("start".into()),
+            ]
+        );
+        assert_eq!(
+            errors[1].path(),
+            &[
+                PathSegment::Field("rows".into()),
+                PathSegment::Index(4),
+                PathSegment::Field("end".into()),
+            ]
+        );
+        assert_eq!(errors[0].error(), &Problem::NotUnsigned);
+        assert_eq!(errors[1].error(), &Problem::Missing);
     }
 }
