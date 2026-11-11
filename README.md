@@ -1,113 +1,98 @@
 # OrdoFP
 
+```text
+  ___               _            _____   ____
+ / _ \   _ __    __| |   ___    |  ___| |  _ \
+| | | | | '__|  / _` |  / _ \   | |_    | |_) |
+| |_| | | |    | (_| | | (_) |  |  _|   |  __/
+ \___/  |_|     \__,_|  \___/   |_|     |_|
+```
+
 [![crates.io](https://img.shields.io/crates/v/ordofp.svg)](https://crates.io/crates/ordofp)
 [![docs.rs](https://img.shields.io/docsrs/ordofp)](https://docs.rs/ordofp)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Rust: 1.97+](https://img.shields.io/badge/rust-1.97%2B-blue.svg)](https://www.rust-lang.org)
 
-> **Toolchain**: Builds on **stable Rust** (MSRV **1.97**, Edition 2024). MSRV is pinned per release and may be raised in minor releases to stay near current stable Rust. The optional `nightly` cargo feature enables unstable-Rust acceleration — branch-prediction hints and `portable_simd` kernels — with identical semantics and better codegen.
+**OrdoFP is a functional programming library for Rust.** It gives you typed,
+composable building blocks in one crate that builds on stable Rust. These
+include type classes such as Functor and Monad, optics, heterogeneous lists,
+validation that collects every error, persistent collections and monad
+transformers.
 
-> **Dependencies**: The default build has **zero runtime dependencies** — only the compile-time proc-macro stack (`syn`/`quote`). Everything heavier (serde, tokio/smol, rayon, wgpu) is strictly opt-in behind feature flags.
+## New here? Start with this
 
-> **OrdoFP** - Functional programming toolbelt for Rust
->
-> *"Ordo est parium dispariumque rerum sua cuique loca tribuens dispositio."*
-> — Order is the disposition assigning to each thing its proper place. (St. Augustine)
+### What problem does it solve?
 
-OrdoFP provides powerful functional programming abstractions in Rust, using nomenclature rooted in Catholic scholastic philosophy.
+Rust has a strong type system, but it has no higher-kinded types. Because of
+that, the classic functional toolkit is missing from the standard library.
+That toolkit includes Functor, Applicative and Monad, optics, monad
+transformers and generic programming over structs. Where these tools exist at
+all, they are spread across many small crates that each do one thing.
 
-**The name:** *Ordo* is Latin for *order* — the right arrangement of parts,
-per the Augustine epigraph above — and **FP** stands for **functional
-programming**. The library brings to Rust the discipline pioneered by Haskell
-and refined across the functional-language family (PureScript, Scala, OCaml,
-Koka): programs built by composing typed, law-abiding functions, ordered so
-that each piece has its proper place.
+OrdoFP brings that toolkit together in one coherent library. It is built on
+generic associated types (GATs), so it works on stable Rust.
 
-## Why OrdoFP?
+### Why does it exist?
 
-**In plain terms.** Most software defects come from parts of a program
-affecting each other in ways nobody intended. OrdoFP is a toolkit for building
-Rust programs out of small pieces that state, in their types, what they take
-and what they produce — statements the compiler checks before the program
-ever runs — and that combine into larger pieces which keep those guarantees. The
-payoff is software that is easier to change without breaking: when the rules
-are enforced by the machine instead of by developer discipline, refactoring
-becomes routine instead of risky.
+Many software bugs come from parts of a program affecting each other in ways
+nobody intended. OrdoFP helps you build programs from small pieces whose types
+state what they take and what they return. The compiler checks those
+statements before the program runs, and the pieces keep their guarantees when
+you combine them. When the machine enforces the rules instead of developer
+discipline, changing code becomes routine instead of risky.
 
-**In technical terms.** Rust has a strong type system but no higher-kinded
-types, so the classic functional abstraction stack — Functor / Applicative /
-Monad, optics, monad transformers, datatype-generic programming — is absent
-from `std` and scattered across single-purpose crates where it exists at all.
-OrdoFP provides that stack as one coherent library built on stable Rust's
-GATs: HList-based generic programming, profunctor optics, monad transformers,
-persistent collections, stack-safe recursion schemes, and opt-in
-effect/async/parallel layers. Core typeclass instances are verified against
-fifteen algebraic law families by a companion property-test crate
-(`ordofp_laws`), and allocation and performance behavior are enforced by a
-deterministic regression gate rather than promised in comments. Side-effect
-tracking — making effects part of a function's stated interface — ships as
-the opt-in row-typed `nexus` layer, still maturing (see the maturity notes
-below).
+### What do you get?
 
-**What you get:**
+- **Core type classes:** Functor, Applicative (`Applicatio`), Monad,
+  Semigroup (`Compositio`) and Monoid (`Unitas`), all based on GATs.
+- **Data structures:** HLists (`Coniunctio`), sum types (`Disiunctio`),
+  `NonEmpty`, `Zipper` and persistent collections.
+- **Optics:** lenses, prisms, isos, traversals, affine traversals and indexed
+  access, using a profunctor encoding.
+- **Validation that collects errors:** `Probatum` gathers every error instead
+  of stopping at the first one. Since 0.2.0, an invalid value always holds at
+  least one error (`NonEmptyErrors<E>`).
+- **Generic programming:** automatic conversion from structs to HLists.
+- **Program architecture:** monad transformers, free monads, Church-encoded
+  variants and stack-safe recursion schemes.
+- **Opt-in extras:** async streams and structured concurrency, parallel
+  execution and a row-typed effect system (`nexus`) that is still maturing.
+- **Law checking:** the companion crate `ordofp_laws` tests the core type
+  class instances against fifteen families of algebraic laws.
+- **A small default build:** the default build has no runtime dependencies.
+  serde, tokio, smol, rayon and wgpu are only added when you turn on a feature.
 
-- **Fewer reachable states, fewer bugs** — encode invariants in types (HLists,
-  linear types, validated values) so illegal states fail at compile time, not
-  in production.
-- **Refactor with confidence** — law-checked abstractions compose predictably;
-  if it typechecks against a lawful interface, it behaves like the interface says.
-- **Pay only for what you use** — zero runtime dependencies by default;
-  serde, async runtimes, rayon, and GPU support are strictly opt-in features.
-- **No nightly required** — builds on stable Rust (MSRV 1.97); the optional
-  `nightly` feature adds codegen acceleration with identical semantics.
+### Who is it for?
 
-## Documentation
+OrdoFP is for Rust developers who want Haskell-style or Scala-style functional
+abstractions, checked at compile time, without switching to nightly Rust.
 
-- **[Developer Guide](docs/guide.md)** - Main user manual and tutorial
-- **[Canonical Reference](docs/reference.md)** - Complete API reference, cheatsheets, and tables
-- **[Vernacular API](core/src/vernacular/mod.rs)** - Standard English aliases for all Scholastic types and traits
-- **[Async Guide](docs/async.md)** - Async streams, fibers, and monad transformers
-- **[Bayes Guide](docs/bayes.md)** - Probabilistic programming guide
-- **[Glossarium](docs/glossary.md)** - Scholastic Latin naming convention
-- **[Lineage & Version Notes](docs/migration.md)** - frunk lineage and the 2.x → 0.1.0 version reset
+### What should you expect?
 
-The full topic → file map (including feature flags, unsafe notes, and design decisions) is in **[docs/README.md](docs/README.md)**.
+- **Maturity:** OrdoFP is a 0.x library. Most components have settled APIs and
+  full test coverage (see [Component maturity](#component-maturity)), but the
+  usual 0.x semver caveats apply. Read the [CHANGELOG](CHANGELOG.md) before you
+  upgrade.
+- **Latin names:** OrdoFP names its types with Latin terms from scholastic
+  philosophy, such as `Disiunctio` for a sum type. Every Latin name also has a
+  standard English alias in the [Vernacular API](core/src/vernacular/mod.rs),
+  and the [Glossarium](docs/glossary.md) maps one to the other.
 
-## Core Features
+### Quick start
 
-- **Data Structures**: HList (`Coniunctio`), Disiunctio (`Disiunctio`), `NonEmpty`, `Zipper`, Persistent Collections (PFDS)
-- **Type Classes**: Functor, Applicatio, Monad, Compositio, Unitas (GAT-based)
-- **Optics**: Lenses (`Aspectus`), Prisms (`Divisio`), Isos (`Aequivalentia`), Traversals (`Iteratio`), Affine (`IteratioAffinis`), indexed access (`Ad`/`Ix`), profunctor encoding
-- **Universalis Programming**: Automatic struct-to-HList conversion
-- **Effects & Async**: `Flumen` streams, `Fibra` structured concurrency, row-typed effects (`nexus`), Monad Transformers
-- **Program Architecture**: Free monads, Church-encoded variants, recursion schemes, law-checking companion crate
-- **Performance**: Stack-safe recursion, branch prediction hints, parallel execution (`ParFlumen`, `rayon`, `gpu-wgpu`)
-
-## Feature Flags
-
-Defaults: `std`, `derives`, `proc-macros`, `Probatum`. All other features (`serde`, `async`, `tokio`/`smol`, `fusion`, `linear`, `par`/`rayon`, `gpu-wgpu`, `transformers-cps`, `nexus`, …) are opt-in and additive — see **[docs/FEATURE_FLAGS.md](docs/FEATURE_FLAGS.md)** for the canonical matrix with descriptions and dependencies.
-
-## Quick Start
-
-Add to `Cargo.toml`:
+Add OrdoFP to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ordofp = "0.1"
+ordofp = "0.2"
 ```
 
-For opt-in features (linear types, async, parallelism, etc.):
-
-```toml
-[dependencies]
-ordofp = { version = "0.2", features = ["derives", "linear", "async", "par", "rayon"] }
-```
-
-### Simple Example
+Then try a small example:
 
 ```rust
-use ordofp::prelude::*;
+use ordofp::hlist;
 use ordofp::monoid::combine_all;
+use ordofp::prelude::*;
 
 fn main() {
     // Monadic chaining
@@ -120,18 +105,65 @@ fn main() {
     let v = vec![Some(1), Some(3)];
     assert_eq!(combine_all(&v), Some(4));
 
-    // HList (Heterogeneous List)
+    // HList (heterogeneous list)
     let h = hlist![1, "hello", true];
-    let (head, tail) = h.pop();
+    let (head, _tail) = h.pop();
     assert_eq!(head, 1);
 }
 ```
 
-See [docs/guide.md](docs/guide.md) for detailed usage examples.
+To turn on optional features, such as linear types, async or parallelism, list
+them in `Cargo.toml`:
+
+```toml
+[dependencies]
+ordofp = { version = "0.2", features = ["derives", "linear", "async", "par", "rayon"] }
+```
+
+For a full walkthrough, read the [Developer Guide](docs/guide.md).
+
+## Requirements
+
+- **Rust:** stable Rust 1.97 or newer, edition 2024. The minimum supported
+  Rust version (MSRV) is pinned for each release. A minor release may raise it
+  so that it stays close to current stable Rust.
+- **Nightly (optional):** the `nightly` cargo feature uses unstable Rust for
+  better generated code, through branch prediction hints and `portable_simd`
+  kernels. Behavior is the same with or without it.
+- **Dependencies:** the default build has no runtime dependencies. It only
+  uses the compile-time proc-macro stack (`syn` and `quote`). Heavier
+  dependencies such as serde, tokio, smol, rayon and wgpu are added only by
+  opt-in feature flags.
+
+## Core features
+
+- **Data structures:** HList (`Coniunctio`), `Disiunctio`, `NonEmpty`,
+  `Zipper` and persistent collections (PFDS).
+- **Type classes:** Functor, Applicatio, Monad, Compositio and Unitas, based on
+  GATs.
+- **Optics:** lenses (`Aspectus`), prisms (`Divisio`), isos (`Aequivalentia`),
+  traversals (`Iteratio`), affine traversals (`IteratioAffinis`), indexed
+  access (`Ad` and `Ix`) and a profunctor encoding.
+- **Universalis programming:** automatic conversion from structs to HLists.
+- **Effects and async:** `Flumen` streams, `Fibra` structured concurrency,
+  row-typed effects (`nexus`) and monad transformers.
+- **Program architecture:** free monads, Church-encoded variants, recursion
+  schemes and a companion crate for law checking.
+- **Performance:** stack-safe recursion, branch prediction hints and parallel
+  execution (`ParFlumen`, `rayon` and `gpu-wgpu`).
+
+## Feature flags
+
+The default features are `std`, `derives`, `proc-macros` and `Probatum`. All
+other features are opt-in and additive. They include `serde`, `async`, `tokio`,
+`smol`, `fusion`, `linear`, `par`, `rayon`, `gpu-wgpu`, `transformers-cps` and
+`nexus`, among others. See [docs/FEATURE_FLAGS.md](docs/FEATURE_FLAGS.md) for
+the full matrix, with a description and the dependencies of each feature.
 
 ## Component maturity
 
-OrdoFP is at **v0.1.2**. The components below have settled APIs and full test coverage within this repository, but the usual 0.x semver caveats apply.
+OrdoFP is at **v0.2.0**. The components below have settled APIs and full test
+coverage in this repository, but the usual 0.x semver caveats apply.
 
 | Component | Maturity |
 |-----------|----------|
@@ -143,43 +175,85 @@ OrdoFP is at **v0.1.2**. The components below have settled APIs and full test co
 | Linear Types | Mature (Affine discipline) |
 | ParFlumen (Parallel) | Mature |
 
-Not listed above: the row-typed effect system is an opt-in feature (`nexus`), and `ordofp_bayes` implements single-step SMC and single-site trace MCMC (see the scope notes in [docs/bayes.md](docs/bayes.md)).
+Two parts are not in the table. The row-typed effect system is an opt-in
+feature (`nexus`). `ordofp_bayes` implements single-step SMC and single-site
+trace MCMC. See the scope notes in [docs/bayes.md](docs/bayes.md).
 
-Nexus's specialized state, reader and error computations execute; generic
-operations still include panic stubs. Async traversal and cleanup also have
-specific limits: the parallel-named Vec traversal is sequential, and ResAsync
-does not invoke its stored release callback. See the [maturity boundaries](docs/FEATURE_FLAGS.md#async-and-nexus-maturity-boundaries)
-before choosing these opt-in APIs.
+Some opt-in APIs have known limits:
 
-## Documentation & Principles
+- In Nexus, the specialized state, reader and error computations run, but
+  generic operations still include panic stubs.
+- The parallel-named Vec traversal in the async layer runs sequentially.
+- `ResAsync` does not call its stored release callback.
 
-- **[Tutorial & Guide](docs/guide.md)** — Core walkthroughs and patterns
-- **[API Reference & Cheatsheets](docs/reference.md)** — Quick reference and macro cheatsheets
-- **[Core Principles & Axioms](docs/axioms.md)** — Design axioms derived from audits and empirical refactoring
-- **[Feature Flags Matrix](docs/FEATURE_FLAGS.md)** — Canonical feature dependencies and flags
-- **[Scholastic & Vernacular Glossary](docs/glossary.md)** — Latin and English name mappings
+Read the [maturity boundaries](docs/FEATURE_FLAGS.md#async-and-nexus-maturity-boundaries)
+before you choose these APIs.
+
+## Documentation
+
+- **[Developer Guide](docs/guide.md):** the main user manual and tutorial.
+- **[Canonical Reference](docs/reference.md):** the complete API reference,
+  with cheatsheets and tables.
+- **[Vernacular API](core/src/vernacular/mod.rs):** standard English aliases
+  for all Scholastic types and traits.
+- **[Async Guide](docs/async.md):** async streams, fibers and monad
+  transformers.
+- **[Bayes Guide](docs/bayes.md):** probabilistic programming.
+- **[Glossarium](docs/glossary.md):** the Scholastic Latin naming convention,
+  with Latin and English name mappings.
+- **[Core Principles and Axioms](docs/axioms.md):** design axioms drawn from
+  audits and real refactoring work.
+- **[Feature Flags Matrix](docs/FEATURE_FLAGS.md):** the canonical list of
+  features and their dependencies.
+- **[Lineage and Version Notes](docs/migration.md):** the frunk lineage and the
+  version reset from 2.x to 0.1.0.
+
+The map of every topic to its file, including feature flags, unsafe notes and
+design decisions, is in **[docs/README.md](docs/README.md)**.
+
+## The name
+
+*Ordo* is Latin for *order*, meaning the right arrangement of parts. **FP**
+stands for **functional programming**. The library brings to Rust the
+discipline that Haskell pioneered and that the wider family of functional
+languages (PureScript, Scala, OCaml and Koka) refined. Programs are built by
+composing typed functions that obey laws, and each piece has its proper place.
+
+> *"Ordo est parium dispariumque rerum sua cuique loca tribuens dispositio."*
+>
+> Order is the disposition assigning to each thing its proper place.
+> (St. Augustine)
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites and workflow,
-and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+prerequisites and workflow, and read the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Verification is machine-owned and deterministic: `cargo run -p xtask -- all` — format check,
-strict Clippy `-D warnings`, all-features test suite, rustdoc, stable MSRV check, `cargo-deny`,
-wasm32 build, and the 12-configuration feature matrix — is the merge bar locally and in GitHub Actions CI.
+Verification is automated and deterministic. The merge bar, both locally and in
+GitHub Actions CI, is one command:
+
+```text
+cargo run -p xtask -- all
+```
+
+It runs the format check, strict Clippy with `-D warnings`, the all-features
+test suite, rustdoc, a stable MSRV check, `cargo-deny`, a wasm32 build and the
+12-configuration feature matrix.
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE) for details.
+OrdoFP is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for
+details.
 
-Adapted third-party code is inventoried in
+Adapted third-party code is listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Support the work
 
-If OrdoFP saves you time or helps you build more reliable Rust software, consider
-[sponsoring my work](https://github.com/sponsors/ordokr). Your support helps fund
-maintenance, reliability improvements, documentation, and practical examples.
+If OrdoFP saves you time or helps you build more reliable Rust software, please
+consider [sponsoring my work](https://github.com/sponsors/ordokr). Your support
+helps fund maintenance, reliability improvements, documentation and practical
+examples.
 
 Thank you for helping sustain independent development.
 

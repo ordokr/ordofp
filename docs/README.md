@@ -1,6 +1,6 @@
 # OrdoFP documentation index
 
-Topic → file map. One canonical location per topic.
+This page maps each topic to its file. Each topic has one canonical location.
 
 ## Using the library
 
@@ -10,7 +10,7 @@ Topic → file map. One canonical location per topic.
 | API reference, cheatsheets, macro/error tables | [reference.md](reference.md) |
 | Async: `Futurus`, `Flumen`, `Fibra`, async transformers, runtimes | [async.md](async.md) |
 | Probabilistic programming (`ordofp_bayes`) | [bayes.md](bayes.md) |
-| Feature flags — canonical matrix (source of truth: root `Cargo.toml`) | [FEATURE_FLAGS.md](FEATURE_FLAGS.md) |
+| Feature flags: the canonical matrix (the source of truth is the root `Cargo.toml`) | [FEATURE_FLAGS.md](FEATURE_FLAGS.md) |
 | Scholastic Latin naming convention & full name inventory | [glossary.md](glossary.md) |
 | Lineage & version notes (version-reset rationale, frunk lineage) | [migration.md](migration.md) |
 
