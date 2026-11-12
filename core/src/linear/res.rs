@@ -17,6 +17,26 @@ struct Guard<A, R: FnOnce(A)> {
     release: Option<R>,
 }
 
+impl<A, R: FnOnce(A)> Guard<A, R> {
+    const fn arm(resource: A, release: R) -> Self {
+        Self {
+            resource: Some(resource),
+            release: Some(release),
+        }
+    }
+
+    /// Take the resource and its release back without releasing.
+    fn disarm(mut self) -> (A, R) {
+        (
+            self.resource.take().expect("guard is armed until disarmed"),
+            self.release.take().expect("guard is armed until disarmed"),
+        )
+    }
+}
+
+/// Boxed release action for one acquired resource.
+type Release<A> = Box<dyn FnOnce(A) + Send>;
+
 impl<A, R: FnOnce(A)> Drop for Guard<A, R> {
     fn drop(&mut self) {
         if let (Some(resource), Some(release)) = (self.resource.take(), self.release.take()) {
@@ -52,8 +72,9 @@ impl<A, R: FnOnce(A)> Drop for Guard<A, R> {
 /// assert_eq!(len, "contents of data.txt".len());
 /// ```
 pub struct Res<R, A> {
-    acquire: Box<dyn FnOnce() -> A + Send>,
-    release: Box<dyn FnOnce(A) + Send>,
+    /// Acquisition hands back the resource together with its own release, so
+    /// a composite can guard each member before acquiring the next one.
+    acquire: Box<dyn FnOnce() -> (A, Release<A>) + Send>,
     _resource: PhantomData<R>,
 }
 
@@ -82,8 +103,7 @@ impl<R, A> Res<R, A> {
         Rel: FnOnce(A) + Send + 'static,
     {
         Self {
-            acquire: Box::new(acquire),
-            release: Box::new(release),
+            acquire: Box::new(move || (acquire(), Box::new(release) as Release<A>)),
             _resource: PhantomData,
         }
     }
@@ -118,11 +138,8 @@ impl<R, A> Res<R, A> {
     where
         F: FnOnce(&A) -> B,
     {
-        let resource = (self.acquire)();
-        let guard = Guard {
-            resource: Some(resource),
-            release: Some(self.release),
-        };
+        let (resource, release) = (self.acquire)();
+        let guard = Guard::arm(resource, release);
         // SAFETY: The resource is always present until the guard is dropped.
         let result = f(guard.resource.as_ref().unwrap());
         drop(guard);
@@ -142,11 +159,8 @@ impl<R, A> Res<R, A> {
     where
         F: FnOnce(&mut A) -> B,
     {
-        let resource = (self.acquire)();
-        let mut guard = Guard {
-            resource: Some(resource),
-            release: Some(self.release),
-        };
+        let (resource, release) = (self.acquire)();
+        let mut guard = Guard::arm(resource, release);
         // SAFETY: The resource is always present until the guard is dropped.
         let result = f(guard.resource.as_mut().unwrap());
         drop(guard);
@@ -157,6 +171,9 @@ impl<R, A> Res<R, A> {
     ///
     /// This creates a new `Res` that acquires the original resource,
     /// transforms it, and releases the transformed resource.
+    ///
+    /// `transform` and `inverse` take the resource by value, so a panic inside
+    /// either one has already consumed it and its release cannot run.
     #[inline]
     pub fn fmap<B, F, G>(self, transform: F, inverse: G) -> Res<R, B>
     where
@@ -165,11 +182,14 @@ impl<R, A> Res<R, A> {
         A: 'static,
     {
         let acquire = self.acquire;
-        let release = self.release;
-
         Res {
-            acquire: Box::new(move || transform((acquire)())),
-            release: Box::new(move |b| (release)(inverse(b))),
+            acquire: Box::new(move || {
+                let (a, release) = (acquire)();
+                (
+                    transform(a),
+                    Box::new(move |b| release(inverse(b))) as Release<B>,
+                )
+            }),
             _resource: PhantomData,
         }
     }
@@ -178,7 +198,14 @@ impl<R, A> Res<R, A> {
 impl<R, A: 'static + Send> Res<R, A> {
     /// Combine two resources into a single resource.
     ///
-    /// Both resources are acquired, and both are released when done.
+    /// Both resources are acquired in order and released in reverse order.
+    /// If acquiring `other` panics, `self` is released before the panic
+    /// propagates; if releasing `other` panics, `self` is still released.
+    ///
+    /// # Panics
+    ///
+    /// Propagates a panic from either acquire or release action, after
+    /// releasing every resource already acquired.
     ///
     /// # Example
     ///
@@ -195,16 +222,19 @@ impl<R, A: 'static + Send> Res<R, A> {
     #[inline]
     #[must_use]
     pub fn zip<B: 'static + Send>(self, other: Res<R, B>) -> Res<R, (A, B)> {
-        let acquire1 = self.acquire;
-        let release1 = self.release;
-        let acquire2 = other.acquire;
-        let release2 = other.release;
-
+        let (acquire1, acquire2) = (self.acquire, other.acquire);
         Res {
-            acquire: Box::new(move || ((acquire1)(), (acquire2)())),
-            release: Box::new(move |(a, b)| {
-                (release1)(a);
-                (release2)(b);
+            acquire: Box::new(move || {
+                let (a, release1) = (acquire1)();
+                let first = Guard::arm(a, release1);
+                let (b, release2) = (acquire2)();
+                let (a, release1) = first.disarm();
+                let release = move |(a, b): (A, B)| {
+                    // Armed before `release2` runs, so `a` is released last even if it panics.
+                    let _first = Guard::arm(a, release1);
+                    release2(b);
+                };
+                ((a, b), Box::new(release) as Release<(A, B)>)
             }),
             _resource: PhantomData,
         }
