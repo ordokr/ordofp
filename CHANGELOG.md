@@ -6,6 +6,21 @@ All notable changes to OrdoFP are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Composed resources no longer leak on a panic. `async_core::res::{zip_res,
+  zip_all_res}` and `linear::Res::zip` acquired every member inside one closure
+  before the cleanup guard existed, so a panicking later acquire dropped the
+  earlier members without running their release; a panicking member release
+  also skipped the remaining releases. Each member is now guarded the moment it
+  is acquired, every release runs, and the panic propagates afterwards.
+- `linear::Res::zip` releases in reverse acquisition order, matching
+  `zip_res`; it previously released the first resource first.
+- `mutare` / `fmap` now document that a panic inside the by-value transform or
+  inverse consumes the resource, so its release cannot run.
+
+## [0.2.0] - 2026-11-11
+
 ### Breaking (0.2.0: ordofp, ordofp_core, ordofp_laws)
 
 - `Probatum::Invalid` now holds `NonEmptyErrors<E>` (Latin `ErroresNonVacui`), a

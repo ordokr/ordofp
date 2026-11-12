@@ -45,6 +45,7 @@
 //! ```
 
 use alloc::boxed::Box;
+use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::future::Future;
 use core::marker::PhantomData;
@@ -87,9 +88,13 @@ use super::fibra::{Fibra, FibraExitus};
 /// assert_eq!(result, 42);
 /// ```
 pub struct Res<A> {
-    acquire: Box<dyn FnOnce() -> A + Send>,
-    release: Box<dyn FnOnce(A) + Send>,
+    /// Acquisition hands back the resource together with its own release, so
+    /// a composite can guard each member before acquiring the next one.
+    acquire: Box<dyn FnOnce() -> (A, Release<A>) + Send>,
 }
+
+/// Boxed release action for one acquired resource.
+type Release<A> = Box<dyn FnOnce(A) + Send>;
 
 /// Drop guard shared by every bracket entry point: releases the resource
 /// even if the use-function unwinds.
@@ -99,6 +104,23 @@ pub struct Res<A> {
 struct Custos<A, Rel: FnOnce(A)> {
     resource: Option<A>,
     release: Option<Rel>,
+}
+
+impl<A, Rel: FnOnce(A)> Custos<A, Rel> {
+    const fn arm(resource: A, release: Rel) -> Self {
+        Self {
+            resource: Some(resource),
+            release: Some(release),
+        }
+    }
+
+    /// Take the resource and its release back without releasing.
+    fn disarm(mut self) -> (A, Rel) {
+        (
+            self.resource.take().expect("guard is armed until disarmed"),
+            self.release.take().expect("guard is armed until disarmed"),
+        )
+    }
 }
 
 impl<A, Rel: FnOnce(A)> Drop for Custos<A, Rel> {
@@ -126,8 +148,7 @@ impl<A> Res<A> {
         Rel: FnOnce(A) + Send + 'static,
     {
         Self {
-            acquire: Box::new(acquire),
-            release: Box::new(release),
+            acquire: Box::new(move || (acquire(), Box::new(release) as Release<A>)),
         }
     }
 
@@ -141,8 +162,7 @@ impl<A> Res<A> {
         A: Send + 'static,
     {
         Self {
-            acquire: Box::new(move || value),
-            release: Box::new(|_| {}),
+            acquire: Box::new(move || (value, Box::new(|_: A| {}) as Release<A>)),
         }
     }
 
@@ -165,10 +185,8 @@ impl<A> Res<A> {
     where
         F: FnOnce(&A) -> B,
     {
-        let custos = Custos {
-            resource: Some((self.acquire)()),
-            release: Some(self.release),
-        };
+        let (resource, release) = (self.acquire)();
+        let custos = Custos::arm(resource, release);
         let result = f(custos
             .resource
             .as_ref()
@@ -201,10 +219,8 @@ impl<A> Res<A> {
     where
         F: FnOnce(&mut A) -> B,
     {
-        let mut custos = Custos {
-            resource: Some((self.acquire)()),
-            release: Some(self.release),
-        };
+        let (resource, release) = (self.acquire)();
+        let mut custos = Custos::arm(resource, release);
         let result = f(custos
             .resource
             .as_mut()
@@ -217,6 +233,9 @@ impl<A> Res<A> {
     ///
     /// The mapping function is applied during acquisition.
     ///
+    /// `f` and `g` take the resource by value, so a panic inside either one
+    /// has already consumed it and its release cannot run.
+    ///
     /// # Latin Etymology
     /// *Mutare* = to change.
     #[inline]
@@ -227,17 +246,26 @@ impl<A> Res<A> {
         A: 'static,
         B: Send + 'static,
     {
-        let Self { acquire, release } = self;
+        let acquire = self.acquire;
         Res {
-            acquire: Box::new(move || f((acquire)())),
-            release: Box::new(move |b| (release)(g(b))),
+            acquire: Box::new(move || {
+                let (a, release) = (acquire)();
+                (f(a), Box::new(move |b| release(g(b))) as Release<B>)
+            }),
         }
     }
 }
 
 /// Combine two resources.
 ///
-/// Both are acquired in order, and released in reverse order.
+/// Both are acquired in order, and released in reverse order. If acquiring
+/// the second panics, the first is released before the panic propagates; if
+/// releasing the second panics, the first is still released.
+///
+/// # Panics
+///
+/// Propagates a panic from either acquire or release action, after releasing
+/// every resource already acquired.
 #[inline]
 #[must_use]
 pub fn zip_res<A, B>(ra: Res<A>, rb: Res<B>) -> Res<(A, B)>
@@ -245,30 +273,33 @@ where
     A: Send + 'static,
     B: Send + 'static,
 {
-    let Res {
-        acquire: acq_a,
-        release: rel_a,
-    } = ra;
-    let Res {
-        acquire: acq_b,
-        release: rel_b,
-    } = rb;
-
+    let (acq_a, acq_b) = (ra.acquire, rb.acquire);
     Res {
         acquire: Box::new(move || {
-            let a = (acq_a)();
-            let b = (acq_b)();
-            (a, b)
-        }),
-        release: Box::new(move |(a, b)| {
-            // Release in reverse order
-            (rel_b)(b);
-            (rel_a)(a);
+            let (a, rel_a) = (acq_a)();
+            let first = Custos::arm(a, rel_a);
+            let (b, rel_b) = (acq_b)();
+            let (a, rel_a) = first.disarm();
+            let release = move |(a, b): (A, B)| {
+                // Armed before `rel_b` runs, so `a` is released last even if `rel_b` panics.
+                let _first = Custos::arm(a, rel_a);
+                rel_b(b);
+            };
+            ((a, b), Box::new(release) as Release<(A, B)>)
         }),
     }
 }
 
 /// Combine multiple resources.
+///
+/// Acquired in order and released in reverse order. A panic while acquiring
+/// member N releases members `N-1..=1`; a panic while releasing one member
+/// still releases the rest.
+///
+/// # Panics
+///
+/// Propagates a panic from any acquire or release action, after releasing
+/// every resource already acquired.
 #[inline]
 #[must_use]
 pub fn zip_all_res<A>(resources: Vec<Res<A>>) -> Res<Vec<A>>
@@ -280,21 +311,30 @@ where
     }
 
     let n = resources.len();
-    let mut acquirers: Vec<Box<dyn FnOnce() -> A + Send>> = Vec::with_capacity(n);
-    let mut releasers: Vec<Box<dyn FnOnce(A) + Send>> = Vec::with_capacity(n);
-
-    for res in resources {
-        acquirers.push(res.acquire);
-        releasers.push(res.release);
-    }
+    let acquirers: Vec<_> = resources.into_iter().map(|res| res.acquire).collect();
 
     Res {
-        acquire: Box::new(move || acquirers.into_iter().map(|acq| acq()).collect()),
-        release: Box::new(move |items: Vec<A>| {
-            // Release in reverse order
-            for (item, rel) in items.into_iter().zip(releasers).rev() {
-                rel(item);
+        acquire: Box::new(move || {
+            // Newest first: an unwinding drop releases in reverse acquisition order.
+            let mut held = VecDeque::with_capacity(n);
+            for acquire in acquirers {
+                let (item, release) = acquire();
+                held.push_front(Custos::arm(item, release));
             }
+            let (items, releases): (Vec<A>, Vec<Release<A>>) =
+                held.into_iter().rev().map(Custos::disarm).unzip();
+            let release = move |items: Vec<A>| {
+                // Dropping a Vec keeps dropping later elements when one panics,
+                // so every member is released, newest first.
+                let guards: Vec<_> = items
+                    .into_iter()
+                    .zip(releases)
+                    .rev()
+                    .map(|(item, release)| Custos::arm(item, release))
+                    .collect();
+                drop(guards);
+            };
+            (items, Box::new(release) as Release<Vec<A>>)
         }),
     }
 }
@@ -389,10 +429,12 @@ impl<A> ResAsync<A> {
     where
         A: Send + 'static,
     {
-        let Res { acquire, release } = res;
+        let acquire = res.acquire;
         Self {
-            acquire: Box::new(move || Box::pin(async move { (acquire)() })),
-            _release: Box::new(move |a| Box::pin(async move { (release)(a) })),
+            // `ResAsync` never runs its release yet (see `_release`), so the
+            // sync release handed back by acquisition is dropped unrun, as before.
+            acquire: Box::new(move || Box::pin(async move { (acquire)().0 })),
+            _release: Box::new(|_| Box::pin(async {})),
         }
     }
 
